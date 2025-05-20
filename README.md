@@ -1,4 +1,4 @@
-# <img src="wakeicon.png" alt="Wake Icon" width="100" height="100" style="vertical-align: middle;"> <span style="font-size: 48px;">Wake</span>
+# Wake <img src="wakeicon.png" alt="Wake Icon" width="36" height="36" align="right">
 
 Wake is a command-line tool for tailing multiple pods and containers in Kubernetes clusters, inspired by [stern](https://github.com/stern/stern).
 
