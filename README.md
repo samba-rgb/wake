@@ -1,4 +1,4 @@
-# Wake
+# <img src="wakeicon.png" alt="Wake Icon" width="100" height="100" style="vertical-align: middle;"> <span style="font-size: 48px;">Wake</span>
 
 Wake is a command-line tool for tailing multiple pods and containers in Kubernetes clusters, inspired by [stern](https://github.com/stern/stern).
 
@@ -46,31 +46,102 @@ The following enhancements are planned for future versions:
 
 ## Installation
 
+### Prerequisites
+
+- Rust toolchain (1.70.0 or later)
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  ```
+- Git
+
 ### Building from source
 
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/amba-rgb/wake.git
+   cd wake
+   ```
+
+2. Build the project:
+   ```bash
+   # Development build
+   cargo build
+
+   # Release build with optimizations
+   cargo build --release
+   ```
+
+   The binary will be available at:
+   - Development build: `target/debug/wake`
+   - Release build: `target/release/wake`
+
+3. Run tests (optional):
+   ```bash
+   cargo test
+   ```
+
+### Installation
+
+After building, you can install the binary to your system:
+
 ```bash
-cargo build --release
+# Install to ~/.cargo/bin
+cargo install --path .
+
+# Or copy the release binary to a location in your PATH
+cp target/release/wake ~/.local/bin/
 ```
 
-The binary will be available at `target/release/wake`
+### Development Setup
+
+1. Configure your development environment:
+   ```bash
+   # Set up git hooks
+   cargo install cargo-husky
+   cargo husky install
+
+   # Install development dependencies
+   cargo install cargo-watch  # For auto-recompilation
+   cargo install cargo-audit  # For security auditing
+   ```
+
+2. Development workflow:
+   ```bash
+   # Auto-rebuild on changes
+   cargo watch -x build
+
+   # Run tests in watch mode
+   cargo watch -x test
+
+   # Check code formatting
+   cargo fmt --all -- --check
+
+   # Run linter
+   cargo clippy
+   ```
+
+For setting up a local Kubernetes test environment with sample applications, see the [Development Environment Guide](dev/README.md).
 
 ## Usage
 
-```
+```bash
 # Tail logs from all pods in the default namespace
 wake
 
 # Tail logs from pods matching 'nginx' in the 'web' namespace
 wake -n web nginx
 
-# Tail logs from a specific deployment
-wake -r deployment/my-app
+# Tail logs from containers matching 'app' in pods matching 'frontend'
+wake frontend -c app
 
 # Show logs with timestamps
 wake -T
 
 # Output logs as JSON
 wake -o json
+
+# Use a regex pattern to filter logs
+wake -n monitoring -i "error|warning"
 ```
 
 ### CLI Options
@@ -87,7 +158,7 @@ Options:
   -i, --include <INCLUDE>      Filter logs by regex pattern
   -E, --exclude <EXCLUDE>      Exclude logs by regex pattern
   -T, --timestamps             Show timestamps in logs
-  -o, --output <OUTPUT>        Output format (text, json, raw) [default: text]
+  -o, --output <o>        Output format (text, json, raw) [default: text]
   -r, --resource <RESOURCE>    Use specific resource type filter (pod, deployment, statefulset)
       --template <TEMPLATE>    Custom template for log output
       --since <SINCE>          Since time (e.g., 5s, 2m, 3h)
@@ -95,6 +166,42 @@ Options:
   -h, --help                   Print help
   -V, --version                Print version
 ```
+
+## Understanding Pod Selectors
+
+The pod selector is a powerful feature that lets you filter which pods to watch. It accepts regular expressions (regex) for flexible matching:
+
+### Pod Selector Examples
+
+```bash
+# Watch all pods that start with 'nginx'
+wake nginx.*
+
+# Watch specific numbered pods (e.g., web-1, web-2)
+wake web-[0-9]+
+
+# Watch multiple specific pods
+wake '(auth|api|frontend).*'
+
+# Watch all pods in a specific namespace that contain 'mysql'
+wake -n database .*mysql.*
+
+# Combine with container selection
+wake nginx.* -c 'main|sidecar'
+```
+
+The pod selector is specified as a positional argument and uses standard regex syntax:
+- `.*` matches any character sequence (e.g., `nginx.*` matches nginx-1234, nginx-abc, etc.)
+- `[0-9]` matches any digit
+- `+` means "one or more" of the previous pattern
+- `|` means "or" (e.g., `(api|web)` matches either api or web)
+- `^` matches start of name, `$` matches end of name
+
+### Best Practices
+- Start with broader patterns and narrow them down if needed
+- Use the `-v` flag to see which pods are being matched
+- Combine with `--container` flag to target specific containers within matched pods
+- When using special regex characters, quote your pattern: `wake '(api|web).*'`
 
 ## License
 

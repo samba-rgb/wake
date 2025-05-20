@@ -101,6 +101,27 @@ impl Formatter {
 }
 ```
 
+### Template Functions
+- `formatTime`: Format timestamps in various formats (RFC3339, RFC822, etc.)
+- `toJson`: Convert structured data to JSON format
+- `toPrettyJson`: Convert to formatted JSON with indentation
+- `colorize`: Apply color formatting based on severity/source
+- `truncate`: Limit string length with ellipsis
+- `match`: Apply regex matching and extraction
+- `default`: Provide default values for missing fields
+
+### Template Variables
+Available variables in templates:
+- `{{.Namespace}}`: Pod namespace
+- `{{.PodName}}`: Name of the pod
+- `{{.ContainerName}}`: Container name
+- `{{.Message}}`: Log message content
+- `{{.Timestamp}}`: Log timestamp
+- `{{.Labels}}`: Pod labels map
+- `{{.Annotations}}`: Pod annotations
+- `{{.NodeName}}`: Node where pod is running
+- `{{.ResourceVersion}}`: Pod resource version
+
 ### Directory Structure Changes
 ```
 src/
@@ -149,6 +170,38 @@ mod tests {
     // More tests...
 }
 ```
+
+### Test Categories
+1. Unit Tests
+   - CLI argument parsing and validation
+   - Template parsing and rendering
+   - Resource type detection
+   - Label selector parsing
+   - Configuration file loading
+   - Log entry formatting
+
+2. Integration Tests
+   - Kubernetes API interaction
+   - Log streaming functionality
+   - Resource filtering
+   - Multi-container log handling
+   - Error handling and recovery
+   - Performance with large log volumes
+
+3. End-to-End Tests
+   - Full workflow scenarios
+   - Configuration file usage
+   - Template customization
+   - Label-based filtering
+   - Resource type filtering
+   - Shell completion functionality
+
+4. Performance Tests
+   - Log streaming throughput
+   - Memory usage monitoring
+   - CPU utilization tracking
+   - Connection handling
+   - Large cluster scalability
 
 ### Directory Structure Changes
 ```
@@ -215,6 +268,61 @@ impl Config {
 }
 ```
 
+### Configuration Options
+Available configuration options:
+```yaml
+# Wake Configuration File
+
+# Kubernetes Settings
+kubernetes:
+  default_namespace: "default"
+  kubeconfig_path: "~/.kube/config"
+  context: "minikube"
+  timeout: 30s
+  retry_interval: 5s
+
+# Log Display Settings
+display:
+  colors: true
+  timestamps: false
+  output_format: "text"
+  max_line_length: 1000
+  template: "{{.Timestamp}} {{.Namespace}}/{{.PodName}}/{{.ContainerName}} {{.Message}}"
+
+# Resource Selection
+selection:
+  default_tail: 10
+  follow: true
+  exclude_patterns:
+    - "health|readiness|liveness"
+    - "metrics-scraper"
+  include_patterns:
+    - "error|warning|fatal"
+
+# Label Settings
+labels:
+  default_selectors:
+    - "app=myapp"
+    - "environment=production"
+  exclude_labels:
+    - "monitoring=disabled"
+
+# Templates
+templates:
+  compact: "{{.PodName}}/{{.ContainerName}}: {{.Message}}"
+  detailed: |
+    Pod: {{.PodName}}
+    Container: {{.ContainerName}}
+    Message: {{.Message}}
+    Time: {{formatTime .Timestamp "RFC3339"}}
+  json: |
+    {
+      "pod": "{{.PodName}}",
+      "container": "{{.ContainerName}}",
+      "message": {{toJson .Message}}
+    }
+```
+
 ### Directory Structure Changes
 ```
 src/
@@ -251,6 +359,39 @@ pub fn generate_completion(shell: Shell) -> Result<(), io::Error> {
     generate(shell, &mut app, app_name, &mut io::stdout());
     Ok(())
 }
+```
+
+### Dynamic Completion Features
+1. Resource Types
+   - Complete resource type names (pod, deployment, etc.)
+   - Show aliases (deploy, sts, ds)
+   - Filter based on cluster capabilities
+
+2. Namespace Completion
+   - List available namespaces
+   - Show namespace status
+   - Cache results for performance
+
+3. Context Completion
+   - List available contexts
+   - Show current context
+   - Include cluster info
+
+4. Label Completion
+   - Complete known label keys
+   - Suggest common values
+   - Support multiple label selectors
+
+### Installation
+```bash
+# For Bash
+wake completion bash > /etc/bash_completion.d/wake
+
+# For Zsh
+wake completion zsh > ~/.zsh/completion/_wake
+
+# For Fish
+wake completion fish > ~/.config/fish/completions/wake.fish
 ```
 
 ### Directory Structure Changes
@@ -306,34 +447,36 @@ pub async fn select_pods_by_label(
 }
 ```
 
-### Directory Structure Changes
-No new files, but updates to existing files:
-- `src/cli/args.rs`
-- `src/k8s/pod.rs`
-- `src/k8s/selector.rs`
+### Label Selector Syntax
+1. Equality-based
+   - `environment=production`
+   - `tier!=frontend`
+   - Multiple: `app=nginx,environment=prod`
 
-## Implementation Timeline
+2. Set-based
+   - `environment in (prod,staging)`
+   - `tier notin (frontend,backend)`
+   - `!version`
 
-1. **Resource Detection** - 1-2 weeks
-   - Research Kubernetes owner references
-   - Implement resource filtering
-   
-2. **Custom Output Templates** - 1-2 weeks
-   - Create template parsing system
-   - Implement rendering engine
-   
-3. **Tests** - Ongoing
-   - Set up testing framework
-   - Create mock Kubernetes API
-   
-4. **Configuration File Support** - 1 week
-   - Implement config loading
-   - Add support for standard paths
-   
-5. **Shell Completion Scripts** - 3-5 days
-   - Implement completion generation
-   - Document installation
-   
-6. **Label Filtering** - 1 week
-   - Add label selector options
-   - Implement filtering logic
+3. Complex Selectors
+   - `app=nginx,tier in (frontend,backend),!beta`
+   - `environment=production,!canary,version notin (v1,v2)`
+
+### Implementation Details
+1. Label Parser
+   - Tokenize label expressions
+   - Parse set operations
+   - Validate syntax
+   - Convert to Kubernetes API format
+
+2. Label Matcher
+   - Implement matching logic
+   - Handle multiple selectors
+   - Support set operations
+   - Cache common patterns
+
+3. Performance Optimizations
+   - Index label lookups
+   - Cache selector parsing
+   - Batch API requests
+   - Optimize regex compilation

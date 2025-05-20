@@ -108,3 +108,64 @@ async fn get_all_namespaces(client: &Client) -> Result<Vec<String>> {
     
     Ok(names)
 }
+
+/// List container names for all pods matching the given regex
+pub async fn list_container_names(
+    client: &Client,
+    namespace: &str,
+    pod_regex: &Regex,
+    all_namespaces: bool,
+) -> Result<()> {
+    let pods_api: Api<Pod>;
+    
+    if all_namespaces {
+        pods_api = Api::all(client.clone());
+    } else {
+        pods_api = Api::namespaced(client.clone(), namespace);
+    }
+    
+    let pods = pods_api.list(&Default::default()).await?;
+    
+    let mut found_pods = false;
+    for pod in pods.items {
+        let pod_name = pod.metadata.name.as_deref().unwrap_or("");
+        if !pod_regex.is_match(pod_name) {
+            continue;
+        }
+        
+        found_pods = true;
+        let pod_namespace = pod.metadata.namespace.as_deref().unwrap_or("default");
+        
+        println!("Pod: {}/{}", pod_namespace, pod_name);
+        
+        if let Some(spec) = pod.spec {
+            println!("  Containers:");
+            for container in spec.containers {
+                println!("  - {}", container.name);
+            }
+            
+            if let Some(init_containers) = spec.init_containers {
+                println!("  Init Containers:");
+                for container in init_containers {
+                    println!("  - {} (init)", container.name);
+                }
+            }
+            
+            if let Some(ephemeral_containers) = spec.ephemeral_containers {
+                println!("  Ephemeral Containers:");
+                for container in ephemeral_containers {
+                    println!("  - {} (ephemeral)", container.name);
+                }
+            }
+            
+            println!("");
+        }
+    }
+    
+    if !found_pods {
+        println!("No pods found matching the pattern \"{}\" in namespace \"{}\"", 
+                 pod_regex, if all_namespaces { "all namespaces" } else { namespace });
+    }
+    
+    Ok(())
+}

@@ -13,6 +13,14 @@ pub struct Args {
     #[arg(short, long, default_value = ".*")]
     pub container: String,
 
+    /// List all containers in matched pods (without streaming logs)
+    #[arg(short = 'L', long)]
+    pub list_containers: bool,
+    
+    /// Show logs from all containers in the pod (similar to kubectl logs --all-containers)
+    #[arg(long = "all-containers")]
+    pub all_containers: bool,
+
     /// Kubernetes namespace 
     #[arg(short, long, default_value = "default")]
     pub namespace: String,
@@ -111,7 +119,9 @@ impl Default for Args {
             resource: None,
             template: None,
             since: None,
+            list_containers: false,
             verbosity: 0,
+            all_containers: false,
         }
     }
 }

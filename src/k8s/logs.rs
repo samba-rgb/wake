@@ -5,6 +5,7 @@ use futures::Stream;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client};
 use kube::api::LogParams;
+use regex::Regex;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -40,15 +41,21 @@ impl LogWatcher {
     pub async fn stream(&self) -> Result<Pin<Box<dyn Stream<Item = LogEntry> + Send>>> {
         let pod_regex = self.args.pod_regex()
             .context("Invalid pod selector regex")?;
+        
+        // If no specific container is provided (i.e., default pattern ".*") and 
+        // all_containers is false, we need to behave like kubectl logs and use the first container
+        let use_first_container = self.args.container == ".*" && !self.args.all_containers;
+        
+        // If we're not using the first container, use the provided container regex
         let container_regex = self.args.container_regex()
             .context("Invalid container selector regex")?;
         
-        // Get pods matching our criteria
+        // Get pods matching our criteria - always get all containers first
         let pods = select_pods(
             &self.client, 
             &self.args.namespace, 
             &pod_regex, 
-            &container_regex, 
+            &Regex::new(".*").unwrap(), // Get all containers first, we'll filter later
             self.args.all_namespaces,
         ).await?;
         
@@ -56,8 +63,17 @@ impl LogWatcher {
             return Err(anyhow!("No pods found matching the selection criteria"));
         }
         
-        // Create a channel for receiving log entries
-        let (tx, rx) = mpsc::channel::<LogEntry>(100);
+        // Create a channel with larger buffer to handle high-volume logs
+        // Buffer size is based on number of pods * estimated lines per second * buffer time
+        let buffer_size = std::cmp::max(
+            1000,  // Minimum buffer size
+            pods.len() * 100 * 2  // (pods * ~100 lines/s * 2s buffer)
+        );
+        
+        let (tx, rx) = mpsc::channel::<LogEntry>(buffer_size);
+        
+        // Get the since parameter from args
+        let since_param = self.args.since.clone();
         
         // Start streaming logs from each container
         for pod_info in pods {
@@ -67,31 +83,68 @@ impl LogWatcher {
             let timestamps = self.args.timestamps;
             let tx = tx.clone();
             
-            for container_name in &pod_info.containers {
-                let pod_info = pod_info.clone();
-                let container_name = container_name.clone();
-                let tx = tx.clone();
-                let client = client.clone();
+            // If we should use the first container only (kubectl-like behavior)
+            if use_first_container && !pod_info.containers.is_empty() {
+                let first_container = pod_info.containers[0].clone();
+                debug!("Using only first container: {} in pod: {}/{}", 
+                      first_container, pod_info.namespace, pod_info.name);
                 
-                debug!("Starting log stream for {}/{}/{}", 
-                       pod_info.namespace, pod_info.name, container_name);
+                let pod_info_clone = pod_info.clone();
+                let tx_clone = tx.clone();
+                let client_clone = client.clone();
+                let since_clone = since_param.clone();
                 
-                // Spawn a task for each container
                 tokio::spawn(async move {
                     if let Err(e) = Self::stream_container_logs(
-                        client, 
-                        &pod_info.namespace, 
-                        &pod_info.name, 
-                        &container_name,
+                        client_clone, 
+                        &pod_info_clone.namespace, 
+                        &pod_info_clone.name, 
+                        &first_container,
                         follow,
                         tail_lines,
                         timestamps,
-                        tx
+                        tx_clone,
+                        since_clone
                     ).await {
                         error!("Error streaming logs from {}/{}/{}: {:?}", 
-                               pod_info.namespace, pod_info.name, container_name, e);
+                               pod_info_clone.namespace, pod_info_clone.name, first_container, e);
                     }
                 });
+            } else {
+                // Use all containers that match the regex (or all if all_containers is true)
+                for container_name in &pod_info.containers {
+                    // Skip containers that don't match the regex (unless all_containers is true)
+                    if !self.args.all_containers && !container_regex.is_match(container_name) {
+                        continue;
+                    }
+                    
+                    let pod_info = pod_info.clone();
+                    let container_name = container_name.clone();
+                    let tx = tx.clone();
+                    let client = client.clone();
+                    let since_clone = since_param.clone();
+                    
+                    debug!("Starting log stream for {}/{}/{}", 
+                           pod_info.namespace, pod_info.name, container_name);
+                    
+                    // Spawn a task for each container
+                    tokio::spawn(async move {
+                        if let Err(e) = Self::stream_container_logs(
+                            client, 
+                            &pod_info.namespace, 
+                            &pod_info.name, 
+                            &container_name,
+                            follow,
+                            tail_lines,
+                            timestamps,
+                            tx,
+                            since_clone
+                        ).await {
+                            error!("Error streaming logs from {}/{}/{}: {:?}", 
+                                   pod_info.namespace, pod_info.name, container_name, e);
+                        }
+                    });
+                }
             }
         }
         
@@ -109,6 +162,7 @@ impl LogWatcher {
         tail_lines: i64,
         timestamps: bool,
         tx: mpsc::Sender<LogEntry>,
+        since: Option<String>,
     ) -> Result<()> {
         let pods: Api<Pod> = Api::namespaced(client, namespace);
         
@@ -119,51 +173,148 @@ impl LogWatcher {
         log_params.timestamps = timestamps;
         log_params.container = Some(container_name.to_string());
         
-        let logs = pods.logs(pod_name, &log_params).await?;
+        // Add since parameter if provided
+        if let Some(since_val) = since {
+            log_params.since_seconds = parse_duration_to_seconds(&since_val).ok();
+        }
         
-        // Process each log line
-        for line in logs.lines() {
-            let message = line.trim().to_string();
+        // Use the streaming API instead of getting logs all at once
+        if follow {
+            // For streaming logs continuously
+            use futures::AsyncBufReadExt;
+            use futures::StreamExt;
             
-            // Skip empty lines
-            if message.is_empty() {
-                continue;
-            }
+            let logs = pods.log_stream(pod_name, &log_params).await?;
+            let mut lines = logs.lines();
             
-            // Extract timestamp if present
-            let (timestamp, message) = if timestamps {
-                // Parse timestamp from the beginning of the message
-                // Format is typically "2023-03-21T12:34:56.789012345Z "
-                match message.find(' ') {
-                    Some(space_idx) => {
-                        let time_str = &message[0..space_idx];
-                        match chrono::DateTime::parse_from_rfc3339(time_str) {
-                            Ok(dt) => (Some(dt.with_timezone(&chrono::Utc)), message[space_idx+1..].to_string()),
-                            Err(_) => (None, message),
+            while let Some(line_result) = lines.next().await {
+                match line_result {
+                    Ok(line) => {
+                        let line = line.trim();
+                        if line.is_empty() { continue; }
+                        
+                        // Extract timestamp if present
+                        let (timestamp, message) = if timestamps {
+                            match line.find(' ') {
+                                Some(space_idx) => {
+                                    let time_str = &line[0..space_idx];
+                                    match chrono::DateTime::parse_from_rfc3339(time_str) {
+                                        Ok(dt) => (Some(dt.with_timezone(&chrono::Utc)), line[space_idx+1..].to_string()),
+                                        Err(_) => (None, line.to_string()),
+                                    }
+                                },
+                                None => (None, line.to_string()),
+                            }
+                        } else {
+                            (None, line.to_string())
+                        };
+                        
+                        // Create and send log entry
+                        let entry = LogEntry {
+                            namespace: namespace.to_string(),
+                            pod_name: pod_name.to_string(),
+                            container_name: container_name.to_string(),
+                            message,
+                            timestamp,
+                        };
+                        
+                        if let Err(e) = tx.send(entry).await {
+                            error!("Failed to send log entry: {:?}", e);
+                            return Ok(());
                         }
                     },
-                    None => (None, message),
+                    Err(e) => {
+                        error!("Error reading log line from {}/{}/{}: {:?}", 
+                               namespace, pod_name, container_name, e);
+                    }
                 }
-            } else {
-                (None, message)
-            };
+            }
+        } else {
+            // For one-time fetch of logs
+            let logs = pods.logs(pod_name, &log_params).await?;
             
-            // Create and send log entry
-            let entry = LogEntry {
-                namespace: namespace.to_string(),
-                pod_name: pod_name.to_string(),
-                container_name: container_name.to_string(),
-                message,
-                timestamp,
-            };
-            
-            if let Err(e) = tx.send(entry).await {
-                error!("Failed to send log entry: {:?}", e);
-                break;
+            // Process each log line
+            for line in logs.lines() {
+                let message = line.trim().to_string();
+                
+                // Skip empty lines
+                if message.is_empty() {
+                    continue;
+                }
+                
+                // Extract timestamp if present
+                let (timestamp, message) = if timestamps {
+                    // Parse timestamp from the beginning of the message
+                    match message.find(' ') {
+                        Some(space_idx) => {
+                            let time_str = &message[0..space_idx];
+                            match chrono::DateTime::parse_from_rfc3339(time_str) {
+                                Ok(dt) => (Some(dt.with_timezone(&chrono::Utc)), message[space_idx+1..].to_string()),
+                                Err(_) => (None, message),
+                            }
+                        },
+                        None => (None, message),
+                    }
+                } else {
+                    (None, message)
+                };
+                
+                // Create and send log entry
+                let entry = LogEntry {
+                    namespace: namespace.to_string(),
+                    pod_name: pod_name.to_string(),
+                    container_name: container_name.to_string(),
+                    message,
+                    timestamp,
+                };
+                
+                if let Err(e) = tx.send(entry).await {
+                    error!("Failed to send log entry: {:?}", e);
+                    break;
+                }
             }
         }
         
         info!("Log stream ended for {}/{}/{}", namespace, pod_name, container_name);
         Ok(())
+    }
+}
+
+/// Parse a duration string like "5s", "2m", "3h" into seconds
+fn parse_duration_to_seconds(duration: &str) -> Result<i64> {
+    // Handle empty string
+    if duration.is_empty() {
+        return Err(anyhow!("Duration string cannot be empty"));
+    }
+
+    // Capture the numeric part and the unit
+    let mut numeric_part = String::new();
+    let mut unit_part = String::new();
+    
+    for c in duration.chars() {
+        if c.is_ascii_digit() {
+            numeric_part.push(c);
+        } else {
+            unit_part.push(c);
+        }
+    }
+    
+    // Check if we have a valid numeric part
+    if numeric_part.is_empty() {
+        return Err(anyhow!("Missing numeric value in duration string"));
+    }
+    
+    // Parse the numeric part
+    let number = numeric_part.parse::<i64>()
+        .map_err(|_| anyhow!("Invalid number in duration string"))?;
+    
+    // Convert to seconds based on unit
+    match unit_part.as_str() {
+        "s" => Ok(number),
+        "m" => Ok(number * 60),
+        "h" => Ok(number * 3600),
+        "d" => Ok(number * 86400),
+        "" => Err(anyhow!("Missing time unit. Expected format like '5s', '2m', '3h'")),
+        _ => Err(anyhow!("Invalid time unit '{}'. Supported units: s, m, h, d", unit_part)),
     }
 }

@@ -27,15 +27,14 @@ enum OutputFormat {
 }
 
 /// Available colors for pods and containers
-static COLORS: [Color; 8] = [
-    Color::Red,
+static COLORS: [Color; 7] = [
     Color::Green,
     Color::Yellow,
     Color::Blue,
     Color::Magenta,
     Color::Cyan,
-    Color::BrightRed,
     Color::BrightGreen,
+    Color::BrightBlue,
 ];
 
 impl Formatter {
@@ -107,7 +106,22 @@ impl Formatter {
             String::new()
         };
 
-        format!("{}{}/{} {}", time_part, pod_part, container_part, entry.message)
+        // Check if this is an error log
+        let is_error_log = entry.message.to_lowercase().contains("error") || 
+                          entry.message.contains("ERROR") ||
+                          entry.message.contains("ERR") ||
+                          entry.message.contains("Exception") ||
+                          entry.message.contains("FATAL");
+
+        // Format the base log entry text
+        let log_text = format!("{}{}/{} {}", time_part, pod_part, container_part, entry.message);
+        
+        // If it's an error log, color the entire log text red
+        if is_error_log {
+            log_text.red().to_string()
+        } else {
+            log_text
+        }
     }
 
     /// Formats a log entry as JSON
