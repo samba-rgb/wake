@@ -1,0 +1,6 @@
+2023-05-15T10:23:45Z INFO Server started on port 8080
+2023-05-15T10:23:46Z DEBUG Initializing database connection
+2023-05-15T10:23:47Z INFO Database connection established
+2023-05-15T10:24:01Z WARN High memory usage detected: 85%
+2023-05-15T10:24:15Z ERROR Failed to process request: timeout after 30s
+2023-05-15T10:24:30Z INFO Request processed successfully in 120ms

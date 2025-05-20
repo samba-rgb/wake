@@ -1,0 +1,80 @@
+{
+  "kind": "PodList",
+  "apiVersion": "v1",
+  "items": [
+    {
+      "metadata": {
+        "name": "web-app-7d8f67d97-zvlfq",
+        "generateName": "web-app-7d8f67d97-",
+        "namespace": "default",
+        "labels": {
+          "app": "web-app",
+          "pod-template-hash": "7d8f67d97"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "web-app",
+            "image": "nginx:latest"
+          },
+          {
+            "name": "sidecar",
+            "image": "busybox:latest"
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running"
+      }
+    },
+    {
+      "metadata": {
+        "name": "backend-6d5b647684-a2b3c",
+        "generateName": "backend-6d5b647684-",
+        "namespace": "default",
+        "labels": {
+          "app": "backend",
+          "pod-template-hash": "6d5b647684"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "my-backend:1.0"
+          },
+          {
+            "name": "cache",
+            "image": "redis:alpine"
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running"
+      }
+    },
+    {
+      "metadata": {
+        "name": "database-statefulset-0",
+        "generateName": "database-statefulset-",
+        "namespace": "db-system",
+        "labels": {
+          "app": "database",
+          "component": "postgres"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "postgres",
+            "image": "postgres:13"
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running"
+      }
+    }
+  ]
+}
