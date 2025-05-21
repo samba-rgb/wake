@@ -32,6 +32,16 @@ jobs:
         with:
           command: build
           args: --release
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
