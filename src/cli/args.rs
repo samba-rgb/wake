@@ -73,6 +73,10 @@ pub struct Args {
     #[arg(long)]
     pub since: Option<String>,
 
+    /// Number of threads to use for log filtering (default: 2x CPU cores)
+    #[arg(long)]
+    pub threads: Option<usize>,
+
     /// Verbosity level for debug output
     #[arg(short, long, default_value = "0")]
     pub verbosity: u8,
@@ -122,6 +126,7 @@ impl Default for Args {
             list_containers: false,
             verbosity: 0,
             all_containers: false,
+            threads: None,
         }
     }
 }

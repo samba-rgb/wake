@@ -2,6 +2,7 @@ mod cli;
 mod k8s;
 mod logging;
 mod output;
+mod filtering; // Add the missing module declaration
 
 use anyhow::Result;
 

@@ -57,6 +57,7 @@ impl LogWatcher {
             &pod_regex, 
             &Regex::new(".*").unwrap(), // Get all containers first, we'll filter later
             self.args.all_namespaces,
+            self.args.resource.as_deref(), // Pass the resource query if present
         ).await?;
         
         if pods.is_empty() {

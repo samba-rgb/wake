@@ -51,7 +51,8 @@ pub async fn run(args: Args) -> Result<()> {
             &client, 
             &args.namespace, 
             &pod_regex, 
-            args.all_namespaces
+            args.all_namespaces,
+            args.resource.as_deref()
         ).await;
     }
     
@@ -64,8 +65,8 @@ pub async fn run(args: Args) -> Result<()> {
     // Create output formatter
     let formatter = crate::output::Formatter::new(&args);
     
-    // Process and display logs
-    crate::logging::process_logs(log_streams, formatter).await?;
+    // Process and display logs with the new threaded filtering pipeline
+    crate::logging::process_logs(log_streams, &args, formatter).await?;
     
     Ok(())
 }

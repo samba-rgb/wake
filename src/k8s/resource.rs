@@ -52,8 +52,19 @@ pub async fn get_pod_selectors_for_resource(
 ) -> Result<Vec<(String, String)>> {
     match resource_type {
         ResourceType::Pod => {
-            // Direct pod selection, return pod name as selector
-            Ok(vec![("".to_string(), resource_name.to_string())])
+            // For Pod resources, verify the pod exists before returning a selector
+            let api: Api<k8s_openapi::api::core::v1::Pod> = Api::namespaced(client.clone(), namespace);
+            match api.get(resource_name).await {
+                Ok(_) => {
+                    // Pod exists, use its name as a selector
+                    Ok(vec![("metadata.name".to_string(), resource_name.to_string())])
+                },
+                Err(kube::Error::Api(err)) if err.code == 404 => {
+                    Err(anyhow!("Pod '{}' not found in namespace '{}'. Use 'kubectl get pods -n {}' to list available pods.", 
+                        resource_name, namespace, namespace))
+                },
+                Err(e) => Err(anyhow!("Failed to get pod {}: {}", resource_name, e)),
+            }
         },
         ResourceType::Deployment => {
             get_deployment_pod_selectors(client, namespace, resource_name).await
@@ -82,7 +93,14 @@ async fn get_deployment_pod_selectors(
     let api: Api<Deployment> = Api::namespaced(client.clone(), namespace);
     
     // Get the deployment
-    let deployment = api.get(name).await?;
+    let deployment = match api.get(name).await {
+        Ok(deploy) => deploy,
+        Err(kube::Error::Api(err)) if err.code == 404 => {
+            return Err(anyhow!("Deployment '{}' not found in namespace '{}'. Use 'kubectl get deployments -n {}' to list available deployments.", 
+                name, namespace, namespace));
+        },
+        Err(e) => return Err(anyhow!("Failed to get deployment {}: {}", name, e)),
+    };
     
     // Extract pod selector labels
     if let Some(spec) = &deployment.spec {
@@ -104,7 +122,14 @@ async fn get_replicaset_pod_selectors(
     let api: Api<ReplicaSet> = Api::namespaced(client.clone(), namespace);
     
     // Get the replicaset
-    let rs = api.get(name).await?;
+    let rs = match api.get(name).await {
+        Ok(rs) => rs,
+        Err(kube::Error::Api(err)) if err.code == 404 => {
+            return Err(anyhow!("ReplicaSet '{}' not found in namespace '{}'. Use 'kubectl get replicasets -n {}' to list available replicasets.", 
+                name, namespace, namespace));
+        },
+        Err(e) => return Err(anyhow!("Failed to get replicaset {}: {}", name, e)),
+    };
     
     // Extract pod selector labels
     if let Some(spec) = &rs.spec {
@@ -126,7 +151,14 @@ async fn get_statefulset_pod_selectors(
     let api: Api<StatefulSet> = Api::namespaced(client.clone(), namespace);
     
     // Get the statefulset
-    let sts = api.get(name).await?;
+    let sts = match api.get(name).await {
+        Ok(sts) => sts,
+        Err(kube::Error::Api(err)) if err.code == 404 => {
+            return Err(anyhow!("StatefulSet '{}' not found in namespace '{}'. Use 'kubectl get statefulsets -n {}' to list available statefulsets.", 
+                name, namespace, namespace));
+        },
+        Err(e) => return Err(anyhow!("Failed to get statefulset {}: {}", name, e)),
+    };
     
     // Extract pod selector labels
     if let Some(spec) = &sts.spec {
@@ -148,7 +180,14 @@ async fn get_job_pod_selectors(
     let api: Api<Job> = Api::namespaced(client.clone(), namespace);
     
     // Get the job
-    let job = api.get(name).await?;
+    let job = match api.get(name).await {
+        Ok(job) => job,
+        Err(kube::Error::Api(err)) if err.code == 404 => {
+            return Err(anyhow!("Job '{}' not found in namespace '{}'. Use 'kubectl get jobs -n {}' to list available jobs.", 
+                name, namespace, namespace));
+        },
+        Err(e) => return Err(anyhow!("Failed to get job {}: {}", name, e)),
+    };
     
     // Extract pod selector labels
     if let Some(spec) = &job.spec {
@@ -172,7 +211,14 @@ async fn get_daemonset_pod_selectors(
     let api: Api<DaemonSet> = Api::namespaced(client.clone(), namespace);
     
     // Get the daemonset
-    let ds = api.get(name).await?;
+    let ds = match api.get(name).await {
+        Ok(ds) => ds,
+        Err(kube::Error::Api(err)) if err.code == 404 => {
+            return Err(anyhow!("DaemonSet '{}' not found in namespace '{}'. Use 'kubectl get daemonsets -n {}' to list available daemonsets.", 
+                name, namespace, namespace));
+        },
+        Err(e) => return Err(anyhow!("Failed to get daemonset {}: {}", name, e)),
+    };
     
     // Extract pod selector labels
     if let Some(spec) = &ds.spec {

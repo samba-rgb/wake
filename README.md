@@ -1,4 +1,4 @@
-# Wake <img src="wakeicon.png" alt="Wake Icon" width="36" height="36" align="right">
+# <img src="wakeicon.png" alt="Wake Icon" width="100" height="100" style="vertical-align: middle;"> <span style="font-size: 48px;">Wake</span>
 
 Wake is a command-line tool for tailing multiple pods and containers in Kubernetes clusters, inspired by [stern](https://github.com/stern/stern).
 
@@ -202,6 +202,52 @@ The pod selector is specified as a positional argument and uses standard regex s
 - Use the `-v` flag to see which pods are being matched
 - Combine with `--container` flag to target specific containers within matched pods
 - When using special regex characters, quote your pattern: `wake '(api|web).*'`
+
+## Using Resource Type Selectors
+
+In addition to using regular expressions to select pods, Wake supports selecting pods based on their parent Kubernetes resources. This feature helps you easily watch logs from specific Deployments, StatefulSets, or other resource types without knowing the exact pod names.
+
+### Resource Selector Examples
+
+```bash
+# Watch logs from all pods owned by a specific deployment
+wake -r deployment/nginx
+
+# Watch logs from a statefulset
+wake -r statefulset/mysql
+
+# Watch logs from a daemonset
+wake -r daemonset/monitoring-agent
+
+# Watch logs from a specific job
+wake -r job/backup-job
+
+# Use shorthand names for resources
+wake -r deploy/frontend
+wake -r sts/database
+wake -r ds/logging-agent
+```
+
+### Supported Resource Types
+
+- **pod**: Direct pod selection by name
+- **deployment** (alias: deploy): Select pods managed by a Deployment
+- **replicaset** (alias: rs): Select pods managed by a ReplicaSet
+- **statefulset** (alias: sts): Select pods managed by a StatefulSet
+- **daemonset** (alias: ds): Select pods managed by a DaemonSet
+- **job**: Select pods owned by a Job
+
+### Combining With Other Selectors
+
+Resource selectors can be combined with container selectors for more precise targeting:
+
+```bash
+# Watch the 'api' container in any pod from the 'frontend' deployment
+wake -r deployment/frontend -c api
+
+# Watch all containers in pods from the 'database' statefulset
+wake -r sts/database --all-containers
+```
 
 ## License
 

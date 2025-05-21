@@ -6,7 +6,6 @@ use colored::*;
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use once_cell::sync::Lazy;
 
 /// Formatter for log entries
 pub struct Formatter {
@@ -45,11 +44,11 @@ impl Formatter {
             "raw" => OutputFormat::Raw,
             _ => match &args.template {
                 Some(template) => OutputFormat::Template(template.clone()),
-                None => OutputFormat::Text,
+                _ => OutputFormat::Text,
             },
         };
 
-        // Parse regex patterns
+        // Parse regex patterns - still store them in the formatter for backwards compatibility
         let include_pattern = args.include_regex()
             .map(|r| r.unwrap_or_else(|_| Regex::new(".*").unwrap()));
         let exclude_pattern = args.exclude_regex()
@@ -65,7 +64,8 @@ impl Formatter {
         }
     }
 
-    /// Formats a log entry based on the selected output format
+    /// Formats a log entry based on the selected output format with filtering
+    /// This is the legacy method that includes filtering, kept for backwards compatibility
     pub fn format(&self, entry: &LogEntry) -> Option<String> {
         // Filter logs based on include/exclude patterns
         if let Some(ref pattern) = self.include_pattern {
@@ -80,6 +80,12 @@ impl Formatter {
             }
         }
 
+        self.format_without_filtering(entry)
+    }
+    
+    /// Formats a log entry without applying filtering
+    /// This is used by the new threaded filtering architecture
+    pub fn format_without_filtering(&self, entry: &LogEntry) -> Option<String> {
         match &self.output_format {
             OutputFormat::Text => Some(self.format_text(entry)),
             OutputFormat::Json => Some(self.format_json(entry)),

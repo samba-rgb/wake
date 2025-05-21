@@ -14,6 +14,8 @@ wake/
 │   ├── cli/              # Command-line interface components
 │   │   ├── args.rs       # CLI argument definitions
 │   │   └── mod.rs        # CLI module organization
+│   ├── filtering/        # Log filtering components
+│   │   └── mod.rs        # Multi-threaded filtering implementation
 │   ├── k8s/              # Kubernetes interaction components
 │   │   ├── client.rs     # Kubernetes client creation
 │   │   ├── logs.rs       # Log streaming functionality
@@ -119,6 +121,18 @@ wake/
 └────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────┐
+│                    LogFilter                       │
+├────────────────────────────────────────────────────┤
+│ include_pattern: Option<Arc<Regex>>                │
+│ exclude_pattern: Option<Arc<Regex>>                │
+│ thread_pool: ThreadPool                            │
+├────────────────────────────────────────────────────┤
+│ new(...): Self                                     │
+│ start_filtering(): mpsc::Receiver<LogEntry>        │
+│ recommended_threads(): usize                       │
+└────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────┐
 │                    PodInfo                         │
 ├────────────────────────────────────────────────────┤
 │ namespace: String                                  │
@@ -200,6 +214,12 @@ wake/
                             └──────────────────────┬───────────────────────┘
                                                   │
                                                   ▼
+                            ┌──────────────────────────────────────────────┐
+                            │         filtering::LogFilter                 │
+                            │     OS thread-based log filtering            │
+                            └──────────────────────┬───────────────────────┘
+                                                  │
+                                                  ▼
                                       ┌────────────────────────┐
                                       │  Formatter::format     │
                                       │  Format each log entry │
@@ -222,3 +242,31 @@ wake/
 - **colored**: Terminal color handling
 - **regex**: Regular expression matching
 - **serde_json**: JSON serialization/deserialization
+- **threadpool**: Thread pool for parallel log filtering
+- **num_cpus**: CPU detection for optimal thread allocation
+
+## Multi-threaded Filtering System
+
+Wake now includes a specialized OS thread-based filtering system for high-performance log filtering. This enhancement significantly improves performance when dealing with large log volumes by:
+
+1. **Thread Pool Utilization**: 
+   - Uses a dedicated thread pool to parallelize regex pattern matching
+   - Automatically scales based on available CPU cores
+   - Configurable via CLI argument for thread count customization
+
+2. **Two-Phase Filtering**:
+   - Asynchronous collection of logs from Kubernetes API using Tokio
+   - Parallel filtering of log messages using native OS threads
+   - Non-blocking communication between async runtime and thread pool workers
+
+3. **Performance Optimization**:
+   - Offloads regex computation to separate threads to avoid blocking the async runtime
+   - Uses lock-free channels for efficient inter-thread communication
+   - Employs batch processing for reduced synchronization overhead
+
+4. **Memory Management**:
+   - Efficiently shares regex patterns between threads using Arc<Regex>
+   - Uses oneshot channels to minimize memory overhead for task communication
+   - Implements backpressure handling through bounded channels
+
+This architecture provides significant performance improvements for log filtering operations, especially when working with complex regex patterns or high-volume log streams, all while maintaining a clean separation of concerns in the codebase.

@@ -4,6 +4,7 @@ use kube::{Api, Client};
 use kube::api::{ListParams, ResourceExt};
 use regex::Regex;
 use tracing::{info, debug};
+use crate::k8s::selector::create_selector_for_resource;
 
 /// Represents pod information relevant to log watching
 #[derive(Debug, Clone)]
@@ -13,13 +14,14 @@ pub struct PodInfo {
     pub containers: Vec<String>,
 }
 
-/// Filters and selects pods based on regex patterns
+/// Filters and selects pods based on regex patterns or resource type
 pub async fn select_pods(
     client: &Client, 
     namespace: &str, 
     pod_re: &Regex, 
     container_re: &Regex,
     all_namespaces: bool,
+    resource_query: Option<&str>,
 ) -> Result<Vec<PodInfo>> {
     let namespaces = if all_namespaces {
         get_all_namespaces(client).await?
@@ -33,13 +35,23 @@ pub async fn select_pods(
         info!("Searching for pods in namespace: {}", ns);
         let pods: Api<Pod> = Api::namespaced(client.clone(), &ns);
         
-        let params = ListParams::default();
+        // Determine how to list pods based on whether we have a resource query
+        let params = if let Some(query) = resource_query {
+            info!("Using resource selector: {}", query);
+            create_selector_for_resource(client, &ns, query).await?
+        } else {
+            // If no resource selector, use regex-based selection
+            ListParams::default()
+        };
+        
         let pod_list = pods.list(&params).await.context(format!("Failed to list pods in namespace {}", ns))?;
         
         for pod in pod_list {
             let pod_name = pod.name_unchecked();
             
-            if !pod_re.is_match(&pod_name) {
+            // If using a resource selector, we skip the pod regex check since the K8s API
+            // has already filtered the pods. Otherwise, apply the regex filter.
+            if resource_query.is_none() && !pod_re.is_match(&pod_name) {
                 debug!("Pod {} doesn't match regex, skipping", pod_name);
                 continue;
             }
@@ -109,12 +121,13 @@ async fn get_all_namespaces(client: &Client) -> Result<Vec<String>> {
     Ok(names)
 }
 
-/// List container names for all pods matching the given regex
+/// List container names for all pods matching the given regex or resource query
 pub async fn list_container_names(
     client: &Client,
     namespace: &str,
     pod_regex: &Regex,
     all_namespaces: bool,
+    resource_query: Option<&str>,
 ) -> Result<()> {
     let pods_api: Api<Pod>;
     
@@ -124,12 +137,24 @@ pub async fn list_container_names(
         pods_api = Api::namespaced(client.clone(), namespace);
     }
     
-    let pods = pods_api.list(&Default::default()).await?;
+    // Determine how to list pods based on whether we have a resource query
+    let params = if let Some(query) = resource_query {
+        println!("Using resource selector: {}", query);
+        let ns = if all_namespaces { "default" } else { namespace };
+        create_selector_for_resource(client, ns, query).await?
+    } else {
+        // If no resource selector, use default selection
+        ListParams::default()
+    };
+    
+    let pods = pods_api.list(&params).await?;
     
     let mut found_pods = false;
     for pod in pods.items {
         let pod_name = pod.metadata.name.as_deref().unwrap_or("");
-        if !pod_regex.is_match(pod_name) {
+        
+        // Skip regex check if we're using resource selectors
+        if resource_query.is_none() && !pod_regex.is_match(pod_name) {
             continue;
         }
         

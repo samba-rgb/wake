@@ -5,7 +5,7 @@ use k8s_openapi::api::core::v1::Pod;
 use crate::k8s::resource::{ResourceType, parse_resource_query, get_pod_selectors_for_resource};
 use tracing::{debug, info};
 
-/// Creates a label selector for Kubernetes API based on resource type
+/// Creates a selector for Kubernetes API based on resource type
 pub async fn create_selector_for_resource(
     client: &Client,
     namespace: &str,
@@ -22,19 +22,30 @@ pub async fn create_selector_for_resource(
             &resource_name,
         ).await?;
         
-        // Build a label selector string
-        let selector_string = selectors
-            .iter()
-            .map(|(key, value)| format!("{}={}", key, value))
-            .collect::<Vec<_>>()
-            .join(",");
+        // Check if this is a field selector or label selector
+        if selectors.len() == 1 && selectors[0].0 == "metadata.name" {
+            // This is a field selector for a Pod by name
+            debug!("Created field selector: metadata.name={}", selectors[0].1);
             
-        debug!("Created label selector: {}", selector_string);
-        
-        Ok(ListParams {
-            label_selector: Some(selector_string),
-            ..Default::default()
-        })
+            Ok(ListParams {
+                field_selector: Some(format!("metadata.name={}", selectors[0].1)),
+                ..Default::default()
+            })
+        } else {
+            // Build a label selector string
+            let selector_string = selectors
+                .iter()
+                .map(|(key, value)| format!("{}={}", key, value))
+                .collect::<Vec<_>>()
+                .join(",");
+                
+            debug!("Created label selector: {}", selector_string);
+            
+            Ok(ListParams {
+                label_selector: Some(selector_string),
+                ..Default::default()
+            })
+        }
     } else {
         // If no resource type is specified, use the default (all pods)
         Ok(ListParams::default())
