@@ -13,7 +13,7 @@ fn print_wake_big_text() {
   █|  █|  █|    █|    █|  █|  █|    █|        
     █|  █|      █|    █|  █|    █|  █|█|█|█| 
                                               
-                                               by: Samba ");
+................................................................");
 }
 
 /// Checks if wake is being run with default options
