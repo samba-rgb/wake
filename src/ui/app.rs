@@ -67,7 +67,7 @@ pub async fn run_app(
 
     // Create channels for log processing
     info!("UI: Creating log processing channels...");
-    let (raw_log_tx, raw_log_rx) = mpsc::channel::<LogEntry>(1000);
+    let (raw_log_tx, raw_log_rx) = mpsc::channel::<LogEntry>(5000); // Increased from 1000 to 5000
 
     // Create cancellation token for graceful shutdown
     let cancellation_token = CancellationToken::new();
@@ -138,8 +138,8 @@ pub async fn run_app(
             debug!("UI: Main loop iteration #{}", loop_count);
         }
         
-        // Handle input events
-        if event::poll(Duration::from_millis(10))? {
+        // Handle input events with higher priority - increased timeout for better responsiveness
+        if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 if let Some(input_event) = input_handler.handle_key_event(key) {
                     match input_event {
@@ -200,13 +200,22 @@ pub async fn run_app(
                             };
                         }
                     }
+                    
+                    // Force immediate render after input to improve responsiveness
+                    terminal.draw(|f| {
+                        display_manager.render(f, &input_handler);
+                    })?;
+                    last_render = std::time::Instant::now();
+                    continue; // Skip log processing this iteration to prioritize UI updates
                 }
             }
         }
 
-        // Process new filtered log entries (only new logs are affected by current filter)
+        // Process new filtered log entries in smaller batches to avoid blocking input
         let mut display_count = 0;
         let mut batch_processed = 0;
+        const MAX_BATCH_SIZE: usize = 50; // Process max 50 logs per iteration
+        
         while let Ok(entry) = filtered_log_rx.try_recv() {
             display_count += 1;
             batch_processed += 1;
@@ -232,13 +241,17 @@ pub async fn run_app(
                 }
             }
             
-            // Auto-scroll to bottom for new logs - simplified logic
-            let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
-            display_manager.scroll_to_bottom(viewport_height);
+            // Break after processing batch to yield control back to input handling
+            if batch_processed >= MAX_BATCH_SIZE {
+                break;
+            }
         }
         
         if batch_processed > 0 {
             info!("UI_DISPLAY: Processed {} filtered log entries in this batch", batch_processed);
+            // Auto-scroll to bottom for new logs after batch processing
+            let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+            display_manager.scroll_to_bottom(viewport_height);
         }
 
         // Render UI at regular intervals
@@ -249,8 +262,8 @@ pub async fn run_app(
             last_render = std::time::Instant::now();
         }
 
-        // Small delay to prevent busy waiting
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        // Reduced delay - only sleep if no input was processed
+        tokio::time::sleep(Duration::from_millis(5)).await;
     }
 
     // Signal cancellation to the log stream processing task
