@@ -20,7 +20,7 @@ data:
       esac
       
       # Generate random message
-      case $((RANDOM % 10)) in
+      case $((RANDOM % 20)) in
         0) message="Application started successfully" ;;
         1) message="Processing user request" ;;
         2) message="Database connection established" ;;
@@ -31,6 +31,16 @@ data:
         7) message="Configuration loaded from file" ;;
         8) message="Health check passed" ;;
         9) message="User authentication successful" ;;
+        10) message="[hl/praveg/v2/orders] order started" ;;
+        11) message="[hl/praveg/v2/orders] order processing completed" ;;
+        12) message="[hl/praveg/v2/orders] order validation failed" ;;
+        13) message="[hl/praveg/v2/orders/event] order event triggered" ;;
+        14) message="[hl/praveg/v2/orders/event] event processing started" ;;
+        15) message="[hl/praveg/v2/orders/event] event validation completed" ;;
+        16) message="[hl/praveg/v2/orders/status] status updated to confirmed" ;;
+        17) message="[hl/praveg/v2/users] user profile updated" ;;
+        18) message="[hl/praveg/v2/payments] payment processed successfully" ;;
+        19) message="[hl/praveg/v2/orders/cancel] order cancellation requested" ;;
       esac
       
       # Generate timestamp
