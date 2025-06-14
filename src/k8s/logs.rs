@@ -291,8 +291,9 @@ impl LogWatcher {
                                     timestamp,
                                 };
                                 
-                                if let Err(e) = tx.send(entry).await {
-                                    error!("CONTAINER_LOGS: Failed to send log entry to channel: {:?}", e);
+                                if let Err(_) = tx.send(entry).await {
+                                    debug!("CONTAINER_LOGS: Channel closed, stopping log stream for {}/{}/{}", 
+                                           namespace, pod_name, container_name);
                                     return Ok(());
                                 } else if line_count <= 5 {
                                     debug!("CONTAINER_LOGS: Successfully sent log entry #{} to channel", line_count);
@@ -371,8 +372,9 @@ impl LogWatcher {
                             timestamp,
                         };
                         
-                        if let Err(e) = tx.send(entry).await {
-                            error!("CONTAINER_LOGS: Failed to send log entry #{} to channel: {:?}", i+1, e);
+                        if let Err(_) = tx.send(entry).await {
+                            debug!("CONTAINER_LOGS: Channel closed, stopping log processing for {}/{}/{}", 
+                                   namespace, pod_name, container_name);
                             break;
                         } else if i < 5 {
                             debug!("CONTAINER_LOGS: Successfully sent log entry #{} to channel", i+1);
