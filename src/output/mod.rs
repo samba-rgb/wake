@@ -3,15 +3,12 @@ pub mod formatter;
 use crate::cli::Args;
 use crate::k8s::logs::LogEntry;
 use colored::*;
-use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
 /// Formatter for log entries
 pub struct Formatter {
     output_format: OutputFormat,
-    include_pattern: Option<Regex>,
-    exclude_pattern: Option<Regex>,
     show_timestamps: bool,
     pod_colors: Mutex<HashMap<String, Color>>,
     container_colors: Mutex<HashMap<String, Color>>,
@@ -22,7 +19,6 @@ enum OutputFormat {
     Text,
     Json,
     Raw,
-    Template(String),
 }
 
 /// Available colors for pods and containers
@@ -42,44 +38,21 @@ impl Formatter {
         let output_format = match args.output.as_str() {
             "json" => OutputFormat::Json,
             "raw" => OutputFormat::Raw,
-            _ => match &args.template {
-                Some(template) => OutputFormat::Template(template.clone()),
-                _ => OutputFormat::Text,
-            },
+            _ => OutputFormat::Text,
         };
-
-        // Parse regex patterns - still store them in the formatter for backwards compatibility
-        let include_pattern = args.include_regex()
-            .map(|r| r.unwrap_or_else(|_| Regex::new(".*").unwrap()));
-        let exclude_pattern = args.exclude_regex()
-            .map(|r| r.unwrap_or_else(|_| Regex::new(".*").unwrap()));
 
         Self {
             output_format,
-            include_pattern,
-            exclude_pattern,
             show_timestamps: args.timestamps,
             pod_colors: Mutex::new(HashMap::new()),
             container_colors: Mutex::new(HashMap::new()),
         }
     }
 
-    /// Formats a log entry based on the selected output format with filtering
-    /// This is the legacy method that includes filtering, kept for backwards compatibility
+    /// Formats a log entry based on the selected output format
+    /// This method no longer includes filtering - filtering is handled by the filter manager
+    #[allow(dead_code)]
     pub fn format(&self, entry: &LogEntry) -> Option<String> {
-        // Filter logs based on include/exclude patterns
-        if let Some(ref pattern) = self.include_pattern {
-            if !pattern.is_match(&entry.message) {
-                return None;
-            }
-        }
-
-        if let Some(ref pattern) = self.exclude_pattern {
-            if pattern.is_match(&entry.message) {
-                return None;
-            }
-        }
-
         self.format_without_filtering(entry)
     }
     
@@ -90,7 +63,6 @@ impl Formatter {
             OutputFormat::Text => Some(self.format_text(entry)),
             OutputFormat::Json => Some(self.format_json(entry)),
             OutputFormat::Raw => Some(entry.message.clone()),
-            OutputFormat::Template(_) => Some(self.format_text(entry)), // Simplified for now
         }
     }
 

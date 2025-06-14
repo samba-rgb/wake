@@ -11,6 +11,7 @@ use crate::cli::Args;
 use crate::filtering::LogFilter; // Fixed import path
 
 /// Set up logging based on verbosity level
+#[allow(dead_code)]
 pub fn setup_logger(verbosity: u8) -> Result<()> {
     #[cfg(test)]
     {
