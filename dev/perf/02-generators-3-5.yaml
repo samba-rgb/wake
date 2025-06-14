@@ -1,0 +1,198 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-03
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "03"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "03"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "03"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting burst log generator 03..."
+          counter=2000
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            level_rand=$((counter % 12))
+            case $level_rand in
+              0|1|2|3|4) level="INFO" ;;
+              5|6) level="DEBUG" ;;
+              7|8) level="WARN" ;;
+              9|10|11) level="ERROR" ;;
+            esac
+            
+            # High-frequency microservice logs
+            service_id=$((counter % 8))
+            case $service_id in
+              0) echo "[$timestamp] [$level] [payment-service] Transaction txn_$counter processed amount=$((counter % 10000))" ;;
+              1) echo "[$timestamp] [$level] [user-service] Profile updated for user_$counter: email, preferences" ;;
+              2) echo "[$timestamp] [$level] [notification-service] Email sent to user_$counter subject=welcome" ;;
+              3) echo "[$timestamp] [$level] [inventory-service] Stock check item_$counter: available=$((counter % 100))" ;;
+              4) echo "[$timestamp] [$level] [auth-service] Login attempt user_$counter from IP 10.0.$((counter % 255)).$((counter % 255))" ;;
+              5) echo "[$timestamp] [$level] [order-service] Order order_$counter created status=pending total=$((counter % 5000))" ;;
+              6) echo "[$timestamp] [$level] [shipping-service] Package pkg_$counter dispatched carrier=ups tracking=$counter" ;;
+              7) echo "[$timestamp] [$level] [analytics-service] Event tracked: page_view user=$counter page=/dashboard" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.002  # 500 logs per second (burst mode)
+          done
+        resources:
+          requests:
+            memory: "96Mi"
+            cpu: "200m"
+          limits:
+            memory: "192Mi"
+            cpu: "400m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-04
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "04"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "04"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "04"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting database log generator 04..."
+          counter=3000
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            case $((counter % 6)) in
+              0|1|2) level="INFO" ;;
+              3) level="DEBUG" ;;
+              4) level="WARN" ;;
+              5) level="ERROR" ;;
+            esac
+            
+            # Database and infrastructure logs
+            case $((counter % 12)) in
+              0) echo "[$timestamp] [$level] [postgres] Query executed: duration=$((counter % 1000))ms rows=$((counter % 500))" ;;
+              1) echo "[$timestamp] [$level] [redis] Cache operation: SET user:$counter TTL=3600s" ;;
+              2) echo "[$timestamp] [$level] [elasticsearch] Index operation: docs_indexed=$((counter % 100)) took=$((counter % 50))ms" ;;
+              3) echo "[$timestamp] [$level] [mongodb] Collection scan: users scanned=$((counter % 10000)) returned=$((counter % 100))" ;;
+              4) echo "[$timestamp] [$level] [mysql] Slow query detected: SELECT * FROM orders WHERE created > '$timestamp'" ;;
+              5) echo "[$timestamp] [$level] [kafka] Message produced: topic=events partition=$((counter % 8)) offset=$counter" ;;
+              6) echo "[$timestamp] [$level] [rabbitmq] Queue depth: notifications=$((counter % 1000)) orders=$((counter % 500))" ;;
+              7) echo "[$timestamp] [$level] [nginx] Upstream response: backend=$((counter % 5)) status=200 time=$((counter % 100))ms" ;;
+              8) echo "[$timestamp] [$level] [kubernetes] Pod scheduled: perf-test-$counter on node-worker-$((counter % 3))" ;;
+              9) echo "[$timestamp] [$level] [docker] Container started: image=app:latest id=cont_$counter memory_limit=512Mi" ;;
+              10) echo "[$timestamp] [$level] [prometheus] Metrics scraped: targets=$((counter % 50)) series=$((counter % 10000))" ;;
+              11) echo "[$timestamp] [$level] [grafana] Dashboard rendered: users_overview load_time=$((counter % 200))ms" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.0067  # 150 logs per second
+          done
+        resources:
+          requests:
+            memory: "80Mi"
+            cpu: "120m"
+          limits:
+            memory: "160Mi"
+            cpu: "250m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-05
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "05"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "05"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "05"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting security log generator 05..."
+          counter=4000
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            case $((counter % 15)) in
+              0|1|2|3|4|5) level="INFO" ;;
+              6|7|8) level="WARN" ;;
+              9|10|11|12) level="ERROR" ;;
+              13|14) level="DEBUG" ;;
+            esac
+            
+            # Security and audit logs with sensitive data patterns
+            case $((counter % 18)) in
+              0) echo "[$timestamp] [$level] [security] Failed login attempt: user=admin_$counter ip=192.168.$((counter % 255)).$((counter % 255))" ;;
+              1) echo "[$timestamp] [$level] [audit] Privilege escalation: user_$counter requested sudo access to /etc/passwd" ;;
+              2) echo "[$timestamp] [$level] [firewall] Blocked connection: src=10.0.$((counter % 255)).$((counter % 255)) dst=internal port=22" ;;
+              3) echo "[$timestamp] [$level] [ids] Suspicious activity detected: user_$counter multiple failed API calls" ;;
+              4) echo "[$timestamp] [$level] [ssl] Certificate validation failed: cn=app-$counter.internal expired=$timestamp" ;;
+              5) echo "[$timestamp] [$level] [oauth] Token refresh: client_id=app_$counter user_id=$counter scope=read,write" ;;
+              6) echo "[$timestamp] [$level] [rbac] Permission denied: user_$counter action=DELETE resource=secrets/prod-$counter" ;;
+              7) echo "[$timestamp] [$level] [vault] Secret accessed: path=secret/db/password user=service_$counter" ;;
+              8) echo "[$timestamp] [$level] [encryption] Data encrypted: algorithm=AES256 key_id=key_$counter size=$((counter % 10000))bytes" ;;
+              9) echo "[$timestamp] [$level] [compliance] PII access logged: user_$counter accessed customer_data table" ;;
+              10) echo "[$timestamp] [$level] [backup] Encrypted backup created: file=backup_$counter.tar.gz size=$((counter % 1000))MB" ;;
+              11) echo "[$timestamp] [$level] [network] VPN connection established: user_$counter from $((counter % 50)).vpn.company.com" ;;
+              12) echo "[$timestamp] [$level] [malware] Scan completed: files=$((counter % 10000)) threats=$((counter % 5)) clean=$((99 - counter % 2))%" ;;
+              13) echo "[$timestamp] [$level] [incident] Security event: severity=HIGH type=brute_force target=user_$counter" ;;
+              14) echo "[$timestamp] [$level] [patch] Security update applied: CVE-2024-$counter package=openssl status=success" ;;
+              15) echo "[$timestamp] [$level] [session] User session expired: user_$counter duration=$((counter % 3600))s last_activity=$timestamp" ;;
+              16) echo "[$timestamp] [$level] [crypto] Key rotation completed: service=database new_key_id=key_$counter" ;;
+              17) echo "[$timestamp] [$level] [zero-trust] Network access granted: user_$counter resource=internal-api score=$((80 + counter % 20))" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.008  # 125 logs per second
+          done
+        resources:
+          requests:
+            memory: "70Mi"
+            cpu: "100m"
+          limits:
+            memory: "140Mi"
+            cpu: "200m"

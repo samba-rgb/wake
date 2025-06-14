@@ -23,22 +23,39 @@ done
 
 echo "Waiting for deployments to be ready..."
 kubectl -n apps wait --for=condition=available --timeout=60s deployment/nginx
+kubectl -n apps wait --for=condition=available --timeout=60s deployment/log-generator
 #kubectl -n apps wait --for=condition=ready --timeout=60s statefulset/postgres
 kubectl -n monitoring wait --for=condition=available --timeout=60s deployment/prometheus
 kubectl -n monitoring wait --for=condition=available --timeout=60s deployment/grafana
 
-echo "Generating sample logs..."
-NGINX_POD=$(kubectl -n apps get pod -l app=web -o jsonpath="{.items[0].metadata.name}")
-
-if [ -z "$NGINX_POD" ]; then
-  echo "Error: No pod found with label app=nginx in namespace apps"
-  exit 1
-fi
-
-kubectl -n apps exec "$NGINX_POD" -- sh -c 'for i in {1..5}; do echo "Test log entry $i"; sleep 1; done'
-
 echo "Test environment is ready!"
+echo ""
+echo "Available pods for testing:"
+echo "- Log generator pods (2 replicas) in 'apps' namespace"
+echo "- Nginx pods in 'apps' namespace"
+echo "- Prometheus and Grafana in 'monitoring' namespace"
+echo ""
 echo "Try these commands to test wake:"
-echo "  wake -n apps -l app=nginx"
-echo "  wake -n monitoring -l app=monitoring"
+echo "  # Watch log generator with random logs"
+echo "  wake -n apps log-generator"
+echo ""
+echo "  # Watch all containers in log generator pods"
+echo "  wake -n apps log-generator --all-containers"
+echo ""
+echo "  # Watch only the main generator container"
+echo "  wake -n apps log-generator -c generator"
+echo ""
+echo "  # Watch only the sidecar container"
+echo "  wake -n apps log-generator -c sidecar-logger"
+echo ""
+echo "  # Watch all apps namespace pods"
+echo "  wake -n apps '.*'"
+echo ""
+echo "  # Watch all namespaces"
 echo "  wake -A"
+echo ""
+echo "  # Filter logs by level"
+echo "  wake -n apps log-generator --include 'ERROR|WARN'"
+echo ""
+echo "  # Exclude debug logs"
+echo "  wake -n apps log-generator --exclude 'DEBUG|TRACE'"

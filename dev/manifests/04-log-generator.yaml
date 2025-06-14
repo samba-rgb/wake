@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: log-generator-script
+  namespace: apps
+data:
+  generate-logs.sh: |
+    #!/bin/sh
+    
+    echo "Starting log generator..."
+    
+    while true; do
+      # Generate random log level
+      case $((RANDOM % 5)) in
+        0) level="INFO" ;;
+        1) level="WARN" ;;
+        2) level="ERROR" ;;
+        3) level="DEBUG" ;;
+        4) level="TRACE" ;;
+      esac
+      
+      # Generate random message
+      case $((RANDOM % 10)) in
+        0) message="Application started successfully" ;;
+        1) message="Processing user request" ;;
+        2) message="Database connection established" ;;
+        3) message="Cache miss for key user:12345" ;;
+        4) message="Memory usage: 75%" ;;
+        5) message="Request completed in 120ms" ;;
+        6) message="Failed to connect to external service" ;;
+        7) message="Configuration loaded from file" ;;
+        8) message="Health check passed" ;;
+        9) message="User authentication successful" ;;
+      esac
+      
+      # Generate timestamp
+      timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S")
+      
+      # Output log in structured format
+      echo "[$timestamp] [$level] $message"
+      
+      # Sleep for 1-3 seconds
+      sleep $((1 + RANDOM % 3))
+    done
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-generator
+  namespace: apps
+  labels:
+    app: log-generator
+    tier: testing
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: log-generator
+  template:
+    metadata:
+      labels:
+        app: log-generator
+        tier: testing
+    spec:
+      containers:
+      - name: generator
+        image: alpine:latest
+        command: ["/bin/sh"]
+        args: ["/scripts/generate-logs.sh"]
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+        resources:
+          requests:
+            memory: "16Mi"
+            cpu: "10m"
+          limits:
+            memory: "32Mi"
+            cpu: "50m"
+      - name: sidecar-logger
+        image: alpine:latest
+        command: ["/bin/sh"]
+        args: ["-c", "while true; do echo '[SIDECAR] [INFO] Sidecar container is running'; sleep 10; done"]
+        resources:
+          requests:
+            memory: "8Mi"
+            cpu: "5m"
+          limits:
+            memory: "16Mi"
+            cpu: "25m"
+      volumes:
+      - name: script-volume
+        configMap:
+          name: log-generator-script
+          defaultMode: 0755
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: log-generator-service
+  namespace: apps
+  labels:
+    app: log-generator
+spec:
+  selector:
+    app: log-generator
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  type: ClusterIP

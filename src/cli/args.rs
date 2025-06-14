@@ -1,4 +1,4 @@
-use clap::{Parser, Args as ClapArgs};
+use clap::Parser;
 use regex::Regex;
 use std::path::PathBuf;
 
@@ -61,6 +61,11 @@ pub struct Args {
     #[arg(short, long, default_value = "text")]
     pub output: String,
 
+    /// Output file path - when specified, logs are written to file instead of stdout
+    /// Use with --ui to show both file output and UI
+    #[arg(short = 'w', long = "output-file")]
+    pub output_file: Option<PathBuf>,
+
     /// Use specific resource type filter (pod, deployment, statefulset)
     #[arg(short = 'r', long)]
     pub resource: Option<String>,
@@ -76,6 +81,18 @@ pub struct Args {
     /// Number of threads to use for log filtering (default: 2x CPU cores)
     #[arg(long)]
     pub threads: Option<usize>,
+
+    /// Enable interactive UI mode with dynamic filtering
+    #[arg(long)]
+    pub ui: bool,
+
+    /// Disable interactive UI mode (force CLI output)
+    #[arg(long)]
+    pub no_ui: bool,
+
+    /// Enable development mode - shows internal application logs even in UI mode
+    #[arg(long)]
+    pub dev: bool,
 
     /// Verbosity level for debug output
     #[arg(short, long, default_value = "0")]
@@ -120,6 +137,7 @@ impl Default for Args {
             exclude: None,
             timestamps: false,
             output: "text".to_string(),
+            output_file: None,
             resource: None,
             template: None,
             since: None,
@@ -127,6 +145,9 @@ impl Default for Args {
             verbosity: 0,
             all_containers: false,
             threads: None,
+            ui: false, // Default to false, will be determined by logic
+            no_ui: false, // Default to false
+            dev: false, // Default to false
         }
     }
 }

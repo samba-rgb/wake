@@ -1,0 +1,234 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-06
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "06"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "06"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "06"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting ML/AI log generator 06..."
+          counter=5000
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            case $((counter % 10)) in
+              0|1|2|3|4) level="INFO" ;;
+              5|6) level="DEBUG" ;;
+              7) level="WARN" ;;
+              8|9) level="ERROR" ;;
+            esac
+            
+            # Machine Learning and AI service logs
+            case $((counter % 16)) in
+              0) echo "[$timestamp] [$level] [ml-service] Model inference: model=recommendation_v$((counter % 10)) latency=$((counter % 200))ms" ;;
+              1) echo "[$timestamp] [$level] [training] Epoch $((counter % 100))/100 completed: loss=0.$((counter % 9999)) accuracy=$((80 + counter % 20))%" ;;
+              2) echo "[$timestamp] [$level] [feature-store] Features extracted: user_$counter features=[age,location,behavior] count=47" ;;
+              3) echo "[$timestamp] [$level] [pipeline] Data preprocessing: batch_$counter records=$((counter % 10000)) cleaned=$((90 + counter % 10))%" ;;
+              4) echo "[$timestamp] [$level] [gpu-cluster] GPU utilization: node_$((counter % 8)) gpu_$((counter % 4)) usage=$((counter % 100))%" ;;
+              5) echo "[$timestamp] [$level] [vector-db] Similarity search: query_id=$counter results=$((counter % 100)) threshold=0.$((counter % 99))" ;;
+              6) echo "[$timestamp] [$level] [model-registry] Model deployed: recommendation_v$((counter % 20)) A/B_test=group_$((counter % 2))" ;;
+              7) echo "[$timestamp] [$level] [automl] Hyperparameter tuning: trial_$counter learning_rate=0.00$((counter % 99)) score=0.$((counter % 9999))" ;;
+              8) echo "[$timestamp] [$level] [anomaly-detection] Outlier detected: metric=cpu_usage value=$((90 + counter % 10))% severity=medium" ;;
+              9) echo "[$timestamp] [$level] [reinforcement] Agent action: state_$counter action=$((counter % 4)) reward=$((counter % 100)) episode=$((counter % 1000))" ;;
+              10) 
+                sentiment_val=$((counter % 3))
+                if [ $sentiment_val -eq 0 ]; then
+                  sentiment="positive"
+                elif [ $sentiment_val -eq 1 ]; then
+                  sentiment="negative"
+                else
+                  sentiment="neutral"
+                fi
+                echo "[$timestamp] [$level] [nlp-service] Text processed: doc_$counter tokens=$((counter % 5000)) sentiment=$sentiment" ;;
+              11) echo "[$timestamp] [$level] [computer-vision] Image classified: img_$counter.jpg confidence=$((80 + counter % 20))% class=object_$((counter % 10))" ;;
+              12) echo "[$timestamp] [$level] [data-lake] Batch job completed: dataset_$counter rows=$((counter % 100000)) size=$((counter % 1000))GB" ;;
+              13) echo "[$timestamp] [$level] [experiment] A/B test result: experiment_$counter variant_A=$((40 + counter % 20))% variant_B=$((40 + counter % 20))%" ;;
+              14) echo "[$timestamp] [$level] [serving] Model prediction: user_$counter prediction=$((counter % 5)) confidence=0.$((counter % 99))" ;;
+              15) echo "[$timestamp] [$level] [drift-detection] Model drift detected: feature=age threshold=0.05 current=0.$((counter % 10))" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.01  # 100 logs per second
+          done
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "150m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-07
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "07"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "07"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "07"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting IoT/streaming log generator 07..."
+          counter=6000
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            case $((counter % 8)) in
+              0|1|2|3) level="INFO" ;;
+              4|5) level="DEBUG" ;;
+              6) level="WARN" ;;
+              7) level="ERROR" ;;
+            esac
+            
+            # IoT and streaming data logs
+            device_id=$((counter % 1000))
+            sensor_value=$((counter % 100))
+            case $((counter % 14)) in
+              0) echo "[$timestamp] [$level] [iot-gateway] Sensor data: device_$device_id temp=$((20 + counter % 40))C humidity=$((sensor_value))%" ;;
+              1) echo "[$timestamp] [$level] [stream-processor] Event processed: stream=telemetry batch_size=$((counter % 1000)) latency=$((counter % 50))ms" ;;
+              2) echo "[$timestamp] [$level] [mqtt-broker] Message published: topic=sensors/temp/$device_id qos=1 size=$((counter % 1024))bytes" ;;
+              3) 
+                result_val=$((counter % 2))
+                if [ $result_val -eq 0 ]; then
+                  result="normal"
+                else
+                  result="anomaly"
+                fi
+                echo "[$timestamp] [$level] [edge-compute] Inference completed: device_$device_id model=anomaly_detection result=$result" ;;
+              4) echo "[$timestamp] [$level] [time-series] Data ingested: metric=cpu_usage value=$((sensor_value))% timestamp=$counter source=device_$device_id" ;;
+              5) echo "[$timestamp] [$level] [alert-manager] Threshold exceeded: device_$device_id metric=temperature value=$((40 + counter % 20))C threshold=50C" ;;
+              6) echo "[$timestamp] [$level] [data-pipeline] Batch processed: source=kafka topic=iot-events records=$((counter % 10000)) errors=$((counter % 10))" ;;
+              7) echo "[$timestamp] [$level] [device-registry] Device registered: id=device_$device_id type=sensor location=floor_$((counter % 10))" ;;
+              8) 
+                status_val=$((counter % 3))
+                if [ $status_val -eq 0 ]; then
+                  status="success"
+                else
+                  status="pending"
+                fi
+                echo "[$timestamp] [$level] [firmware] OTA update: device_$device_id version=1.$((counter % 100)) status=$status" ;;
+              9) echo "[$timestamp] [$level] [network] Connectivity: device_$device_id signal_strength=$((50 + counter % 50))dBm network=5G" ;;
+              10) echo "[$timestamp] [$level] [analytics] Real-time aggregation: window=5m count=$((counter % 1000)) avg_temp=$((25 + counter % 15))C" ;;
+              11) echo "[$timestamp] [$level] [storage] Time-series write: measurement=sensors timestamp=$counter fields=$((counter % 20)) tags=$((counter % 5))" ;;
+              12) echo "[$timestamp] [$level] [compression] Data compressed: original=$((counter % 10000))KB compressed=$((counter % 1000))KB ratio=$((counter % 90))%" ;;
+              13) echo "[$timestamp] [$level] [geo-location] Position update: device_$device_id lat=$((counter % 90)).$((counter % 9999)) lon=$((counter % 180)).$((counter % 9999))" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.003  # 333 logs per second (high frequency IoT)
+          done
+        resources:
+          requests:
+            memory: "96Mi"
+            cpu: "180m"
+          limits:
+            memory: "192Mi"
+            cpu: "350m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-08
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "08"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "08"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "08"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting error-heavy log generator 08..."
+          counter=7000
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            # Higher error rate for testing error filtering
+            case $((counter % 5)) in
+              0|1) level="ERROR" ;;
+              2) level="WARN" ;;
+              3) level="INFO" ;;
+              4) level="DEBUG" ;;
+            esac
+            
+            # Error-heavy logs for testing filtering performance
+            case $((counter % 20)) in
+              0) echo "[$timestamp] [$level] [connection-pool] Database connection timeout: pool=primary active=$((counter % 100)) max=100 wait_time=$((counter % 5000))ms" ;;
+              1) echo "[$timestamp] [$level] [circuit-breaker] Service unavailable: service=payment-api failures=$((counter % 50)) threshold=10" ;;
+              2) echo "[$timestamp] [$level] [rate-limiter] Request rejected: client_id=client_$counter rate=$((counter % 1000))/min limit=100/min" ;;
+              3) echo "[$timestamp] [$level] [validation] Input validation failed: field=email value=invalid_$counter constraint=format" ;;
+              4) echo "[$timestamp] [$level] [memory] OutOfMemoryError: heap_used=$((counter % 2048))MB heap_max=2048MB gc_time=$((counter % 1000))ms" ;;
+              5) echo "[$timestamp] [$level] [disk] Disk space critical: mount=/var/lib used=$((90 + counter % 10))% available=$((counter % 1000))MB" ;;
+              6) echo "[$timestamp] [$level] [network] Request timeout: url=https://api.external.com/v1/data timeout=30s attempt=$((counter % 5))" ;;
+              7) echo "[$timestamp] [$level] [serialization] JSON parsing error: invalid character at position $((counter % 1000)) input=malformed_json_$counter" ;;
+              8) echo "[$timestamp] [$level] [deadlock] Transaction deadlock detected: transaction_id=tx_$counter table=users lock_wait=$((counter % 10000))ms" ;;
+              9) echo "[$timestamp] [$level] [security] Authentication failed: token=jwt_$counter reason=expired issued=$((counter % 3600))s_ago" ;;
+              10) echo "[$timestamp] [$level] [cache] Cache eviction: key=user:session:$counter reason=memory_pressure size=$((counter % 1024))KB" ;;
+              11) echo "[$timestamp] [$level] [version] API version mismatch: client=v$((counter % 5)) server=v$((1 + counter % 5)) endpoint=/api/users" ;;
+              12) echo "[$timestamp] [$level] [concurrent] Thread pool exhausted: pool=http-workers active=$((counter % 200)) max=200 queued=$((counter % 1000))" ;;
+              13) echo "[$timestamp] [$level] [parsing] XML validation error: schema=user.xsd line=$((counter % 1000)) column=$((counter % 100)) message=invalid_element" ;;
+              14) echo "[$timestamp] [$level] [quota] API quota exceeded: user_id=user_$counter requests=$((1000 + counter % 500))/hour limit=1000/hour" ;;
+              15) echo "[$timestamp] [$level] [dependency] Service dependency failed: service=user-service health=down last_success=$((counter % 600))s_ago" ;;
+              16) echo "[$timestamp] [$level] [encryption] Decryption failed: key_id=key_$counter algorithm=AES256 reason=invalid_padding" ;;
+              17) echo "[$timestamp] [$level] [migration] Database migration failed: version=v$((counter % 100)) table=user_profiles error=duplicate_column" ;;
+              18) echo "[$timestamp] [$level] [backup] Backup verification failed: file=backup_$counter.tar.gz checksum=invalid expected=sha256_$counter" ;;
+              19) echo "[$timestamp] [$level] [monitoring] Health check failed: endpoint=/health status=503 response_time=$((counter % 30000))ms" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.004  # 250 logs per second (error-heavy)
+          done
+        resources:
+          requests:
+            memory: "80Mi"
+            cpu: "140m"
+          limits:
+            memory: "160Mi"
+            cpu: "280m"
