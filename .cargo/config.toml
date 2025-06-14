@@ -3,11 +3,9 @@ registry = "https://github.com/rust-lang/crates.io-index"
 # Replace with rsproxy for better access in some regions
 # registry = "https://rsproxy.cn/crates.io-index"
 
-# Define timeout and retry settings
+# Define timeout settings
 [http]
 timeout = 300
-retry = 5
-multiplier = 10
 
 # Define multiple mirrors
 [source.mirror]

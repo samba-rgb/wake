@@ -237,29 +237,3 @@ pub struct ResourceSelector {
     pub resource_type: ResourceType,
     pub name: String,
 }
-
-impl ResourceSelector {
-    pub fn parse(query: &str) -> Result<Self> {
-        // Split into type and name parts
-        let parts: Vec<&str> = query.split('/').collect();
-        if parts.len() != 2 {
-            return Err(anyhow!("Invalid resource selector format. Expected <type>/<name>"));
-        }
-
-        let (resource_type_str, name) = (parts[0], parts[1]);
-        
-        // Validate that name is not empty
-        if name.is_empty() {
-            return Err(anyhow!("Resource name cannot be empty"));
-        }
-
-        // Parse resource type
-        let resource_type = ResourceType::from_str(resource_type_str)
-            .ok_or_else(|| anyhow!("Unknown resource type: {}", resource_type_str))?;
-
-        Ok(Self {
-            resource_type,
-            name: name.to_string(),
-        })
-    }
-}
