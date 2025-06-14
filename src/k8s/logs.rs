@@ -96,8 +96,8 @@ impl LogWatcher {
         // Create a channel with larger buffer to handle high-volume logs
         // Buffer size is based on number of pods * estimated lines per second * buffer time
         let buffer_size = std::cmp::max(
-            1000,  // Minimum buffer size
-            pods.len() * 100 * 2  // (pods * ~100 lines/s * 2s buffer)
+            5000,  // Increased minimum buffer size from 1000 to 5000
+            pods.len() * 500 * 5  // Increased to (pods * ~500 lines/s * 5s buffer)
         );
         info!("LOG_WATCHER: Creating log channel with buffer size: {}", buffer_size);
         let (tx, rx) = mpsc::channel::<LogEntry>(buffer_size);
