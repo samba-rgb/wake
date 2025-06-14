@@ -1,0 +1,307 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-09
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "09"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "09"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "09"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting financial/trading log generator 09..."
+          counter=8000
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            case $((counter % 12)) in
+              0|1|2|3|4|5) level="INFO" ;;
+              6|7) level="DEBUG" ;;
+              8|9) level="WARN" ;;
+              10|11) level="ERROR" ;;
+            esac
+            
+            # Financial and trading system logs
+            symbol_num=$((counter % 10))
+            case $symbol_num in
+              0) symbol="AAPL" ;;
+              1) symbol="GOOGL" ;;
+              2) symbol="MSFT" ;;
+              3) symbol="TSLA" ;;
+              4) symbol="AMZN" ;;
+              5) symbol="META" ;;
+              6) symbol="NVDA" ;;
+              7) symbol="BTC" ;;
+              8) symbol="ETH" ;;
+              9) symbol="SPY" ;;
+            esac
+            price=$((100 + counter % 500))
+            
+            case $((counter % 18)) in
+              0) 
+                side_val=$((counter % 2))
+                if [ $side_val -eq 0 ]; then
+                  side="BUY"
+                else
+                  side="SELL"
+                fi
+                echo "[$timestamp] [$level] [trading-engine] Order executed: symbol=$symbol qty=$((counter % 1000)) price=$price side=$side" ;;
+              1) echo "[$timestamp] [$level] [risk-management] Position check: symbol=$symbol exposure=$((counter % 1000000)) limit=500000 utilization=$((counter % 100))%" ;;
+              2) echo "[$timestamp] [$level] [market-data] Price update: symbol=$symbol bid=$price ask=$((price + 1)) volume=$((counter % 100000))" ;;
+              3) echo "[$timestamp] [$level] [settlement] Trade settled: trade_id=T$counter symbol=$symbol amount=$((counter % 100000)) settlement_date=$(date '+%Y-%m-%d')" ;;
+              4) 
+                status_val=$((counter % 10))
+                if [ $status_val -eq 0 ]; then
+                  status="VIOLATION"
+                else
+                  status="PASS"
+                fi
+                echo "[$timestamp] [$level] [compliance] Regulatory check: trade_id=T$counter rule=wash_sale status=$status" ;;
+              5) echo "[$timestamp] [$level] [portfolio] P&L calculation: account=ACC$((counter % 1000)) unrealized=$((counter % 50000 - 25000)) realized=$((counter % 10000 - 5000))" ;;
+              6) echo "[$timestamp] [$level] [liquidity] Order book update: symbol=$symbol levels=$((counter % 20)) spread=0.01" ;;
+              7) echo "[$timestamp] [$level] [matching-engine] Order matched: buy_order=B$counter sell_order=S$((counter + 1)) symbol=$symbol qty=$((counter % 100))" ;;
+              8) echo "[$timestamp] [$level] [margin] Margin call: account=ACC$((counter % 500)) required=$((counter % 100000)) available=$((counter % 50000)) deficit=$((counter % 25000))" ;;
+              9) echo "[$timestamp] [$level] [clearing] Trade cleared: trade_id=T$counter clearinghouse=DTCC fees=$((counter % 1000)) status=CLEARED" ;;
+              10) 
+                signal_val=$((counter % 3))
+                if [ $signal_val -eq 0 ]; then
+                  signal="BUY"
+                elif [ $signal_val -eq 1 ]; then
+                  signal="SELL"
+                else
+                  signal="HOLD"
+                fi
+                echo "[$timestamp] [$level] [algo-trading] Strategy signal: strategy=momentum_$((counter % 5)) symbol=$symbol signal=$signal" ;;
+              11) echo "[$timestamp] [$level] [fx-rates] Exchange rate: pair=USD/EUR rate=0.$((8500 + counter % 1000)) timestamp=$timestamp source=ECB" ;;
+              12) echo "[$timestamp] [$level] [derivatives] Option priced: symbol=${symbol}_OPT strike=$((price + 10)) expiry=2024-12-20 iv=$((counter % 100))% price=$((counter % 50))" ;;
+              13) 
+                rating_val=$((counter % 3))
+                if [ $rating_val -eq 0 ]; then
+                  rating="AAA"
+                elif [ $rating_val -eq 1 ]; then
+                  rating="BBB"
+                else
+                  rating="CCC"
+                fi
+                echo "[$timestamp] [$level] [credit-risk] Exposure calculated: counterparty=CP$((counter % 100)) exposure=$((counter % 1000000)) rating=$rating" ;;
+              14) 
+                report_status_val=$((counter % 20))
+                if [ $report_status_val -eq 0 ]; then
+                  report_status="FAILED"
+                else
+                  report_status="SUBMITTED"
+                fi
+                echo "[$timestamp] [$level] [trade-reporting] Regulatory report: trade_id=T$counter regulator=SEC status=$report_status" ;;
+              15) echo "[$timestamp] [$level] [market-making] Quote update: symbol=$symbol bid_qty=$((counter % 1000)) ask_qty=$((counter % 1000)) spread=$((counter % 10))" ;;
+              16) echo "[$timestamp] [$level] [blockchain] Transaction confirmed: hash=0x$counter block=$((counter % 1000000)) gas_used=$((counter % 200000)) status=SUCCESS" ;;
+              17) echo "[$timestamp] [$level] [custody] Asset transfer: from=VAULT_A to=VAULT_B symbol=$symbol qty=$((counter % 10000)) status=PENDING" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.006  # 167 logs per second
+          done
+        resources:
+          requests:
+            memory: "112Mi"
+            cpu: "160m"
+          limits:
+            memory: "224Mi"
+            cpu: "320m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-10
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "10"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "10"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "10"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting extreme burst log generator 10..."
+          counter=9000
+          burst_counter=0
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            
+            # Burst mode: every 10 seconds, generate 1000 logs rapidly, then pause
+            burst_phase=$((counter % 2000))
+            if [ $burst_phase -lt 1000 ]; then
+              # Burst phase: 1000 logs per second
+              sleep_time=0.001
+              level_mod=$((counter % 4))
+            else
+              # Normal phase: 50 logs per second
+              sleep_time=0.02
+              level_mod=$((counter % 10))
+            fi
+            
+            case $level_mod in
+              0|1) level="INFO" ;;
+              2) level="DEBUG" ;;
+              3) level="WARN" ;;
+              *) level="ERROR" ;;
+            esac
+            
+            # Mixed content with burst indicators
+            case $((counter % 25)) in
+              0) 
+                burst_status=""
+                rate_status=""
+                if [ $burst_phase -lt 1000 ]; then
+                  burst_status="ACTIVE"
+                  rate_status="1000/s"
+                else
+                  burst_status="IDLE"
+                  rate_status="50/s"
+                fi
+                echo "[$timestamp] [$level] [burst-test] Burst mode: phase=$burst_status rate=$rate_status counter=$counter" ;;
+              1) echo "[$timestamp] [$level] [stress-test] Memory allocation: size=$((counter % 1000))MB operation=malloc address=0x$counter status=success" ;;
+              2) 
+                cpu_result=""
+                if [ $((counter % 2)) -eq 0 ]; then
+                  cpu_result="prime"
+                else
+                  cpu_result="composite"
+                fi
+                echo "[$timestamp] [$level] [load-test] CPU intensive task: operation=prime_calculation number=$counter duration=$((counter % 100))ms result=$cpu_result" ;;
+              3) echo "[$timestamp] [$level] [throughput] Message processing: queue=high_volume msgs_processed=$((counter % 10000)) backlog=$((counter % 5000)) rate=$((counter % 1000))/s" ;;
+              4) echo "[$timestamp] [$level] [concurrency] Thread spawned: thread_id=T$counter pool=worker_pool active_threads=$((counter % 100)) max_threads=200" ;;
+              5) echo "[$timestamp] [$level] [network-flood] Packet processed: src=$((counter % 255)).$((counter % 255)).$((counter % 255)).$((counter % 255)) size=$((counter % 1500))bytes proto=TCP" ;;
+              6) echo "[$timestamp] [$level] [disk-io] File operation: operation=write file=/tmp/test_$counter size=$((counter % 1024))KB iops=$((counter % 1000)) latency=$((counter % 50))ms" ;;
+              7) 
+                cache_op=""
+                cache_mod=$((counter % 3))
+                if [ $cache_mod -eq 0 ]; then
+                  cache_op="GET"
+                elif [ $cache_mod -eq 1 ]; then
+                  cache_op="SET"
+                else
+                  cache_op="DEL"
+                fi
+                echo "[$timestamp] [$level] [cache-storm] Cache operation: key=key_$counter operation=$cache_op hit_rate=$((counter % 100))%" ;;
+              8) echo "[$timestamp] [$level] [connection-flood] Connection established: conn_id=$counter remote_addr=10.$((counter % 255)).$((counter % 255)).$((counter % 255)) pool_usage=$((counter % 100))%" ;;
+              9) 
+                validation_result=""
+                if [ $((counter % 20)) -eq 0 ]; then
+                  validation_result="FAILED"
+                else
+                  validation_result="PASSED"
+                fi
+                echo "[$timestamp] [$level] [data-ingestion] Record processed: record_id=$counter batch_id=B$((counter / 1000)) schema_version=v$((counter % 10)) validation=$validation_result" ;;
+              10) 
+                compression_type=""
+                if [ $((counter % 3)) -eq 0 ]; then
+                  compression_type="gzip"
+                else
+                  compression_type="none"
+                fi
+                echo "[$timestamp] [$level] [serialization] Object serialized: class=DataModel_$((counter % 10)) size=$((counter % 10000))bytes format=protobuf compression=$compression_type" ;;
+              11) echo "[$timestamp] [$level] [gc-pressure] Garbage collection: generation=G$((counter % 3)) collections=$((counter % 1000)) pause_time=$((counter % 100))ms freed=$((counter % 1000))MB" ;;
+              12) echo "[$timestamp] [$level] [event-storm] Event published: topic=events.burst.test event_id=E$counter partition=$((counter % 8)) offset=$counter timestamp=$timestamp" ;;
+              13) echo "[$timestamp] [$level] [regex-test] Pattern match: text=sample_text_$counter pattern='(ERROR|WARN).*user.*\\d+' matches=$((counter % 5)) duration=$((counter % 10))ms" ;;
+              14) 
+                filter_result=""
+                if [ $((counter % 2)) -eq 0 ]; then
+                  filter_result="PASS"
+                else
+                  filter_result="FAIL"
+                fi
+                echo "[$timestamp] [$level] [filter-test] Complex filter: condition='(INFO || DEBUG) && user && !\"test\"' input=log_$counter result=$filter_result" ;;
+              15) echo "[$timestamp] [$level] [json-parse] JSON processed: doc=document_$counter.json size=$((counter % 50000))bytes objects=$((counter % 1000)) parse_time=$((counter % 100))ms" ;;
+              16) 
+                comp_algo=""
+                comp_mod=$((counter % 3))
+                if [ $comp_mod -eq 0 ]; then
+                  comp_algo="lz4"
+                elif [ $comp_mod -eq 1 ]; then
+                  comp_algo="zstd"
+                else
+                  comp_algo="gzip"
+                fi
+                echo "[$timestamp] [$level] [compression] Data compressed: algorithm=$comp_algo ratio=$((counter % 90))% original=$((counter % 10000))KB" ;;
+              17) echo "[$timestamp] [$level] [encryption] Data encrypted: algorithm=ChaCha20-Poly1305 key_size=256bits data_size=$((counter % 100000))bytes throughput=$((counter % 1000))MB/s" ;;
+              18) echo "[$timestamp] [$level] [indexing] Search index updated: index=logs_$((counter % 10)) documents_added=$((counter % 1000)) size=$((counter % 1000))MB query_performance=$((counter % 100))ms" ;;
+              19) 
+                repl_status=""
+                if [ $((counter % 100)) -eq 0 ]; then
+                  repl_status="LAG_HIGH"
+                else
+                  repl_status="OK"
+                fi
+                echo "[$timestamp] [$level] [replication] Data replicated: master=primary replica=secondary_$((counter % 3)) lag=$((counter % 1000))ms status=$repl_status" ;;
+              20) echo "[$timestamp] [$level] [sharding] Shard operation: shard_id=S$((counter % 16)) operation=rebalance records_moved=$((counter % 100000)) duration=$((counter % 5000))ms" ;;
+              21) 
+                circuit_state=""
+                state_mod=$((counter % 4))
+                if [ $state_mod -eq 0 ]; then
+                  circuit_state="OPEN"
+                elif [ $state_mod -eq 1 ]; then
+                  circuit_state="CLOSED"
+                elif [ $state_mod -eq 2 ]; then
+                  circuit_state="HALF_OPEN"
+                else
+                  circuit_state="UNKNOWN"
+                fi
+                echo "[$timestamp] [$level] [circuit-breaker] State change: service=burst_test_$((counter % 5)) state=$circuit_state" ;;
+              22) 
+                rate_status=""
+                if [ $((counter % 10)) -eq 0 ]; then
+                  rate_status="EXCEEDED"
+                else
+                  rate_status="OK"
+                fi
+                echo "[$timestamp] [$level] [rate-limiting] Rate limit: endpoint=/api/v1/burst limit=$((1000 + counter % 5000))/min current=$((counter % 10000))/min status=$rate_status" ;;
+              23) echo "[$timestamp] [$level] [metric-export] Metrics exported: timestamp=$timestamp metrics_count=$((counter % 10000)) export_duration=$((counter % 1000))ms format=prometheus" ;;
+              24) 
+                health_status=""
+                if [ $((counter % 100)) -eq 0 ]; then
+                  health_status="DEGRADED"
+                else
+                  health_status="HEALTHY"
+                fi
+                echo "[$timestamp] [$level] [health-check] Service health: service=perf_generator_10 status=$health_status response_time=$((counter % 500))ms" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep $sleep_time
+          done
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

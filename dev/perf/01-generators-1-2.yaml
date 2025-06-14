@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-01
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "01"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "01"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "01"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting high-throughput log generator 01..."
+          counter=0
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            case $((counter % 10)) in
+              0|1|2|3) level="INFO" ;;
+              4|5) level="WARN" ;;
+              6|7) level="ERROR" ;;
+              8|9) level="DEBUG" ;;
+            esac
+            
+            case $((counter % 20)) in
+              0) echo "[$timestamp] [$level] User authentication successful for user_$counter" ;;
+              1) echo "[$timestamp] [$level] Processing request req_$counter with payload size 1024" ;;
+              2) echo "[$timestamp] [$level] Database connection established to primary DB" ;;
+              3) echo "[$timestamp] [$level] Cache miss for key user:session:$counter" ;;
+              4) echo "[$timestamp] [$level] Memory usage: $((50 + counter % 50))%" ;;
+              5) echo "[$timestamp] [$level] HTTP request completed in $((10 + counter % 100))ms" ;;
+              6) echo "[$timestamp] [$level] Failed to connect to external service timeout after 5s" ;;
+              7) echo "[$timestamp] [$level] Configuration loaded from /etc/config/app.yaml" ;;
+              8) echo "[$timestamp] [$level] Health check passed for component-$((counter % 5))" ;;
+              9) echo "[$timestamp] [$level] Background job job_$counter started successfully" ;;
+              10) echo "[$timestamp] [$level] Queue processing: $((counter % 100)) items remaining" ;;
+              11) echo "[$timestamp] [$level] SSL certificate will expire in $((30 + counter % 300)) days" ;;
+              12) echo "[$timestamp] [$level] Rate limit exceeded for IP 192.168.1.$((counter % 255))" ;;
+              13) echo "[$timestamp] [$level] Backup operation completed: 32GB transferred" ;;
+              14) echo "[$timestamp] [$level] Kubernetes pod perf-generator-01 scheduled on node-$((counter % 3))" ;;
+              15) echo "[$timestamp] [$level] Metrics exported: cpu=$((counter % 100))% memory=$((counter % 80))%" ;;
+              16) echo "[$timestamp] [$level] Transaction tx_$counter rolled back due to constraint violation" ;;
+              17) echo "[$timestamp] [$level] File uploaded: document_$counter.pdf size=$((counter % 1000))KB" ;;
+              18) echo "[$timestamp] [$level] WebSocket connection established from client_$counter" ;;
+              19) echo "[$timestamp] [$level] Scheduled maintenance window starts in $((counter % 60)) minutes" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.01  # 100 logs per second
+          done
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perf-generator-02
+  namespace: perf-test
+  labels:
+    app: perf-generator
+    group: "02"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: perf-generator
+      group: "02"
+  template:
+    metadata:
+      labels:
+        app: perf-generator
+        group: "02"
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Starting high-throughput log generator 02..."
+          counter=1000
+          while true; do
+            timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+            case $((counter % 8)) in
+              0|1) level="INFO" ;;
+              2|3) level="DEBUG" ;;
+              4) level="WARN" ;;
+              5|6|7) level="ERROR" ;;
+            esac
+            
+            # Different log patterns for variety
+            case $((counter % 15)) in
+              0) echo "[$timestamp] [$level] API endpoint /v1/users/$counter responded in $((counter % 500))ms" ;;
+              1) echo "[$timestamp] [$level] Redis cache hit ratio: $((80 + counter % 20))%" ;;
+              2) echo "[$timestamp] [$level] Elasticsearch index updated with $((counter % 1000)) documents" ;;
+              3) echo "[$timestamp] [$level] JWT token validation failed for user_$counter: expired" ;;
+              4) echo "[$timestamp] [$level] Database query executed: SELECT * FROM users WHERE id=$counter" ;;
+              5) echo "[$timestamp] [$level] Message published to topic events.user.actions with key=$counter" ;;
+              6) echo "[$timestamp] [$level] Docker image pulled: app:v1.$((counter % 100))" ;;
+              7) echo "[$timestamp] [$level] Load balancer health check failed for backend-$((counter % 5))" ;;
+              8) echo "[$timestamp] [$level] Prometheus scrape completed: 1024 metrics collected" ;;
+              9) echo "[$timestamp] [$level] S3 bucket sync started: $((counter % 10000)) objects to process" ;;
+              10) echo "[$timestamp] [$level] gRPC call user.GetProfile($counter) completed successfully" ;;
+              11) echo "[$timestamp] [$level] Circuit breaker opened for service payment-gateway" ;;
+              12) echo "[$timestamp] [$level] Kubernetes deployment scaled from 3 to $((3 + counter % 7)) replicas" ;;
+              13) echo "[$timestamp] [$level] NGINX access log: GET /api/v2/data?id=$counter 200 32ms" ;;
+              14) echo "[$timestamp] [$level] Audit log: user admin_$counter performed action DELETE on resource_$counter" ;;
+            esac
+            
+            counter=$((counter + 1))
+            sleep 0.005  # 200 logs per second (faster than generator 01)
+          done
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "150m"
+          limits:
+            memory: "128Mi"
+            cpu: "300m"

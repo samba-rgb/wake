@@ -1,0 +1,270 @@
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.531 UTC [1] LOG:  listening on
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.531 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+UI_DEBUG: Display manager now has 1 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.539 UTC [1] LOG:  listening on
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.539 UTC [1] LOG:  listening on Unix socket "/var/run/postgre
+UI_DEBUG: Display manager now has 2 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.549 UTC [35] LOG:  database sy
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.549 UTC [35] LOG:  database system was interrupted; last kno
+UI_DEBUG: Display manager now has 3 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.593 UTC [35] LOG:  database sy
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.593 UTC [35] LOG:  database system was not properly shut dow
+UI_DEBUG: Display manager now has 4 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.599 UTC [35] LOG:  redo starts
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.599 UTC [35] LOG:  redo starts at 0/1540640
+UI_DEBUG: Display manager now has 5 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.599 UTC [35] LOG:  invalid rec
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.599 UTC [35] LOG:  invalid record length at 0/1540728: wante
+UI_DEBUG: Display manager now has 6 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.599 UTC [35] LOG:  redo done a
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.599 UTC [35] LOG:  redo done at 0/15406F0 system usage: CPU:
+UI_DEBUG: Display manager now has 7 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.613 UTC [33] LOG:  checkpoint 
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.613 UTC [33] LOG:  checkpoint starting: end-of-recovery imme
+UI_DEBUG: Display manager now has 8 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.647 UTC [33] LOG:  checkpoint 
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.647 UTC [33] LOG:  checkpoint complete: wrote 3 buffers (0.0
+UI_DEBUG: Display manager now has 9 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=postgres-0, message=2025-06-14 12:33:53.653 UTC [1] LOG:  database sys
+UI_DEBUG: Formatted log for display: postgres-0/postgres 2025-06-14 12:33:53.653 UTC [1] LOG:  database system is ready to accept connect
+UI_DEBUG: Display manager now has 10 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:25] [TRACE] Configuration loaded
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:25] [TRACE] Configuration loaded from file
+UI_DEBUG: Display manager now has 11 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:27] [TRACE] Request completed in
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:27] [TRACE] Request completed in 120ms
+UI_DEBUG: Display manager now has 12 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:30] [DEBUG] Failed to connect to
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:30] [DEBUG] Failed to connect to external s
+UI_DEBUG: Display manager now has 13 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:32] [ERROR] Memory usage: 75%
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:32] [ERROR] Memory usage: 75%
+UI_DEBUG: Display manager now has 14 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:35] [WARN] Memory usage: 75%
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:35] [WARN] Memory usage: 75%
+UI_DEBUG: Display manager now has 15 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:36] [INFO] Health check passed
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:36] [INFO] Health check passed
+UI_DEBUG: Display manager now has 16 log lines, scroll_offset=0
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:39] [DEBUG] Health check passed
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:39] [DEBUG] Health check passed
+UI_DEBUG: Display manager now has 17 log lines, scroll_offset=1
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:41] [INFO] Application started s
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:41] [INFO] Application started successfully
+UI_DEBUG: Display manager now has 18 log lines, scroll_offset=2
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:43] [TRACE] Database connection 
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:43] [TRACE] Database connection established
+UI_DEBUG: Display manager now has 19 log lines, scroll_offset=3
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:46] [WARN] Failed to connect to 
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:46] [WARN] Failed to connect to external se
+UI_DEBUG: Display manager now has 20 log lines, scroll_offset=4
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:27] [ERROR] Processing user requ
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:27] [ERROR] Processing user request
+UI_DEBUG: Display manager now has 21 log lines, scroll_offset=5
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:27 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:27 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 22 log lines, scroll_offset=6
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:30 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:30 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 23 log lines, scroll_offset=7
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:31 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:31 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 24 log lines, scroll_offset=8
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:29 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:29 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 25 log lines, scroll_offset=9
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:31 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:31 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 26 log lines, scroll_offset=10
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:34 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:34 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 27 log lines, scroll_offset=11
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:33 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:33 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 28 log lines, scroll_offset=12
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:36 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:36 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 29 log lines, scroll_offset=13
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:37 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:37 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 30 log lines, scroll_offset=14
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:39 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:39 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 31 log lines, scroll_offset=15
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:42 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:42 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 32 log lines, scroll_offset=16
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:43 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:43 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 33 log lines, scroll_offset=17
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:45 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:45 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 34 log lines, scroll_offset=18
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:35 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:35 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 35 log lines, scroll_offset=19
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:37 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:37 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 36 log lines, scroll_offset=20
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:40 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:40 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 37 log lines, scroll_offset=21
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:41 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:41 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 38 log lines, scroll_offset=22
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:43 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:43 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 39 log lines, scroll_offset=23
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:46 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:46 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 40 log lines, scroll_offset=24
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:47 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:47 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 41 log lines, scroll_offset=25
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:28] [DEBUG] Failed to connect to
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:28] [DEBUG] Failed to connect to external s
+UI_DEBUG: Display manager now has 42 log lines, scroll_offset=26
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:31] [TRACE] Cache miss for key u
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:31] [TRACE] Cache miss for key user:12345
+UI_DEBUG: Display manager now has 43 log lines, scroll_offset=27
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:34] [DEBUG] User authentication 
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:34] [DEBUG] User authentication successful
+UI_DEBUG: Display manager now has 44 log lines, scroll_offset=28
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:36] [WARN] Database connection e
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:36] [WARN] Database connection established
+UI_DEBUG: Display manager now has 45 log lines, scroll_offset=29
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:39] [TRACE] Memory usage: 75%
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:39] [TRACE] Memory usage: 75%
+UI_DEBUG: Display manager now has 46 log lines, scroll_offset=30
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:40] [DEBUG] Application started 
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:40] [DEBUG] Application started successfull
+UI_DEBUG: Display manager now has 47 log lines, scroll_offset=31
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:43] [TRACE] Configuration loaded
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:43] [TRACE] Configuration loaded from file
+UI_DEBUG: Display manager now has 48 log lines, scroll_offset=32
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:44] [DEBUG] Processing user requ
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:44] [DEBUG] Processing user request
+UI_DEBUG: Display manager now has 49 log lines, scroll_offset=33
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:47] [INFO] Configuration loaded 
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:47] [INFO] Configuration loaded from file
+UI_DEBUG: Display manager now has 50 log lines, scroll_offset=34
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:48 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:48 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 51 log lines, scroll_offset=35
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:49] [TRACE] Processing user requ
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:49] [TRACE] Processing user request
+UI_DEBUG: Display manager now has 52 log lines, scroll_offset=36
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:49] [WARN] Health check passed
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:49] [WARN] Health check passed
+UI_DEBUG: Display manager now has 53 log lines, scroll_offset=37
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:49 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:49 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 54 log lines, scroll_offset=38
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:49 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:49 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 55 log lines, scroll_offset=39
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:50] [DEBUG] Database connection 
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:50] [DEBUG] Database connection established
+UI_DEBUG: Display manager now has 56 log lines, scroll_offset=40
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:51] [WARN] Memory usage: 75%
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:51] [WARN] Memory usage: 75%
+UI_DEBUG: Display manager now has 57 log lines, scroll_offset=41
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:51 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:51 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 58 log lines, scroll_offset=42
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:52] [ERROR] Configuration loaded
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:52] [ERROR] Configuration loaded from file
+UI_DEBUG: Display manager now has 59 log lines, scroll_offset=43
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:52 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:52 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 60 log lines, scroll_offset=44
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:53] [INFO] Memory usage: 75%
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:53] [INFO] Memory usage: 75%
+UI_DEBUG: Display manager now has 61 log lines, scroll_offset=45
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:53] [DEBUG] Failed to connect to
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:53] [DEBUG] Failed to connect to external s
+UI_DEBUG: Display manager now has 62 log lines, scroll_offset=46
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:53 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:53 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 63 log lines, scroll_offset=47
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:55 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:55 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 64 log lines, scroll_offset=48
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:55 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:55 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 65 log lines, scroll_offset=49
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:56 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:56 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 66 log lines, scroll_offset=50
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:56] [ERROR] Configuration loaded
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:56] [ERROR] Configuration loaded from file
+UI_DEBUG: Display manager now has 67 log lines, scroll_offset=51
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:56] [INFO] Failed to connect to 
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:56] [INFO] Failed to connect to external se
+UI_DEBUG: Display manager now has 68 log lines, scroll_offset=52
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:57] [WARN] Processing user reque
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:57] [WARN] Processing user request
+UI_DEBUG: Display manager now has 69 log lines, scroll_offset=53
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:51:58 UTC 2025] [ERROR] Something w
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:51:58 UTC 2025] [ERROR] Something went wrong
+UI_DEBUG: Display manager now has 70 log lines, scroll_offset=54
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:51:58] [INFO] Cache miss for key us
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:51:58] [INFO] Cache miss for key user:12345
+UI_DEBUG: Display manager now has 71 log lines, scroll_offset=55
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:58] [ERROR] Cache miss for key u
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:58] [ERROR] Cache miss for key user:12345
+UI_DEBUG: Display manager now has 72 log lines, scroll_offset=56
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:51:58 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:51:58 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 73 log lines, scroll_offset=57
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:51:59] [ERROR] Request completed in
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:51:59] [ERROR] Request completed in 120ms
+UI_DEBUG: Display manager now has 74 log lines, scroll_offset=58
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:52:00 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:52:00 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 75 log lines, scroll_offset=59
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:52:00] [TRACE] Failed to connect to
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:52:00] [TRACE] Failed to connect to external s
+UI_DEBUG: Display manager now has 76 log lines, scroll_offset=60
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:52:01 UTC 2025] [WARN] Warning mess
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:52:01 UTC 2025] [WARN] Warning message
+UI_DEBUG: Display manager now has 77 log lines, scroll_offset=61
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:52:01] [ERROR] Failed to connect to
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:52:01] [ERROR] Failed to connect to external s
+UI_DEBUG: Display manager now has 78 log lines, scroll_offset=62
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:52:02 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:52:02 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 80 log lines, scroll_offset=63
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:52:03] [INFO] User authentication s
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:52:03] [INFO] User authentication successful
+UI_DEBUG: Display manager now has 81 log lines, scroll_offset=65
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:52:06 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:52:06 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 82 log lines, scroll_offset=66
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:52:08 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:52:08 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 83 log lines, scroll_offset=67
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:52:12 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:52:12 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 84 log lines, scroll_offset=68
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:52:12] [INFO] Application started s
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:52:12] [INFO] Application started successfully
+UI_DEBUG: Display manager now has 85 log lines, scroll_offset=69
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:52:14 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:52:14 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 86 log lines, scroll_offset=70
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-tb5sl, message=[2025-06-14T17:52:17] [INFO] Cache miss for key us
+UI_DEBUG: Formatted log for display: log-generator-94694f48-tb5sl/generator [2025-06-14T17:52:17] [INFO] Cache miss for key user:12345
+UI_DEBUG: Display manager now has 87 log lines, scroll_offset=71
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:52:18 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:52:18 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 88 log lines, scroll_offset=72
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-zxnpk, message=[Sat Jun 14 17:52:20 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-zxnpk/logger [Sat Jun 14 17:52:20 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 89 log lines, scroll_offset=73
+UI_DEBUG: Adding log entry to display: pod=log-generator-94694f48-z9vl7, message=[2025-06-14T17:52:22] [INFO] Health check passed
+UI_DEBUG: Formatted log for display: log-generator-94694f48-z9vl7/generator [2025-06-14T17:52:22] [INFO] Health check passed
+UI_DEBUG: Display manager now has 90 log lines, scroll_offset=74
+UI_DEBUG: Adding log entry to display: pod=simple-logger-57f5f9b95d-mrl2x, message=[Sat Jun 14 17:52:24 UTC 2025] [INFO] Simple log m
+UI_DEBUG: Formatted log for display: simple-logger-57f5f9b95d-mrl2x/logger [Sat Jun 14 17:52:24 UTC 2025] [INFO] Simple log message from 
+UI_DEBUG: Display manager now has 91 log lines, scroll_offset=75

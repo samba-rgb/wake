@@ -112,22 +112,24 @@ impl Formatter {
             String::new()
         };
 
-        // Check if this is an error log
-        let is_error_log = entry.message.to_lowercase().contains("error") || 
-                          entry.message.contains("ERROR") ||
-                          entry.message.contains("ERR") ||
-                          entry.message.contains("Exception") ||
-                          entry.message.contains("FATAL");
-
-        // Format the base log entry text
-        let log_text = format!("{}{}/{} {}", time_part, pod_part, container_part, entry.message);
-        
-        // If it's an error log, color the entire log text red
-        if is_error_log {
-            log_text.red().to_string()
+        // Consistent color coding for log levels
+        let message_with_level_color = if entry.message.contains("FATAL") || entry.message.contains("CRITICAL") {
+            entry.message.bright_red().bold().to_string()
+        } else if entry.message.contains("ERROR") || entry.message.contains("ERR") {
+            entry.message.red().to_string()
+        } else if entry.message.contains("WARN") || entry.message.contains("WARNING") {
+            entry.message.yellow().to_string()
+        } else if entry.message.contains("INFO") {
+            entry.message.green().to_string()
+        } else if entry.message.contains("DEBUG") || entry.message.contains("TRACE") {
+            entry.message.cyan().to_string()
         } else {
-            log_text
-        }
+            // Default color - use white for normal messages
+            entry.message.white().to_string()
+        };
+
+        // Format the complete log entry
+        format!("{}{}/{} {}", time_part, pod_part, container_part, message_with_level_color)
     }
 
     /// Formats a log entry as JSON

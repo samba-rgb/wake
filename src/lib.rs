@@ -4,3 +4,4 @@ pub mod filtering;
 pub mod k8s;
 pub mod logging;
 pub mod output;
+pub mod ui;
