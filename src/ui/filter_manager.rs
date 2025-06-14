@@ -2,7 +2,7 @@ use regex::Regex;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 use crate::k8s::logs::LogEntry;
 use anyhow::Result;
 
@@ -149,31 +149,6 @@ impl DynamicFilterManager {
         buffer.push(entry);
     }
 
-    /// Get filtered entries from the buffer (for retroactive filtering)
-    pub async fn get_filtered_buffer(&self) -> Vec<LogEntry> {
-        let buffer = self.log_buffer.read().await;
-        let mut filtered = Vec::new();
-
-        for entry in buffer.iter() {
-            if self.should_include(entry).await {
-                filtered.push(entry.clone());
-            }
-        }
-
-        filtered
-    }
-
-    /// Get current filter patterns as strings for display
-    pub async fn get_current_patterns(&self) -> (Option<String>, Option<String>) {
-        let include_guard = self.include_pattern.read().await;
-        let exclude_guard = self.exclude_pattern.read().await;
-
-        let include_str = include_guard.as_ref().map(|r| r.as_str().to_string());
-        let exclude_str = exclude_guard.as_ref().map(|r| r.as_str().to_string());
-
-        (include_str, exclude_str)
-    }
-
     /// Start the filtering process for a stream of log entries with cancellation support
     pub async fn start_filtering_with_cancellation(
         &self,
@@ -245,15 +220,5 @@ impl DynamicFilterManager {
 
         info!("FILTER_MANAGER: Filtering process setup complete, returning output channel");
         output_rx
-    }
-
-    /// Start the filtering process for a stream of log entries (legacy method for compatibility)
-    pub async fn start_filtering(
-        &self,
-        input_rx: mpsc::Receiver<LogEntry>,
-    ) -> mpsc::Receiver<LogEntry> {
-        // Create a cancellation token that never gets cancelled for backward compatibility
-        let cancellation_token = CancellationToken::new();
-        self.start_filtering_with_cancellation(input_rx, cancellation_token).await
     }
 }

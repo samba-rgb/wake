@@ -5,7 +5,6 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
-use regex::Regex;
 use crate::k8s::logs::LogEntry;
 use crate::ui::input::{InputHandler, InputMode};
 use std::collections::VecDeque;
@@ -43,12 +42,6 @@ impl DisplayManager {
         self.log_entries.push_back(entry.clone());
         self.filtered_logs += 1;
         self.total_logs += 1;
-    }
-
-    pub fn clear_logs(&mut self) {
-        self.log_entries.clear();
-        self.scroll_offset = 0;
-        self.filtered_logs = 0;
     }
 
     pub fn scroll_up(&mut self, lines: usize) {

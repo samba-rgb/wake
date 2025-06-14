@@ -5,56 +5,19 @@ use threadpool::ThreadPool;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info};
 
-/// Advanced pattern that supports logical operators
+/// Simple pattern that supports regex matching
 #[derive(Debug, Clone)]
 pub enum FilterPattern {
     Simple(Regex),
-    And(Box<FilterPattern>, Box<FilterPattern>),
-    Or(Box<FilterPattern>, Box<FilterPattern>),
-    Not(Box<FilterPattern>),
-    Contains(String),
 }
 
 impl FilterPattern {
-    /// Parse a pattern string with logical operators
-    /// Supports: (pattern1 && pattern2), (pattern1 || pattern2), !pattern, "text"
+    /// Parse a pattern string as a simple regex
+    #[allow(dead_code)]
     pub fn parse(pattern: &str) -> Result<Self, String> {
-        let trimmed = pattern.trim();
-        
-        // Handle parentheses
-        if trimmed.starts_with('(') && trimmed.ends_with(')') {
-            return Self::parse(&trimmed[1..trimmed.len()-1]);
-        }
-        
-        // Handle NOT operator
-        if trimmed.starts_with('!') {
-            let inner = Self::parse(&trimmed[1..])?;
-            return Ok(FilterPattern::Not(Box::new(inner)));
-        }
-        
-        // Handle quoted strings (exact text match)
-        if trimmed.starts_with('"') && trimmed.ends_with('"') {
-            let text = trimmed[1..trimmed.len()-1].to_string();
-            return Ok(FilterPattern::Contains(text));
-        }
-        
-        // Look for logical operators (prioritize && over ||)
-        if let Some(and_pos) = find_top_level_operator(trimmed, "&&") {
-            let left = Self::parse(&trimmed[..and_pos])?;
-            let right = Self::parse(&trimmed[and_pos + 2..])?;
-            return Ok(FilterPattern::And(Box::new(left), Box::new(right)));
-        }
-        
-        if let Some(or_pos) = find_top_level_operator(trimmed, "||") {
-            let left = Self::parse(&trimmed[..or_pos])?;
-            let right = Self::parse(&trimmed[or_pos + 2..])?;
-            return Ok(FilterPattern::Or(Box::new(left), Box::new(right)));
-        }
-        
-        // If no logical operators, treat as regex
-        match Regex::new(trimmed) {
+        match Regex::new(pattern.trim()) {
             Ok(regex) => Ok(FilterPattern::Simple(regex)),
-            Err(e) => Err(format!("Invalid regex pattern '{}': {}", trimmed, e)),
+            Err(e) => Err(format!("Invalid regex pattern '{}': {}", pattern.trim(), e)),
         }
     }
     
@@ -62,35 +25,8 @@ impl FilterPattern {
     pub fn matches(&self, message: &str) -> bool {
         match self {
             FilterPattern::Simple(regex) => regex.is_match(message),
-            FilterPattern::And(left, right) => left.matches(message) && right.matches(message),
-            FilterPattern::Or(left, right) => left.matches(message) || right.matches(message),
-            FilterPattern::Not(pattern) => !pattern.matches(message),
-            FilterPattern::Contains(text) => message.contains(text),
         }
     }
-}
-
-/// Find the position of a top-level operator (not inside parentheses)
-fn find_top_level_operator(s: &str, op: &str) -> Option<usize> {
-    let mut paren_depth = 0;
-    let mut quote_depth = 0;
-    let chars: Vec<char> = s.chars().collect();
-    
-    for i in 0..chars.len() {
-        match chars[i] {
-            '(' if quote_depth == 0 => paren_depth += 1,
-            ')' if quote_depth == 0 => paren_depth -= 1,
-            '"' if paren_depth == 0 => quote_depth = (quote_depth + 1) % 2,
-            _ => {}
-        }
-        
-        if paren_depth == 0 && quote_depth == 0 {
-            if s[i..].starts_with(op) {
-                return Some(i);
-            }
-        }
-    }
-    None
 }
 
 /// Handles log filtering operations in a dedicated thread pool
@@ -123,34 +59,6 @@ impl LogFilter {
         }
     }
     
-    /// Creates a new log filter with advanced pattern support
-    pub fn new_with_patterns(
-        include_pattern: Option<String>,
-        exclude_pattern: Option<String>,
-        num_threads: usize,
-    ) -> Result<Self, String> {
-        let include_arc = if let Some(pattern) = include_pattern {
-            Some(Arc::new(FilterPattern::parse(&pattern)?))
-        } else {
-            None
-        };
-        
-        let exclude_arc = if let Some(pattern) = exclude_pattern {
-            Some(Arc::new(FilterPattern::parse(&pattern)?))
-        } else {
-            None
-        };
-
-        let thread_pool = ThreadPool::new(num_threads);
-        info!("Created advanced log filter with {} worker threads", num_threads);
-        
-        Ok(Self {
-            include_pattern: include_arc,
-            exclude_pattern: exclude_arc,
-            thread_pool,
-        })
-    }
-
     /// Start the filtering process, consuming from input channel and sending to output channel
     pub fn start_filtering(&self, mut input_rx: mpsc::Receiver<LogEntry>) -> mpsc::Receiver<LogEntry> {
         let (output_tx, output_rx) = mpsc::channel(1024);
