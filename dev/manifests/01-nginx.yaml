@@ -1,28 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx
+  name: simple-logger
   namespace: apps
   labels:
-    app: web
-    tier: frontend
+    app: simple-logger
+    tier: testing
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
-      app: web
+      app: simple-logger
   template:
     metadata:
       labels:
-        app: web
-        tier: frontend
+        app: simple-logger
+        tier: testing
     spec:
       containers:
-      - name: nginx
-        image: nginx:latest
-        ports:
-        - containerPort: 80
-      - name: sidecar
+      - name: logger
         image: busybox
         command: ["/bin/sh"]
-        args: ["-c", "while true; do echo '[Sidecar] Health check passing'; sleep 10; done"]
+        args: ["-c", "while true; do echo \"[$(date)] [INFO] Simple log message from container\"; sleep 2; echo \"[$(date)] [ERROR] Something went wrong\"; sleep 3; echo \"[$(date)] [WARN] Warning message\"; sleep 1; done"]
+        resources:
+          requests:
+            memory: "8Mi"
+            cpu: "10m"
+          limits:
+            memory: "16Mi"
+            cpu: "50m"

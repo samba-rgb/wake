@@ -2,6 +2,7 @@ mod args;
 
 pub use args::{Args, parse_args};
 use anyhow::{Result, Context};
+use tracing::info;
 
 /// Prints WAKE in big text with dots
 fn print_wake_big_text() {
@@ -28,11 +29,39 @@ fn is_default_run(args: &Args) -> bool {
 }
 
 pub async fn run(args: Args) -> Result<()> {
+    info!("=== CLI MODULE STARTING ===");
+    info!("CLI: Received args - namespace: {}, pod_selector: {}, container: {}", 
+          args.namespace, args.pod_selector, args.container);
+    info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
+          args.ui, args.no_ui, args.output_file);
+    
     // Always print the big text WAKE
     print_wake_big_text();
     
-    // If running with default options, show help message and exit
-    if is_default_run(&args) {
+    // Determine UI behavior - UI is now the default
+    let should_use_ui = if args.no_ui {
+        // If --no-ui is explicitly specified, force CLI mode
+        info!("CLI: Using CLI mode (--no-ui specified)");
+        false
+    } else if args.output_file.is_some() && !args.ui {
+        // If output file is specified without explicit --ui, use CLI mode for compatibility
+        info!("CLI: Using CLI mode (output file specified without --ui)");
+        false
+    } else if args.list_containers {
+        // Always use CLI mode for listing containers
+        info!("CLI: Using CLI mode (list_containers=true)");
+        false
+    } else {
+        // Default behavior: use UI mode unless explicitly disabled
+        info!("CLI: Using UI mode (default behavior)");
+        true
+    };
+    
+    info!("CLI: Final decision - should_use_ui: {}", should_use_ui);
+    
+    // If running with default options and no output file, show help message and exit
+    if is_default_run(&args) && args.output_file.is_none() && !args.ui && !should_use_ui {
+        info!("CLI: Showing help message and exiting (default run)");
         println!("No filters specified. Use arguments to begin watching pods.");
         println!("Example: wake -n kube-system \"kube-proxy\"");
         println!("Run with --help for more information.");
@@ -40,13 +69,17 @@ pub async fn run(args: Args) -> Result<()> {
     }
     
     // Initialize kubernetes client
+    info!("CLI: Creating Kubernetes client...");
     let client = crate::k8s::create_client(&args).await?;
+    info!("CLI: Kubernetes client created successfully");
     
     // Get the pod regex
     let pod_regex = args.pod_regex().context("Invalid pod selector regex")?;
+    info!("CLI: Pod regex compiled: {:?}", pod_regex.as_str());
     
     // If list_containers flag is set, just list containers and exit
     if args.list_containers {
+        info!("CLI: Listing containers and exiting");
         return crate::k8s::pod::list_container_names(
             &client, 
             &args.namespace, 
@@ -57,16 +90,31 @@ pub async fn run(args: Args) -> Result<()> {
     }
     
     // Set up log watcher
+    info!("CLI: Creating LogWatcher...");
     let watcher = crate::k8s::LogWatcher::new(client, &args);
     
     // Stream the logs
+    info!("CLI: Starting log stream...");
     let log_streams = watcher.stream().await?;
+    info!("CLI: Log stream created successfully");
     
-    // Create output formatter
-    let formatter = crate::output::Formatter::new(&args);
+    // Handle different output modes
+    if should_use_ui {
+        info!("CLI: Starting UI mode...");
+        if args.output_file.is_some() {
+            println!("Starting UI mode with file output to: {:?}", args.output_file);
+        }
+        // Use the interactive UI with dynamic filtering
+        crate::ui::run_with_ui(log_streams, args).await?;
+        info!("CLI: UI mode completed");
+    } else {
+        info!("CLI: Starting CLI mode...");
+        // Use CLI mode with static filtering
+        let formatter = crate::output::Formatter::new(&args);
+        crate::logging::process_logs(log_streams, &args, formatter).await?;
+        info!("CLI: CLI mode completed");
+    }
     
-    // Process and display logs with the new threaded filtering pipeline
-    crate::logging::process_logs(log_streams, &args, formatter).await?;
-    
+    info!("=== CLI MODULE COMPLETED ===");
     Ok(())
 }

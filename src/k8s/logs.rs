@@ -1,5 +1,5 @@
 use crate::cli::Args;
-use crate::k8s::pod::{PodInfo, select_pods};
+use crate::k8s::pod::select_pods;
 use anyhow::{Result, Context, anyhow};
 use futures::Stream;
 use k8s_openapi::api::core::v1::Pod;
@@ -22,6 +22,18 @@ pub struct LogEntry {
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+impl Default for LogEntry {
+    fn default() -> Self {
+        Self {
+            namespace: String::new(),
+            pod_name: String::new(),
+            container_name: String::new(),
+            message: String::new(),
+            timestamp: None,
+        }
+    }
+}
+
 /// Watches and streams logs from multiple pods/containers
 pub struct LogWatcher {
     client: Client,
@@ -31,6 +43,8 @@ pub struct LogWatcher {
 impl LogWatcher {
     /// Creates a new log watcher
     pub fn new(client: Client, args: &Args) -> Self {
+        info!("LOG_WATCHER: Creating new LogWatcher with args: namespace={}, pod_selector={}, container={}", 
+              args.namespace, args.pod_selector, args.container);
         Self {
             client,
             args: Arc::new(args.clone()),
@@ -39,18 +53,26 @@ impl LogWatcher {
     
     /// Starts streaming logs from all matching pods/containers
     pub async fn stream(&self) -> Result<Pin<Box<dyn Stream<Item = LogEntry> + Send>>> {
+        info!("LOG_WATCHER: Starting to stream logs...");
         let pod_regex = self.args.pod_regex()
             .context("Invalid pod selector regex")?;
+        
+        info!("LOG_WATCHER: Pod regex: {:?}", pod_regex.as_str());
         
         // If no specific container is provided (i.e., default pattern ".*") and 
         // all_containers is false, we need to behave like kubectl logs and use the first container
         let use_first_container = self.args.container == ".*" && !self.args.all_containers;
         
+        info!("LOG_WATCHER: Use first container only: {}", use_first_container);
+        
         // If we're not using the first container, use the provided container regex
         let container_regex = self.args.container_regex()
             .context("Invalid container selector regex")?;
+            
+        info!("LOG_WATCHER: Container regex: {:?}", container_regex.as_str());
         
         // Get pods matching our criteria - always get all containers first
+        info!("LOG_WATCHER: Selecting pods in namespace: {}", self.args.namespace);
         let pods = select_pods(
             &self.client, 
             &self.args.namespace, 
@@ -60,7 +82,14 @@ impl LogWatcher {
             self.args.resource.as_deref(), // Pass the resource query if present
         ).await?;
         
+        info!("LOG_WATCHER: Found {} matching pods", pods.len());
+        for (i, pod) in pods.iter().enumerate() {
+            info!("LOG_WATCHER: Pod #{}: {}/{} with {} containers", 
+                  i+1, pod.namespace, pod.name, pod.containers.len());
+        }
+        
         if pods.is_empty() {
+            error!("LOG_WATCHER: No pods found matching the selection criteria");
             return Err(anyhow!("No pods found matching the selection criteria"));
         }
         
@@ -70,13 +99,15 @@ impl LogWatcher {
             1000,  // Minimum buffer size
             pods.len() * 100 * 2  // (pods * ~100 lines/s * 2s buffer)
         );
-        
+        info!("LOG_WATCHER: Creating log channel with buffer size: {}", buffer_size);
         let (tx, rx) = mpsc::channel::<LogEntry>(buffer_size);
         
         // Get the since parameter from args
         let since_param = self.args.since.clone();
+        info!("LOG_WATCHER: Since parameter: {:?}", since_param);
         
         // Start streaming logs from each container
+        info!("LOG_WATCHER: Starting log streams for {} pods", pods.len());
         for pod_info in pods {
             let client = self.client.clone();
             let tail_lines = self.args.tail;
@@ -84,10 +115,13 @@ impl LogWatcher {
             let timestamps = self.args.timestamps;
             let tx = tx.clone();
             
+            info!("LOG_WATCHER: Processing pod {}/{} with containers: {:?}", 
+                  pod_info.namespace, pod_info.name, pod_info.containers);
+            
             // If we should use the first container only (kubectl-like behavior)
             if use_first_container && !pod_info.containers.is_empty() {
                 let first_container = pod_info.containers[0].clone();
-                debug!("Using only first container: {} in pod: {}/{}", 
+                info!("LOG_WATCHER: Using only first container: {} in pod: {}/{}", 
                       first_container, pod_info.namespace, pod_info.name);
                 
                 let pod_info_clone = pod_info.clone();
@@ -96,6 +130,8 @@ impl LogWatcher {
                 let since_clone = since_param.clone();
                 
                 tokio::spawn(async move {
+                    info!("CONTAINER_TASK: Starting log stream for {}/{}/{}", 
+                          pod_info_clone.namespace, pod_info_clone.name, first_container);
                     if let Err(e) = Self::stream_container_logs(
                         client_clone, 
                         &pod_info_clone.namespace, 
@@ -107,17 +143,25 @@ impl LogWatcher {
                         tx_clone,
                         since_clone
                     ).await {
-                        error!("Error streaming logs from {}/{}/{}: {:?}", 
+                        error!("CONTAINER_TASK: Error streaming logs from {}/{}/{}: {:?}", 
                                pod_info_clone.namespace, pod_info_clone.name, first_container, e);
+                    } else {
+                        info!("CONTAINER_TASK: Completed streaming logs from {}/{}/{}", 
+                              pod_info_clone.namespace, pod_info_clone.name, first_container);
                     }
                 });
             } else {
                 // Use all containers that match the regex (or all if all_containers is true)
+                info!("LOG_WATCHER: Processing all containers for pod {}/{}", 
+                      pod_info.namespace, pod_info.name);
                 for container_name in &pod_info.containers {
                     // Skip containers that don't match the regex (unless all_containers is true)
                     if !self.args.all_containers && !container_regex.is_match(container_name) {
+                        info!("LOG_WATCHER: Skipping container {} (doesn't match regex)", container_name);
                         continue;
                     }
+                    
+                    info!("LOG_WATCHER: Including container {} for streaming", container_name);
                     
                     let pod_info = pod_info.clone();
                     let container_name = container_name.clone();
@@ -125,11 +169,10 @@ impl LogWatcher {
                     let client = client.clone();
                     let since_clone = since_param.clone();
                     
-                    debug!("Starting log stream for {}/{}/{}", 
-                           pod_info.namespace, pod_info.name, container_name);
-                    
                     // Spawn a task for each container
                     tokio::spawn(async move {
+                        info!("CONTAINER_TASK: Starting log stream for {}/{}/{}", 
+                              pod_info.namespace, pod_info.name, container_name);
                         if let Err(e) = Self::stream_container_logs(
                             client, 
                             &pod_info.namespace, 
@@ -141,14 +184,18 @@ impl LogWatcher {
                             tx,
                             since_clone
                         ).await {
-                            error!("Error streaming logs from {}/{}/{}: {:?}", 
+                            error!("CONTAINER_TASK: Error streaming logs from {}/{}/{}: {:?}", 
                                    pod_info.namespace, pod_info.name, container_name, e);
+                        } else {
+                            info!("CONTAINER_TASK: Completed streaming logs from {}/{}/{}", 
+                                  pod_info.namespace, pod_info.name, container_name);
                         }
                     });
                 }
             }
         }
         
+        info!("LOG_WATCHER: All container streaming tasks spawned, returning stream");
         // Return the receiving stream
         Ok(Box::pin(ReceiverStream::new(rx)))
     }
@@ -165,6 +212,10 @@ impl LogWatcher {
         tx: mpsc::Sender<LogEntry>,
         since: Option<String>,
     ) -> Result<()> {
+        info!("CONTAINER_LOGS: Starting log stream for {}/{}/{}", namespace, pod_name, container_name);
+        info!("CONTAINER_LOGS: Params - follow: {}, tail_lines: {}, timestamps: {}, since: {:?}", 
+              follow, tail_lines, timestamps, since);
+        
         let pods: Api<Pod> = Api::namespaced(client, namespace);
         
         // Create log params
@@ -177,37 +228,138 @@ impl LogWatcher {
         // Add since parameter if provided
         if let Some(since_val) = since {
             log_params.since_seconds = parse_duration_to_seconds(&since_val).ok();
+            info!("CONTAINER_LOGS: Applied since parameter: {} -> {:?} seconds", 
+                  since_val, log_params.since_seconds);
         }
+        
+        info!("CONTAINER_LOGS: Attempting to get logs for {}/{}/{}", namespace, pod_name, container_name);
         
         // Use the streaming API instead of getting logs all at once
         if follow {
+            info!("CONTAINER_LOGS: Using streaming mode (follow=true)");
             // For streaming logs continuously
             use futures::AsyncBufReadExt;
             use futures::StreamExt;
             
-            let logs = pods.log_stream(pod_name, &log_params).await?;
-            let mut lines = logs.lines();
-            
-            while let Some(line_result) = lines.next().await {
-                match line_result {
-                    Ok(line) => {
-                        let line = line.trim();
-                        if line.is_empty() { continue; }
+            match pods.log_stream(pod_name, &log_params).await {
+                Ok(logs) => {
+                    info!("CONTAINER_LOGS: Successfully got log stream for {}/{}/{}", namespace, pod_name, container_name);
+                    let mut lines = logs.lines();
+                    let mut line_count = 0;
+                    
+                    while let Some(line_result) = lines.next().await {
+                        match line_result {
+                            Ok(line) => {
+                                let line = line.trim();
+                                if line.is_empty() { 
+                                    debug!("CONTAINER_LOGS: Skipping empty line");
+                                    continue; 
+                                }
+                                
+                                line_count += 1;
+                                if line_count <= 5 || line_count % 100 == 0 {
+                                    info!("CONTAINER_LOGS: Processing line #{} from {}/{}/{}: {}", 
+                                          line_count, namespace, pod_name, container_name, 
+                                          line.chars().take(50).collect::<String>());
+                                }
+                                
+                                // Extract timestamp if present
+                                let (timestamp, message) = if timestamps {
+                                    match line.find(' ') {
+                                        Some(space_idx) => {
+                                            let time_str = &line[0..space_idx];
+                                            match chrono::DateTime::parse_from_rfc3339(time_str) {
+                                                Ok(dt) => (Some(dt.with_timezone(&chrono::Utc)), line[space_idx+1..].to_string()),
+                                                Err(_) => {
+                                                    debug!("CONTAINER_LOGS: Failed to parse timestamp: {}", time_str);
+                                                    (None, line.to_string())
+                                                }
+                                            }
+                                        },
+                                        None => (None, line.to_string()),
+                                    }
+                                } else {
+                                    (None, line.to_string())
+                                };
+                                
+                                // Create and send log entry
+                                let entry = LogEntry {
+                                    namespace: namespace.to_string(),
+                                    pod_name: pod_name.to_string(),
+                                    container_name: container_name.to_string(),
+                                    message,
+                                    timestamp,
+                                };
+                                
+                                if let Err(e) = tx.send(entry).await {
+                                    error!("CONTAINER_LOGS: Failed to send log entry to channel: {:?}", e);
+                                    return Ok(());
+                                } else if line_count <= 5 {
+                                    debug!("CONTAINER_LOGS: Successfully sent log entry #{} to channel", line_count);
+                                }
+                            },
+                            Err(e) => {
+                                error!("CONTAINER_LOGS: Error reading log line from {}/{}/{}: {:?}", 
+                                       namespace, pod_name, container_name, e);
+                            }
+                        }
+                    }
+                    
+                    info!("CONTAINER_LOGS: Completed streaming {} lines from {}/{}/{}", 
+                          line_count, namespace, pod_name, container_name);
+                },
+                Err(e) => {
+                    error!("CONTAINER_LOGS: Failed to get log stream for {}/{}/{}: {:?}", 
+                           namespace, pod_name, container_name, e);
+                    return Err(e.into());
+                }
+            }
+        } else {
+            info!("CONTAINER_LOGS: Using one-time fetch mode (follow=false)");
+            // For one-time fetch of logs
+            match pods.logs(pod_name, &log_params).await {
+                Ok(logs) => {
+                    info!("CONTAINER_LOGS: Successfully fetched logs for {}/{}/{}, processing lines...", 
+                          namespace, pod_name, container_name);
+                    
+                    let lines: Vec<&str> = logs.lines().collect();
+                    info!("CONTAINER_LOGS: Fetched {} lines from {}/{}/{}", 
+                          lines.len(), namespace, pod_name, container_name);
+                    
+                    // Process each log line
+                    for (i, line) in lines.iter().enumerate() {
+                        let message = line.trim().to_string();
+                        
+                        // Skip empty lines
+                        if message.is_empty() {
+                            debug!("CONTAINER_LOGS: Skipping empty line #{}", i+1);
+                            continue;
+                        }
+                        
+                        if i < 5 || i % 100 == 0 {
+                            info!("CONTAINER_LOGS: Processing line #{} from {}/{}/{}: {}", 
+                                  i+1, namespace, pod_name, container_name, 
+                                  message.chars().take(50).collect::<String>());
+                        }
                         
                         // Extract timestamp if present
                         let (timestamp, message) = if timestamps {
-                            match line.find(' ') {
+                            // Parse timestamp from the beginning of the message
+                            match message.find(' ') {
                                 Some(space_idx) => {
-                                    let time_str = &line[0..space_idx];
+                                    let time_str = &message[0..space_idx];
                                     match chrono::DateTime::parse_from_rfc3339(time_str) {
-                                        Ok(dt) => (Some(dt.with_timezone(&chrono::Utc)), line[space_idx+1..].to_string()),
-                                        Err(_) => (None, line.to_string()),
+                                        Ok(dt) => (Some(dt.with_timezone(&chrono::Utc)), message[space_idx+1..].to_string()),
+                                        Err(_) => {
+                                            debug!("CONTAINER_LOGS: Failed to parse timestamp: {}", time_str);
+                                            (None, message)
+                                        }
                                     }
                                 },
-                                None => (None, line.to_string()),
+                                None => (None, message),
                             }
                         } else {
-                            (None, line.to_string())
+                            (None, message)
                         };
                         
                         // Create and send log entry
@@ -220,63 +372,25 @@ impl LogWatcher {
                         };
                         
                         if let Err(e) = tx.send(entry).await {
-                            error!("Failed to send log entry: {:?}", e);
-                            return Ok(());
+                            error!("CONTAINER_LOGS: Failed to send log entry #{} to channel: {:?}", i+1, e);
+                            break;
+                        } else if i < 5 {
+                            debug!("CONTAINER_LOGS: Successfully sent log entry #{} to channel", i+1);
                         }
-                    },
-                    Err(e) => {
-                        error!("Error reading log line from {}/{}/{}: {:?}", 
-                               namespace, pod_name, container_name, e);
                     }
-                }
-            }
-        } else {
-            // For one-time fetch of logs
-            let logs = pods.logs(pod_name, &log_params).await?;
-            
-            // Process each log line
-            for line in logs.lines() {
-                let message = line.trim().to_string();
-                
-                // Skip empty lines
-                if message.is_empty() {
-                    continue;
-                }
-                
-                // Extract timestamp if present
-                let (timestamp, message) = if timestamps {
-                    // Parse timestamp from the beginning of the message
-                    match message.find(' ') {
-                        Some(space_idx) => {
-                            let time_str = &message[0..space_idx];
-                            match chrono::DateTime::parse_from_rfc3339(time_str) {
-                                Ok(dt) => (Some(dt.with_timezone(&chrono::Utc)), message[space_idx+1..].to_string()),
-                                Err(_) => (None, message),
-                            }
-                        },
-                        None => (None, message),
-                    }
-                } else {
-                    (None, message)
-                };
-                
-                // Create and send log entry
-                let entry = LogEntry {
-                    namespace: namespace.to_string(),
-                    pod_name: pod_name.to_string(),
-                    container_name: container_name.to_string(),
-                    message,
-                    timestamp,
-                };
-                
-                if let Err(e) = tx.send(entry).await {
-                    error!("Failed to send log entry: {:?}", e);
-                    break;
+                    
+                    info!("CONTAINER_LOGS: Completed processing {} lines from {}/{}/{}", 
+                          lines.len(), namespace, pod_name, container_name);
+                },
+                Err(e) => {
+                    error!("CONTAINER_LOGS: Failed to fetch logs for {}/{}/{}: {:?}", 
+                           namespace, pod_name, container_name, e);
+                    return Err(e.into());
                 }
             }
         }
         
-        info!("Log stream ended for {}/{}/{}", namespace, pod_name, container_name);
+        info!("CONTAINER_LOGS: Log stream ended for {}/{}/{}", namespace, pod_name, container_name);
         Ok(())
     }
 }

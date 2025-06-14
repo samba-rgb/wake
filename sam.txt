@@ -1,0 +1,67 @@
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [33m[2025-06-14T17:23:17] [WARN] Memory usage: 75%[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [31m[2025-06-14T17:23:19] [ERROR] Application started successfully[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [36m[2025-06-14T17:23:22] [TRACE] Cache miss for key user:12345[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [32m[2025-06-14T17:23:24] [INFO] Configuration loaded from file[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [36m[2025-06-14T17:23:25] [DEBUG] Configuration loaded from file[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [36m[2025-06-14T17:23:28] [DEBUG] Failed to connect to external service[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [36m[2025-06-14T17:23:30] [TRACE] Configuration loaded from file[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [31m[2025-06-14T17:23:31] [ERROR] Application started successfully[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [32m[2025-06-14T17:23:34] [INFO] Processing user request[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [33m[2025-06-14T17:23:35] [WARN] Memory usage: 75%[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.531 UTC [1] LOG:  listening on IPv6 address "::", port 5432[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.539 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.549 UTC [35] LOG:  database system was interrupted; last known up at 2025-06-13 14:34:10 UTC[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.593 UTC [35] LOG:  database system was not properly shut down; automatic recovery in progress[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.599 UTC [35] LOG:  redo starts at 0/1540640[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.599 UTC [35] LOG:  invalid record length at 0/1540728: wanted 24, got 0[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.599 UTC [35] LOG:  redo done at 0/15406F0 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.613 UTC [33] LOG:  checkpoint starting: end-of-recovery immediate wait[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.647 UTC [33] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.008 s, total=0.039 s; sync files=2, longest=0.004 s, average=0.004 s; distance=0 kB, estimate=0 kB[0m
+[33mpostgres-0[0m/[33mpostgres[0m [37m2025-06-14 12:33:53.653 UTC [1] LOG:  database system is ready to accept connections[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [31m[2025-06-14T17:23:14] [ERROR] Processing user request[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [32m[2025-06-14T17:23:17] [INFO] Processing user request[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [36m[2025-06-14T17:23:19] [DEBUG] Request completed in 120ms[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [36m[2025-06-14T17:23:20] [TRACE] Application started successfully[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [31m[2025-06-14T17:23:23] [ERROR] Memory usage: 75%[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [32m[2025-06-14T17:23:24] [INFO] Application started successfully[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [31m[2025-06-14T17:23:27] [ERROR] Request completed in 120ms[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [31m[2025-06-14T17:23:30] [ERROR] Request completed in 120ms[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [36m[2025-06-14T17:23:31] [DEBUG] Failed to connect to external service[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [32m[2025-06-14T17:23:34] [INFO] Failed to connect to external service[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:18 UTC 2025] [INFO] Simple log message from container[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:20 UTC 2025] [ERROR] Something went wrong[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:16 UTC 2025] [ERROR] Something went wrong[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:19 UTC 2025] [WARN] Warning message[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:20 UTC 2025] [INFO] Simple log message from container[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:22 UTC 2025] [ERROR] Something went wrong[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:25 UTC 2025] [WARN] Warning message[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:26 UTC 2025] [INFO] Simple log message from container[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:28 UTC 2025] [ERROR] Something went wrong[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:31 UTC 2025] [WARN] Warning message[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:32 UTC 2025] [INFO] Simple log message from container[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:34 UTC 2025] [ERROR] Something went wrong[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:23 UTC 2025] [WARN] Warning message[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:24 UTC 2025] [INFO] Simple log message from container[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:26 UTC 2025] [ERROR] Something went wrong[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:29 UTC 2025] [WARN] Warning message[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:30 UTC 2025] [INFO] Simple log message from container[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:32 UTC 2025] [ERROR] Something went wrong[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:35 UTC 2025] [WARN] Warning message[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:36 UTC 2025] [INFO] Simple log message from container[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [33m[2025-06-14T17:23:36] [WARN] Cache miss for key user:12345[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:37 UTC 2025] [WARN] Warning message[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [32m[2025-06-14T17:23:38] [INFO] Health check passed[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:38 UTC 2025] [ERROR] Something went wrong[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:38 UTC 2025] [INFO] Simple log message from container[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [33m[2025-06-14T17:23:39] [WARN] Configuration loaded from file[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [32m[2025-06-14T17:23:40] [INFO] Configuration loaded from file[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:40 UTC 2025] [ERROR] Something went wrong[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [36m[2025-06-14T17:23:41] [TRACE] Health check passed[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:41 UTC 2025] [WARN] Warning message[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [36m[2025-06-14T17:23:41] [TRACE] Processing user request[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:42 UTC 2025] [INFO] Simple log message from container[0m
+[34mlog-generator-94694f48-tb5sl[0m/[32mgenerator[0m [32m[2025-06-14T17:23:43] [INFO] Health check passed[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [33m[Sat Jun 14 17:23:43 UTC 2025] [WARN] Warning message[0m
+[32mlog-generator-94694f48-z9vl7[0m/[32mgenerator[0m [33m[2025-06-14T17:23:44] [WARN] Configuration loaded from file[0m
+[35msimple-logger-57f5f9b95d-mrl2x[0m/[34mlogger[0m [31m[Sat Jun 14 17:23:44 UTC 2025] [ERROR] Something went wrong[0m
+[36msimple-logger-57f5f9b95d-zxnpk[0m/[34mlogger[0m [32m[Sat Jun 14 17:23:44 UTC 2025] [INFO] Simple log message from container[0m

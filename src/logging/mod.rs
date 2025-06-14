@@ -62,6 +62,14 @@ pub async fn process_logs(
     let filter = LogFilter::new(include_pattern, exclude_pattern, num_threads);
     info!("Created log filter with {} worker threads", num_threads);
     
+    // Set up output writer (file or stdout)
+    let mut output_writer: Box<dyn Write + Send> = if let Some(ref output_file) = args.output_file {
+        info!("Writing logs to file: {:?}", output_file);
+        Box::new(std::fs::File::create(output_file)?)
+    } else {
+        Box::new(io::stdout())
+    };
+    
     // Set up a task to forward incoming logs to the raw channel
     tokio::spawn(async move {
         while let Some(entry) = log_stream.next().await {
@@ -77,21 +85,24 @@ pub async fn process_logs(
     let mut filtered_rx = filter.start_filtering(raw_rx);
     
     // Process filtered logs
-    let mut stdout = io::stdout();
-    
     while let Some(entry) = filtered_rx.recv().await {
         // Format the log entry
         if let Some(formatted) = formatter.format_without_filtering(&entry) {
-            // Write the formatted log entry to stdout
-            if let Err(e) = writeln!(stdout, "{}", formatted) {
-                error!("Failed to write to stdout: {:?}", e);
+            // Write the formatted log entry to the output
+            if let Err(e) = writeln!(output_writer, "{}", formatted) {
+                error!("Failed to write to output: {:?}", e);
                 if e.kind() == io::ErrorKind::BrokenPipe {
                     // This typically happens when the output is piped to another program
                     // that terminates (e.g., `wake logs | head`)
                     info!("Output pipe closed, stopping");
                     break;
                 }
-                return Err(anyhow::anyhow!("Failed to write to stdout: {:?}", e));
+                return Err(anyhow::anyhow!("Failed to write to output: {:?}", e));
+            }
+            
+            // Flush immediately for real-time output
+            if let Err(e) = output_writer.flush() {
+                error!("Failed to flush output: {:?}", e);
             }
         }
     }

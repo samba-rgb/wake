@@ -5,11 +5,139 @@ Wake is a command-line tool for tailing multiple pods and containers in Kubernet
 ## Features
 
 - Multi-pod and container log tailing for Kubernetes
+- **Interactive UI Mode** with dynamic filtering and real-time pattern updates
+- **Advanced Pattern Syntax** with logical operators (AND, OR, NOT) for complex filtering
+- **File Output Support** - save logs to files while optionally showing UI
+- **Development Mode** - show internal application logs for debugging
 - Color-coded output for easier log differentiation
 - Regular expression filtering for pods and containers
 - Support for various Kubernetes resources (pods, deployments, statefulsets, etc.)
 - Multiple output formats (text, json, raw)
 - Timestamp support
+- **Smart Filter Management** - old logs preserved when changing filters
+
+## Interactive UI Mode
+
+Wake features a powerful interactive UI mode that allows dynamic filtering and real-time log viewing:
+
+### Key Features
+- **Real-time filtering** - Apply include/exclude patterns without restarting
+- **Pattern history** - Navigate through previously used filter patterns
+- **Visual feedback** - Clear indication of filter changes and their effects
+- **Smart scrolling** - Auto-scroll to bottom with manual scroll support
+- **Help system** - Built-in help accessible with `h` key
+
+### UI Navigation
+- **`i`** - Edit include pattern (show only logs matching this pattern)
+- **`e`** - Edit exclude pattern (hide logs matching this pattern)
+- **`h`** - Toggle help screen
+- **`q` / `Esc`** - Quit application
+- **`r`** - Refresh display
+- **`↑/↓` or `k/j`** - Scroll through logs
+- **`Home/Ctrl+g`** - Go to top
+- **`End/G`** - Go to bottom
+- **`Page Up/Down`** - Scroll by page
+
+### Advanced Pattern Syntax
+
+Wake supports sophisticated filtering patterns with logical operators:
+
+#### Basic Examples
+```bash
+# Simple regex patterns
+wake -n apps log-generator -i "ERROR|WARN"     # Show only errors and warnings
+wake -n apps log-generator -i "user.*login"    # Show user login patterns
+```
+
+#### Advanced Logical Operators
+```bash
+# Logical AND - logs must contain both patterns
+wake -n apps log-generator -i '(info || debug) && "32"'
+
+# Logical OR - logs containing either pattern
+wake -n apps log-generator -i '"ERROR" || "WARN"'
+
+# Negation - exclude specific patterns
+wake -n apps log-generator -i 'ERROR && !"timeout"'
+
+# Complex combinations with grouping
+wake -n apps log-generator -i '(INFO || DEBUG) && "user" && !"test"'
+
+# Exact text matching with quotes
+wake -n apps log-generator -i '"exact text match"'
+```
+
+#### Pattern Syntax Reference
+- **`&&`** - Logical AND (both conditions must be true)
+- **`||`** - Logical OR (either condition can be true)
+- **`!`** - Logical NOT (negate the condition)
+- **`()`** - Grouping for complex logic
+- **`"text"`** - Exact text matching
+- **`pattern`** - Regular expression matching
+
+### Usage Examples
+
+```bash
+# Start interactive UI mode
+wake -n kube-system "kube-proxy" --ui
+
+# UI mode with initial filters
+wake -n apps log-generator --ui -i "ERROR|WARN" -E "debug"
+
+# UI mode with file output
+wake -n apps log-generator --ui -w logs.txt
+```
+
+## File Output
+
+Wake can save logs to files while optionally displaying them in the UI:
+
+### Output Modes
+
+```bash
+# Save to file only (no UI)
+wake -n apps log-generator -w logs.txt
+
+# Save to file AND show UI
+wake -n apps log-generator -w logs.txt --ui
+
+# Different output formats to file
+wake -n apps log-generator -w logs.json --output json
+wake -n apps log-generator -w logs.txt --output raw --timestamps
+```
+
+### File Output Features
+- **Real-time writing** - Logs written immediately as they arrive
+- **Format support** - All output formats (text, json, raw) work with files
+- **Filtering applied** - Only logs passing current filters are written to file
+- **Simultaneous operation** - File writing works alongside UI display
+
+## Development Mode
+
+For debugging and development purposes, Wake includes a development mode that shows internal application logs:
+
+```bash
+# Enable development mode (shows internal logs even in UI)
+wake -n apps log-generator --ui --dev
+
+# Development mode in CLI
+wake -n apps log-generator --dev
+```
+
+### Development Mode Benefits
+- **Debug connection issues** - See Kubernetes connection details
+- **Monitor pod discovery** - Watch how pods are found and selected
+- **Performance insights** - View filtering and processing timings
+- **Troubleshooting** - Detailed internal operation logs
+
+## Smart Filter Management
+
+Wake intelligently handles filter changes:
+
+- **Old logs preserved** - Changing filters doesn't remove previously displayed logs
+- **Clear boundaries** - Visual markers show when filters were applied
+- **New logs only** - Filter changes only affect incoming logs
+- **Filter history** - Navigate through previously used patterns with arrow keys
 
 ## Next Steps
 
@@ -148,23 +276,29 @@ wake -n monitoring -i "error|warning"
 
 ```
 Options:
-  -n, --namespace <NAMESPACE>  Kubernetes namespace [default: default]
-  -A, --all-namespaces         Show logs from all namespaces
-  -c, --container <CONTAINER>  Container selector regex [default: .*]
-  -k, --kubeconfig <KUBECONFIG>  Path to kubeconfig file
-  -x, --context <CONTEXT>      Kubernetes context to use
-  -t, --tail <TAIL>            Lines of logs to display from beginning [default: 10]
-  -f, --follow                 Follow logs (stream in real time) [default: true]
-  -i, --include <INCLUDE>      Filter logs by regex pattern
-  -E, --exclude <EXCLUDE>      Exclude logs by regex pattern
-  -T, --timestamps             Show timestamps in logs
-  -o, --output <o>        Output format (text, json, raw) [default: text]
-  -r, --resource <RESOURCE>    Use specific resource type filter (pod, deployment, statefulset)
-      --template <TEMPLATE>    Custom template for log output
-      --since <SINCE>          Since time (e.g., 5s, 2m, 3h)
-  -v, --verbosity <VERBOSITY>  Verbosity level for debug output [default: 0]
-  -h, --help                   Print help
-  -V, --version                Print version
+  -n, --namespace <NAMESPACE>     Kubernetes namespace [default: default]
+  -A, --all-namespaces            Show logs from all namespaces
+  -c, --container <CONTAINER>     Container selector regex [default: .*]
+  -k, --kubeconfig <KUBECONFIG>   Path to kubeconfig file
+  -x, --context <CONTEXT>         Kubernetes context to use
+  -t, --tail <TAIL>               Lines of logs to display from beginning [default: 10]
+  -f, --follow                    Follow logs (stream in real time) [default: true]
+  -i, --include <INCLUDE>         Filter logs by regex pattern (supports advanced syntax)
+  -E, --exclude <EXCLUDE>         Exclude logs by regex pattern (supports advanced syntax)
+  -T, --timestamps                Show timestamps in logs
+  -o, --output <OUTPUT>           Output format (text, json, raw) [default: text]
+  -w, --output-file <FILE>        Write logs to file (use with --ui for both file and UI)
+  -r, --resource <RESOURCE>       Use specific resource type filter (pod, deployment, statefulset)
+      --template <TEMPLATE>       Custom template for log output
+      --since <SINCE>             Since time (e.g., 5s, 2m, 3h)
+      --threads <THREADS>         Number of threads for log filtering
+      --ui                        Enable interactive UI mode with dynamic filtering
+      --dev                       Enable development mode (show internal logs)
+  -v, --verbosity <VERBOSITY>     Verbosity level for debug output [default: 0]
+  -L, --list-containers           List all containers in matched pods
+      --all-containers            Show logs from all containers in pods
+  -h, --help                      Print help
+  -V, --version                   Print version
 ```
 
 ## Understanding Pod Selectors
