@@ -1,15 +1,14 @@
 use crate::k8s::logs::LogEntry;
 use anyhow::{Result, anyhow};
-use regex::Regex;
-use std::sync::Arc;
-use chrono::DateTime;
 
 /// Trait for formatting log entries
 pub trait OutputFormatter: Send + Sync {
     /// Format a log entry according to the formatter's rules
+    #[allow(dead_code)]
     fn format(&self, entry: &LogEntry) -> Result<String>;
 
     /// Get the name of the formatter
+    #[allow(dead_code)]
     fn format_name(&self) -> Option<String> {
         None
     }
@@ -22,6 +21,7 @@ pub struct TextFormatter {
 
 impl TextFormatter {
     /// Creates a new text formatter
+    #[allow(dead_code)]
     pub fn new(show_timestamps: bool) -> Self {
         Self { show_timestamps }
     }
@@ -62,6 +62,7 @@ pub struct RawFormatter {}
 
 impl JsonFormatter {
     /// Creates a new JSON formatter
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {}
     }
@@ -89,6 +90,7 @@ impl OutputFormatter for JsonFormatter {
 
 impl RawFormatter {
     /// Creates a new raw formatter
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {}
     }
@@ -105,6 +107,7 @@ impl OutputFormatter for RawFormatter {
 }
 
 /// Create a formatter based on the output format string
+#[allow(dead_code)]
 pub fn create_formatter(format: &str, show_timestamps: bool) -> Result<Box<dyn OutputFormatter + Send + Sync>> {
     match format {
         "text" => Ok(Box::new(TextFormatter::new(show_timestamps))),
