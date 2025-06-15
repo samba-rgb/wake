@@ -7,7 +7,7 @@ use ratatui::{
 };
 use crate::k8s::logs::LogEntry;
 use crate::ui::input::{InputHandler, InputMode};
-use std::collections::VecDeque;
+use std::collections::{VecDeque, HashMap};
 
 pub struct DisplayManager {
     pub log_entries: VecDeque<LogEntry>,
@@ -17,6 +17,9 @@ pub struct DisplayManager {
     pub filtered_logs: usize,
     pub show_timestamps: bool,
     pub auto_scroll: bool,  // New field to control auto-scrolling
+    // Cache for expensive operations
+    rendered_lines_cache: HashMap<usize, Line<'static>>,
+    cache_generation: usize,
 }
 
 impl DisplayManager {
@@ -29,6 +32,8 @@ impl DisplayManager {
             filtered_logs: 0,
             show_timestamps,
             auto_scroll: true, // Default to auto-scroll enabled
+            rendered_lines_cache: HashMap::new(),
+            cache_generation: 0,
         })
     }
 
@@ -54,6 +59,9 @@ impl DisplayManager {
             let max_scroll = self.log_entries.len().saturating_sub(estimated_viewport);
             self.scroll_offset = max_scroll;
         }
+
+        // Invalidate cache on new log entry
+        self.cache_generation += 1;
     }
 
     pub fn scroll_up(&mut self, lines: usize) {
@@ -358,55 +366,59 @@ impl DisplayManager {
     fn parse_log_message(&self, message: &str) -> Vec<Span<'static>> {
         let mut spans = Vec::new();
         
-        // Detect log level patterns
-        let log_level_regex = regex::Regex::new(r"\[(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\]").unwrap();
+        // Fast log level detection using string search instead of regex
+        let level_start = message.find('[');
+        let level_end = message.find(']');
         
-        if let Some(captures) = log_level_regex.find(message) {
-            let level = &message[captures.start()+1..captures.end()-1]; // Remove brackets
-            let before = &message[..captures.start()];
-            let after = &message[captures.end()..];
-            
-            // Add text before log level
-            if !before.is_empty() {
-                spans.push(Span::raw(before.to_string()));
+        if let (Some(start), Some(end)) = (level_start, level_end) {
+            if start < end && end < message.len() {
+                let level = &message[start+1..end];
+                let before = &message[..start];
+                let after = &message[end+1..];
+                
+                // Only parse common log levels for performance
+                if matches!(level, "TRACE" | "DEBUG" | "INFO" | "WARN" | "WARNING" | "ERROR" | "FATAL") {
+                    // Add text before log level
+                    if !before.is_empty() {
+                        spans.push(Span::raw(before.to_string()));
+                    }
+                    
+                    // Add colored log level
+                    let level_color = match level {
+                        "TRACE" => Color::DarkGray,
+                        "DEBUG" => Color::Blue,
+                        "INFO" => Color::Green,
+                        "WARN" | "WARNING" => Color::Yellow,
+                        "ERROR" => Color::Red,
+                        "FATAL" => Color::LightRed,
+                        _ => Color::White,
+                    };
+                    
+                    spans.push(Span::styled(
+                        format!("[{}]", level),
+                        Style::default()
+                            .fg(level_color)
+                            .add_modifier(Modifier::BOLD)
+                    ));
+                    
+                    // Add text after log level with appropriate coloring
+                    if !after.is_empty() {
+                        let after_spans = self.color_message_content_fast(after, level);
+                        spans.extend(after_spans);
+                    }
+                    return spans;
+                }
             }
-            
-            // Add colored log level
-            let level_color = match level {
-                "TRACE" => Color::DarkGray,
-                "DEBUG" => Color::Blue,
-                "INFO" => Color::Green,
-                "WARN" | "WARNING" => Color::Yellow,
-                "ERROR" => Color::Red,
-                "FATAL" => Color::LightRed,
-                _ => Color::White,
-            };
-            
-            spans.push(Span::styled(
-                format!("[{}]", level),
-                Style::default()
-                    .fg(level_color)
-                    .add_modifier(Modifier::BOLD)
-            ));
-            
-            // Add text after log level with appropriate coloring
-            if !after.is_empty() {
-                let after_spans = self.color_message_content(after, level);
-                spans.extend(after_spans);
-            }
-        } else {
-            // No log level detected, apply general coloring
-            let content_spans = self.color_message_content(message, "INFO");
-            spans.extend(content_spans);
         }
         
+        // No log level detected, apply general coloring
+        let content_spans = self.color_message_content_fast(message, "INFO");
+        spans.extend(content_spans);
         spans
     }
 
-    /// Apply colors to message content based on patterns
-    fn color_message_content(&self, content: &str, log_level: &str) -> Vec<Span<'static>> {
-        let mut spans = Vec::new();
-        
+    /// Fast message content coloring with reduced allocations
+    fn color_message_content_fast(&self, content: &str, log_level: &str) -> Vec<Span<'static>> {
         // Base color depends on log level
         let base_color = match log_level {
             "ERROR" | "FATAL" => Color::LightRed,
@@ -416,37 +428,17 @@ impl DisplayManager {
             _ => Color::White,
         };
         
-        // Split by spaces and color different parts
-        let words: Vec<&str> = content.split_whitespace().collect();
-        
-        for (i, word) in words.iter().enumerate() {
-            if i > 0 {
-                spans.push(Span::raw(" ".to_string()));
-            }
-            
-            // Color specific patterns
-            let colored_span = if word.contains("error") || word.contains("Error") || word.contains("ERROR") {
-                Span::styled(word.to_string(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
-            } else if word.contains("warn") || word.contains("Warn") || word.contains("WARN") {
-                Span::styled(word.to_string(), Style::default().fg(Color::Yellow))
-            } else if word.contains("success") || word.contains("Success") || word.contains("SUCCESS") {
-                Span::styled(word.to_string(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-            } else if word.contains("fail") || word.contains("Fail") || word.contains("FAIL") {
-                Span::styled(word.to_string(), Style::default().fg(Color::Red))
-            } else if word.starts_with("http") || word.starts_with("https") {
-                Span::styled(word.to_string(), Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED))
-            } else if word.contains(':') && (word.contains("user") || word.contains("key") || word.contains("id")) {
-                Span::styled(word.to_string(), Style::default().fg(Color::Magenta))
-            } else if word.parse::<f64>().is_ok() || word.ends_with('%') {
-                Span::styled(word.to_string(), Style::default().fg(Color::LightCyan))
-            } else {
-                Span::styled(word.to_string(), Style::default().fg(base_color))
-            };
-            
-            spans.push(colored_span);
+        // For performance, only do basic coloring on scrolling
+        // Check for common error/success patterns quickly
+        if content.contains("error") || content.contains("Error") || content.contains("fail") {
+            vec![Span::styled(content.to_string(), Style::default().fg(Color::Red))]
+        } else if content.contains("success") || content.contains("Success") || content.contains("ok") {
+            vec![Span::styled(content.to_string(), Style::default().fg(Color::Green))]
+        } else if content.contains("warn") || content.contains("Warn") {
+            vec![Span::styled(content.to_string(), Style::default().fg(Color::Yellow))]
+        } else {
+            vec![Span::styled(content.to_string(), Style::default().fg(base_color))]
         }
-        
-        spans
     }
 
     /// Format a log entry specifically for UI display (used for wrapping calculations)
