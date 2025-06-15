@@ -1,0 +1,210 @@
+@startuml Wake Complete Flow
+
+' Color schemes and styling for improved visual presentation
+skinparam backgroundColor #FEFEFE
+skinparam handwritten false
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+
+' Participant styling
+skinparam participant {
+    BackgroundColor #E3F2FD
+    BorderColor #1976D2
+    FontColor #01579B
+    FontStyle bold
+}
+
+' Actor styling
+skinparam actor {
+    BackgroundColor #E1F5FE
+    BorderColor #0288D1
+    FontColor #01579B
+}
+
+' Control flow styling
+skinparam sequence {
+    ArrowColor #1565C0
+    LifeLineBorderColor #2196F3
+    LifeLineBackgroundColor #BBDEFB
+    
+    GroupBackgroundColor #E8F5E9
+    GroupBorderColor #4CAF50
+    GroupFontColor #2E7D32
+    GroupHeaderFontColor #1B5E20
+    
+    DividerBackgroundColor #FFFDE7
+    DividerBorderColor #FBC02D
+    DividerFontColor #F57F17
+    
+    ReferenceBackgroundColor #FFF3E0
+    ReferenceBorderColor #FF9800
+    ReferenceFontColor #E65100
+}
+
+' Note styling
+skinparam note {
+    BackgroundColor #FFF9C4
+    BorderColor #FFC107
+    FontColor #FF6F00
+}
+
+' Active objects
+skinparam activity {
+    BackgroundColor #E8EAF6
+    BorderColor #3F51B5
+    FontColor #1A237E
+}
+
+' Custom colors for specific participants
+actor "User" as User #E1F5FE
+participant "Main" as Main #E3F2FD
+participant "CLI" as CLI #E1F1F8
+participant "Config\nManager" as Config #DCEDC8
+participant "K8sClient" as Client #D1C4E9
+participant "PodSelector" as Selector #E1BEE7
+participant "LogWatcher" as Watcher #FFECB3
+participant "FilterManager" as Filter #FFCCBC
+participant "Formatter" as Formatter #C8E6C9
+
+== Initialization ==
+User -> Main: Execute wake command
+activate Main #B3E5FC
+Main -> CLI: parse_args()
+activate CLI #B2EBF2
+CLI -> Config: load_kubeconfig()
+note right of Config #FFF9C4
+  Reads from ~/.kube/config
+  or uses KUBECONFIG env var
+end note
+CLI -> Config: validate_args()
+CLI -> Config: setup_logging()
+CLI -> Config: create_client()
+activate Client #D1C4E9
+CLI -> CLI: create dependency container
+CLI <-- Client: return Client
+deactivate Client
+
+== Pod Discovery ==
+CLI -> Selector: select_pods()
+activate Selector #E1BEE7
+Selector -> Client: list_pods()
+activate Client #D1C4E9
+Client --> Selector: return pods
+deactivate Client
+Selector -> Selector: filter by regex
+note right of Selector
+  Applies pod regex pattern
+  from user input
+end note
+Selector -> Selector: filter by resource
+note right of Selector
+  Handles deployment, statefulset,
+  job or pod resources
+end note
+Selector --> CLI: return PodInfo[]
+deactivate Selector
+
+== Stream Setup ==
+CLI -> Watcher: new(client, args)
+CLI -> Watcher: stream()
+activate Watcher #FFE082
+Watcher -> Watcher: for each pod/container
+loop For each pod/container
+    Watcher -> Client: log_stream()
+    activate Client #D1C4E9
+    Client --> Watcher: Stream<LogEntry>
+    deactivate Client
+end
+note right of Watcher #FFF9C4
+  Creates async tasks for
+  each pod stream
+end note
+
+== Processing Pipeline Setup ==
+alt UI Mode #E8F5E9
+    CLI -> Main: run_with_ui(log_stream)
+    activate Main #B3E5FC
+    
+    create participant "UI" as UI #BBDEFB
+    Main -> UI: create_ui_app()
+    activate UI #BBDEFB
+    UI -> Filter: new(include, exclude)
+    activate Filter #FFAB91
+    
+    == UI Event Loop ==
+    group #E0F7FA Log Processing Thread
+        loop continuously
+            Watcher --> Filter: log entry
+            Filter -> Filter: apply filters
+            Filter --> UI: filtered entry
+            UI -> Formatter: format(entry)
+            Formatter --> UI: formatted output
+            UI -> UI: display in terminal
+        end
+    end
+    
+    group #F3E5F5 UI Input Thread [Parallel]
+        loop interactive
+            User -> UI: key events
+            UI -> UI: handle_key_event()
+            UI -> Filter: update_pattern()
+            UI -> UI: scroll/toggle displays
+        end
+    end
+
+else CLI Mode #FFF8E1
+    CLI -> Filter: new(include, exclude)
+    activate Filter #FFAB91
+    
+    == CLI Processing Loop ==
+    loop until end of logs
+        Watcher --> Filter: log entry
+        Filter -> Filter: apply filters
+        Filter -> Formatter: format(entry)
+        Formatter -> CLI: formatted output
+        alt stdout
+            CLI -> CLI: print to terminal
+            note right #FFF9C4
+              Formatted with ANSI colors
+              for pod/container names
+            end note
+        else file
+            CLI -> CLI: write to file
+            note right #FFF9C4
+              Respects output format
+              selection (text/json/raw)
+            end note
+        end
+    end
+end
+
+== Termination ==
+alt Normal Exit #E8F5E9
+    User -> Main: Ctrl+C
+    note left #FFF9C4
+      User initiated
+      shutdown
+    end note
+    Main -> CLI: handle signal
+else Error Handling #FFEBEE
+    Client --> Watcher: connection error
+    Watcher -> CLI: propagate error
+    CLI -> CLI: error recovery attempt
+    alt recovery successful #E8F5E9
+        CLI -> Watcher: reconnect
+    else max retries #FFEBEE
+        CLI -> Main: terminate
+    end
+end
+
+Main --> User: Exit
+deactivate Main
+deactivate CLI
+deactivate Watcher
+deactivate Filter
+deactivate UI
+
+footer "Wake Application Flow | Version 1.0.0 | Updated: June 2025"
+
+@enduml

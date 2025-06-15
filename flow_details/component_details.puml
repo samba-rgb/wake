@@ -1,0 +1,204 @@
+@startuml Wake Component Details
+
+' Basic style configuration
+skinparam backgroundColor WhiteSmoke
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam padding 10
+skinparam nodesep 45
+skinparam ranksep 60
+
+' Component styling
+skinparam component {
+  BackgroundColor LightSkyBlue
+  BorderColor DarkBlue
+  FontColor DarkBlue
+  FontStyle bold
+  BorderThickness 1
+}
+
+' Package styling
+skinparam package {
+  BackgroundColor White
+  BorderColor DarkBlue
+  FontStyle bold
+  FontColor DarkBlue
+}
+
+' Note styling
+skinparam note {
+  BackgroundColor #FFFFCC
+  BorderColor #DDAA00
+}
+
+' Title and header
+title Wake Kubernetes Log Tailing Tool - Component Architecture
+
+' COMPONENTS DEFINITION
+package "External Systems" {
+  [Kubernetes API Server] as K8S #aliceblue
+  [Terminal/Console] as TERM #aliceblue
+  [File System] as FS #aliceblue
+}
+
+package "Wake Application" {
+  package "Entry Points" {
+    [main.rs] as MAIN
+    [cli::run] as CLI
+  }
+  
+  package "Core Modules" {
+    [k8s Module] as K8S_MOD
+    [filtering Module] as FILTER
+    [output Module] as OUTPUT
+    [logging Module] as LOGGING
+    [ui Module] as UI_MOD
+  }
+
+  package "Kubernetes Components" {
+    [LogWatcher] as WATCHER
+    [PodSelector] as POD_SEL
+    [ResourceFilter] as RES_FILTER
+    [Client Wrapper] as CLIENT
+  }
+
+  package "Filtering Components" {
+    [LogFilter] as LOG_FILTER
+    [DynamicFilterManager] as DYN_FILTER
+    [FilterPattern] as PATTERN
+    [Thread Pool] as THREADS
+  }
+
+  package "Output Components" {
+    [Formatter] as FORMATTER
+    [TextFormatter] as TEXT_FORMAT
+    [JsonFormatter] as JSON_FORMAT
+    [RawFormatter] as RAW_FORMAT
+    [OutputFormat] as OUT_FORMAT
+  }
+
+  package "UI Components" {
+    [UIApp] as UI_APP
+    [DisplayManager] as DISPLAY
+    [InputHandler] as INPUT
+    [InputMode] as INPUT_MODE
+    [InputEvent] as INPUT_EVENT
+  }
+  
+  package "Data Models" {
+    [LogEntry] as LOG_ENTRY
+    [Args] as ARGS
+    [PodInfo] as POD_INFO
+  }
+
+  package "Processing Pipeline" {
+    [Log Stream] as STREAM
+    [Processing Pipeline] as PIPELINE
+  }
+}
+
+' RELATIONSHIPS
+' Main flow relationships
+MAIN --> CLI : executes
+CLI --> K8S_MOD : initializes
+CLI --> UI_MOD : configures
+CLI --> LOGGING : sets up
+CLI --> ARGS : parses
+
+' Kubernetes module relationships
+K8S_MOD --> K8SComponents : contains
+WATCHER --> K8S : connects to API
+WATCHER --> POD_SEL : uses
+POD_SEL --> RES_FILTER : filters resources
+K8S --> CLIENT : wrapped by
+CLIENT --> LOG_ENTRY : produces
+
+' Filtering relationships
+FILTER --> FilterComponents : contains
+LOG_FILTER --> PATTERN : applies patterns
+DYN_FILTER --> PATTERN : updates dynamically
+LOG_FILTER --> THREADS : uses for parallel processing
+FILTER --> LOG_ENTRY : filters
+
+' Output relationships
+OUTPUT --> OutputComponents : contains
+FORMATTER --> TEXT_FORMAT : uses
+FORMATTER --> JSON_FORMAT : uses
+FORMATTER --> RAW_FORMAT : uses
+FORMATTER --> OUT_FORMAT : configured by
+OUTPUT --> LOG_ENTRY : formats
+
+' UI relationships
+UI_MOD --> UIComponents : contains
+UI_APP --> DISPLAY : manages
+UI_APP --> INPUT : processes events
+INPUT --> INPUT_MODE : maintains state
+INPUT --> INPUT_EVENT : generates
+DISPLAY --> LOG_ENTRY : renders
+DISPLAY --> FORMATTER : uses for formatting
+
+' Data flow relationships - Primary flow with thicker lines
+WATCHER ==> STREAM : produces
+STREAM ==> FILTER : processed by
+FILTER ==> LOG_ENTRY : filters
+LOG_ENTRY ==> FORMATTER : formatted by
+FORMATTER ==> TERM : displays to
+FORMATTER ==> FS : writes to
+
+' Configuration relationships
+ARGS --> WATCHER : configures
+ARGS --> LOG_FILTER : configures
+ARGS --> FORMATTER : configures
+ARGS --> UI_APP : configures
+
+' Processing pipeline
+PIPELINE --> LOG_FILTER : uses
+PIPELINE --> FORMATTER : formats with
+PIPELINE --> STREAM : processes
+
+' NOTES
+note right of WATCHER #aliceblue
+  LogWatcher
+  - Manages concurrent log streams
+  - Handles multiple pods/containers
+  - Implements efficient streaming
+end note
+
+note right of DYN_FILTER #e6ffe6
+  DynamicFilterManager
+  - Real-time filter updates in UI mode
+  - Thread-safe pattern application
+  - Maintains historical log buffer
+end note
+
+note right of FORMATTER #fff0ff
+  Formatter
+  - Color-coded output by pod/container
+  - Multiple output format support
+  - Template-based customization
+end note
+
+note bottom of THREADS #fffff0
+  Thread Pool
+  - Scales with available CPU cores
+  - Optimizes filtering performance
+  - Parallel regex processing
+end note
+
+note bottom of LOG_ENTRY #f0f8ff
+  LogEntry
+  - Central data model
+  - Flows through entire system
+  - Contains all log metadata and content
+end note
+
+' LEGEND
+legend right
+  Wake Architecture Component Diagram
+  
+  === Relationship Types ===
+  --> Basic relationship
+  ==> Primary data flow
+end legend
+
+@enduml
