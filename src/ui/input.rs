@@ -10,6 +10,9 @@ pub enum InputEvent {
     ScrollDown,
     ScrollToTop,
     ScrollToBottom,
+    ScrollPageUp,
+    ScrollPageDown,
+    ToggleAutoScroll,
     Quit,
     Refresh,
 }
@@ -73,11 +76,12 @@ impl InputHandler {
                 Some(InputEvent::ScrollToTop)
             }
             KeyCode::End | KeyCode::Char('G') => Some(InputEvent::ScrollToBottom),
-            KeyCode::PageUp => Some(InputEvent::ScrollUp),
-            KeyCode::PageDown => Some(InputEvent::ScrollDown),
+            KeyCode::PageUp => Some(InputEvent::ScrollPageUp),
+            KeyCode::PageDown => Some(InputEvent::ScrollPageDown),
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 Some(InputEvent::Quit)
             }
+            KeyCode::Char('f') => Some(InputEvent::ToggleAutoScroll), // Add 'f' key to toggle follow/auto-scroll mode
             _ => None,
         }
     }
@@ -263,6 +267,7 @@ impl InputHandler {
             "    ↑/k         Scroll up                    ↓/j         Scroll down",
             "    Page Up     Scroll up (page)             Page Down   Scroll down (page)",
             "    Home/Ctrl+g Go to top                    End/G       Go to bottom",
+            "    f           Toggle auto-scroll (follow mode)",
             "",
             "  Filtering:",
             "    i           Edit include pattern         e           Edit exclude pattern",

@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use regex::Regex;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
