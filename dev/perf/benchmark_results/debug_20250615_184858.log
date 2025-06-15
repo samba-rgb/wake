@@ -1,0 +1,15 @@
+2025-06-15 18:48:58 [DEBUG] Starting benchmark with 2-minute duration
+2025-06-15 18:48:59 [DEBUG] Starting scenario: complex_filter with filter: (ERROR || WARN) && (user || auth || payment)
+2025-06-15 18:48:59 [DEBUG] About to run Wake benchmark for scenario: complex_filter
+2025-06-15 18:48:59 [DEBUG] Testing Wake command: /home/samba/Desktop/projects/wake/target/release/wake -n perf-test -i "(ERROR || WARN) && (user || auth || payment)" --no-ui
+2025-06-15 18:49:01 [DEBUG] Wake started successfully with PID: 4166482 for scenario: complex_filter
+2025-06-15 18:51:11 [DEBUG] Wake process terminated normally for scenario: complex_filter
+2025-06-15 18:51:11 [DEBUG] Wake benchmark succeeded for scenario: complex_filter
+2025-06-15 18:51:16 [DEBUG] About to run Stern benchmark for scenario: complex_filter
+2025-06-15 18:51:16 [DEBUG] Stern command: stern '.*' -n perf-test --include='ERROR' --include='WARN'
+2025-06-15 18:51:18 [DEBUG] Stern started successfully with PID: 191336 for scenario: complex_filter
+2025-06-15 18:53:28 [DEBUG] Stern process terminated normally for scenario: complex_filter
+2025-06-15 18:53:28 [DEBUG] Stern benchmark completed for scenario: complex_filter
+=== DEBUG SUMMARY ===
+Wake data points: 52
+Stern data points: 51
