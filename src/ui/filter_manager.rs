@@ -9,8 +9,8 @@ use anyhow::Result;
 /// Manages dynamic filtering with runtime pattern updates
 #[derive(Clone)]
 pub struct DynamicFilterManager {
-    include_pattern: Arc<RwLock<Option<Arc<Regex>>>>,
-    exclude_pattern: Arc<RwLock<Option<Arc<Regex>>>>,
+    include_pattern: Arc<RwLock<Option<Arc<crate::filtering::FilterPattern>>>>,
+    exclude_pattern: Arc<RwLock<Option<Arc<crate::filtering::FilterPattern>>>>,
     log_buffer: Arc<RwLock<Vec<LogEntry>>>,
     buffer_size: usize,
 }
@@ -24,21 +24,18 @@ impl DynamicFilterManager {
         info!("FILTER_MANAGER: Creating new DynamicFilterManager with buffer_size: {}", buffer_size);
         info!("FILTER_MANAGER: Initial include pattern: {:?}", initial_include);
         info!("FILTER_MANAGER: Initial exclude pattern: {:?}", initial_exclude);
-        
         let include_pattern = if let Some(pattern) = initial_include {
-            info!("FILTER_MANAGER: Compiling include regex: {}", pattern);
-            Some(Arc::new(Regex::new(&pattern)?))
+            info!("FILTER_MANAGER: Compiling include pattern: {}", pattern);
+            Some(Arc::new(crate::filtering::FilterPattern::parse(&pattern).map_err(|e| anyhow::anyhow!(e))?))
         } else {
             None
         };
-        
         let exclude_pattern = if let Some(pattern) = initial_exclude {
-            info!("FILTER_MANAGER: Compiling exclude regex: {}", pattern);
-            Some(Arc::new(Regex::new(&pattern)?))
+            info!("FILTER_MANAGER: Compiling exclude pattern: {}", pattern);
+            Some(Arc::new(crate::filtering::FilterPattern::parse(&pattern).map_err(|e| anyhow::anyhow!(e))?))
         } else {
             None
         };
-
         info!("FILTER_MANAGER: DynamicFilterManager created successfully");
         Ok(Self {
             include_pattern: Arc::new(RwLock::new(include_pattern)),
@@ -56,14 +53,13 @@ impl DynamicFilterManager {
                 info!("FILTER_MANAGER: Include pattern is empty, clearing filter");
                 None
             } else {
-                info!("FILTER_MANAGER: Compiling new include regex: {}", p);
-                Some(Arc::new(Regex::new(&p)?))
+                info!("FILTER_MANAGER: Compiling new include pattern: {}", p);
+                Some(Arc::new(crate::filtering::FilterPattern::parse(&p).map_err(|e| anyhow::anyhow!(e))?))
             }
         } else {
             info!("FILTER_MANAGER: Clearing include pattern");
             None
         };
-
         *self.include_pattern.write().await = new_pattern;
         info!("FILTER_MANAGER: Include pattern updated successfully");
         Ok(())
@@ -77,14 +73,13 @@ impl DynamicFilterManager {
                 info!("FILTER_MANAGER: Exclude pattern is empty, clearing filter");
                 None
             } else {
-                info!("FILTER_MANAGER: Compiling new exclude regex: {}", p);
-                Some(Arc::new(Regex::new(&p)?))
+                info!("FILTER_MANAGER: Compiling new exclude pattern: {}", p);
+                Some(Arc::new(crate::filtering::FilterPattern::parse(&p).map_err(|e| anyhow::anyhow!(e))?))
             }
         } else {
             info!("FILTER_MANAGER: Clearing exclude pattern");
             None
         };
-
         *self.exclude_pattern.write().await = new_pattern;
         info!("FILTER_MANAGER: Exclude pattern updated successfully");
         Ok(())
@@ -98,7 +93,7 @@ impl DynamicFilterManager {
         // Check include pattern
         let passes_include = match include_guard.as_ref() {
             Some(pattern) => {
-                let matches = pattern.is_match(&entry.message);
+                let matches = pattern.matches(&entry.message);
                 debug!("FILTER_MANAGER: Include check for '{}': {}", 
                       entry.message.chars().take(30).collect::<String>(), matches);
                 matches
@@ -112,7 +107,7 @@ impl DynamicFilterManager {
         // Check exclude pattern
         let passes_exclude = match exclude_guard.as_ref() {
             Some(pattern) => {
-                let matches = pattern.is_match(&entry.message);
+                let matches = pattern.matches(&entry.message);
                 let passes = !matches;
                 debug!("FILTER_MANAGER: Exclude check for '{}': excluded={}, passes={}", 
                       entry.message.chars().take(30).collect::<String>(), matches, passes);

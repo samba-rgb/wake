@@ -25,7 +25,7 @@ spec:
         args:
         - -c
         - |
-          echo "Starting burst log generator 03..."
+          echo "Starting ultra-high-throughput log generator 03..."
           counter=2000
           while true; do
             timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
@@ -51,15 +51,15 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.002  # 500 logs per second (burst mode)
+            sleep 0.001  # 1000 logs per second (increased from 0.002)
           done
         resources:
           requests:
-            memory: "96Mi"
-            cpu: "200m"
-          limits:
             memory: "192Mi"
             cpu: "400m"
+          limits:
+            memory: "384Mi"
+            cpu: "800m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -88,7 +88,7 @@ spec:
         args:
         - -c
         - |
-          echo "Starting database log generator 04..."
+          echo "Starting ultra-high-throughput database log generator 04..."
           counter=3000
           while true; do
             timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
@@ -116,15 +116,15 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.0067  # 150 logs per second
+            sleep 0.00125  # 800 logs per second (increased from 0.0067)
           done
         resources:
           requests:
-            memory: "80Mi"
-            cpu: "120m"
-          limits:
             memory: "160Mi"
-            cpu: "250m"
+            cpu: "350m"
+          limits:
+            memory: "320Mi"
+            cpu: "700m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -153,7 +153,7 @@ spec:
         args:
         - -c
         - |
-          echo "Starting security log generator 05..."
+          echo "Starting ultra-high-throughput security log generator 05..."
           counter=4000
           while true; do
             timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
@@ -187,12 +187,12 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.008  # 125 logs per second
+            sleep 0.00133  # 750 logs per second (increased from 0.008)
           done
         resources:
           requests:
-            memory: "70Mi"
-            cpu: "100m"
-          limits:
             memory: "140Mi"
-            cpu: "200m"
+            cpu: "300m"
+          limits:
+            memory: "280Mi"
+            cpu: "600m"
