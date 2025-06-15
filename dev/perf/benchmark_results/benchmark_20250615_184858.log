@@ -1,0 +1,26 @@
+[0;34m[2025-06-15 18:48:58][0m Starting Wake vs Stern Performance Benchmark (2-minute test)
+[0;34m[2025-06-15 18:48:58][0m Results will be saved to: /home/samba/Desktop/projects/wake/dev/perf/benchmark_results
+[0;34m[2025-06-15 18:48:58][0m Selected scenarios: complex_filter
+[0;34m[2025-06-15 18:48:58][0m Checking dependencies...
+[0;32m[SUCCESS][0m All dependencies checked
+[0;34m[2025-06-15 18:48:58][0m Setting up benchmark environment...
+[0;32m[SUCCESS][0m Benchmark environment ready
+[0;34m[2025-06-15 18:48:59][0m Testing scenario: complex_filter
+[0;34m[2025-06-15 18:48:59][0m Running Wake benchmark for scenario: complex_filter
+[0;34m[2025-06-15 18:48:59][0m Filter: (ERROR || WARN) && (user || auth || payment)
+[0;34m[2025-06-15 18:49:01][0m Wake warmup period: 10 seconds
+[0;34m[2025-06-15 18:49:11][0m Monitoring wake (PID: 4166482) for 120 seconds...
+[0;32m[SUCCESS][0m Wake benchmark completed for scenario: complex_filter
+[0;34m[2025-06-15 18:51:16][0m Running Stern benchmark for scenario: complex_filter
+[0;34m[2025-06-15 18:51:16][0m Filter: (ERROR || WARN) && (user || auth || payment)
+[0;34m[2025-06-15 18:51:18][0m Stern warmup period: 10 seconds
+[0;34m[2025-06-15 18:51:28][0m Monitoring stern (PID: 191336) for 120 seconds...
+[0;32m[SUCCESS][0m Stern benchmark completed for scenario: complex_filter
+[0;34m[2025-06-15 18:53:33][0m Generating performance report...
+[0;34m[2025-06-15 18:53:33][0m Calculating metrics from CSV data...
+[0;32m[SUCCESS][0m Performance report generated: /home/samba/Desktop/projects/wake/dev/perf/benchmark_results/performance_report_20250615_184858.md
+[0;32m[SUCCESS][0m Benchmark completed! Check results in: /home/samba/Desktop/projects/wake/dev/perf/benchmark_results
+[0;34m[2025-06-15 18:53:34][0m Report: /home/samba/Desktop/projects/wake/dev/perf/benchmark_results/performance_report_20250615_184858.md
+[0;34m[2025-06-15 18:53:34][0m Raw data: /home/samba/Desktop/projects/wake/dev/perf/benchmark_results/benchmark_20250615_184858.csv
+[0;34m[2025-06-15 18:53:34][0m Debug log: /home/samba/Desktop/projects/wake/dev/perf/benchmark_results/debug_20250615_184858.log
+[0;34m[2025-06-15 18:53:34][0m Debug information saved to: /home/samba/Desktop/projects/wake/dev/perf/benchmark_results/debug_20250615_184858.log
