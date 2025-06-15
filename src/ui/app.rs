@@ -129,7 +129,7 @@ pub async fn run_app(
     info!("UI: Entering main application loop...");
     // Main application loop
     let mut last_render = std::time::Instant::now();
-    let render_interval = Duration::from_millis(100); // 10 FPS
+    let render_interval = Duration::from_millis(50); // Increased from 100ms to 50ms for smoother scrolling
     let mut loop_count = 0;
 
     'main_loop: loop {
@@ -239,7 +239,7 @@ pub async fn run_app(
                     }
                 },
                 Event::Mouse(mouse_event) => {
-                    use crossterm::event::{MouseEvent, MouseEventKind};
+                    use crossterm::event::MouseEventKind;
                     
                     match mouse_event.kind {
                         MouseEventKind::ScrollDown => {
@@ -247,25 +247,19 @@ pub async fn run_app(
                             // Scroll down by 3 lines for smoother experience
                             display_manager.scroll_down(3, viewport_height);
                             
-                            // Force immediate render after mouse scroll to improve responsiveness
-                            terminal.draw(|f| {
-                                display_manager.render(f, &input_handler);
-                            })?;
-                            last_render = std::time::Instant::now();
+                            // Don't immediately render - let the main render loop handle it
+                            // This prevents excessive rendering during rapid scrolling
                         },
                         MouseEventKind::ScrollUp => {
                             // Scroll up by 3 lines for smoother experience
                             display_manager.scroll_up(3);
                             
-                            // Force immediate render after mouse scroll to improve responsiveness
-                            terminal.draw(|f| {
-                                display_manager.render(f, &input_handler);
-                            })?;
-                            last_render = std::time::Instant::now();
+                            // Don't immediately render - let the main render loop handle it
+                            // This prevents excessive rendering during rapid scrolling
                         },
                         _ => {}  // Ignore other mouse events for now
                     }
-                    continue;  // Skip log processing this iteration to prioritize UI updates
+                    // Don't continue here - allow normal processing to continue
                 },
                 _ => {}  // Ignore other event types
             }
@@ -342,8 +336,17 @@ pub async fn run_app(
     // Signal cancellation to the log stream processing task
     cancellation_token.cancel();
 
-    // Wait for the log stream processing task to complete
-    let _ = log_stream_handle.await;
+    // Wait for the log stream processing task to complete with a timeout
+    // Don't wait indefinitely as the underlying stream may not be cancellation-aware
+    match tokio::time::timeout(Duration::from_millis(1000), log_stream_handle).await {
+        Ok(_) => {
+            info!("UI: Log stream task completed gracefully");
+        }
+        Err(_) => {
+            warn!("UI: Log stream task did not complete within timeout, proceeding with cleanup");
+            // The task will be dropped when the program exits
+        }
+    }
 
     info!("UI: Cleaning up terminal...");
     // Cleanup terminal
