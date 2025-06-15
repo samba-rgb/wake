@@ -25,7 +25,7 @@ spec:
         args:
         - -c
         - |
-          echo "Starting financial/trading log generator 09..."
+          echo "Starting ultra-high-throughput financial/trading log generator 09..."
           counter=8000
           while true; do
             timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
@@ -113,15 +113,15 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.006  # 167 logs per second
+            sleep 0.0011  # 909 logs per second (increased from 0.006)
           done
         resources:
           requests:
-            memory: "112Mi"
-            cpu: "160m"
-          limits:
             memory: "224Mi"
             cpu: "320m"
+          limits:
+            memory: "448Mi"
+            cpu: "640m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -163,8 +163,8 @@ spec:
               sleep_time=0.001
               level_mod=$((counter % 4))
             else
-              # Normal phase: 50 logs per second
-              sleep_time=0.02
+              # Normal phase: 200 logs per second (increased from 50)
+              sleep_time=0.005
               level_mod=$((counter % 10))
             fi
             
@@ -185,7 +185,7 @@ spec:
                   rate_status="1000/s"
                 else
                   burst_status="IDLE"
-                  rate_status="50/s"
+                  rate_status="200/s"
                 fi
                 echo "[$timestamp] [$level] [burst-test] Burst mode: phase=$burst_status rate=$rate_status counter=$counter" ;;
               1) echo "[$timestamp] [$level] [stress-test] Memory allocation: size=$((counter % 1000))MB operation=malloc address=0x$counter status=success" ;;
@@ -300,8 +300,8 @@ spec:
           done
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "200m"
-          limits:
             memory: "512Mi"
             cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
