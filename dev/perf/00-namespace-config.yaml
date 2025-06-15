@@ -12,8 +12,7 @@ metadata:
   name: perf-config
   namespace: perf-test
 data:
-  LOG_RATE: "500"  # logs per second per container (base rate)
-  LOG_PATTERN_COUNT: "10"  # number of different log patterns
-  BURST_MODE: "true"  # enable burst logging for 10k+ logs/sec
-  MEMORY_STRESS: "true"  # enable memory allocation stress
-  HIGH_THROUGHPUT: "true"  # enable high-throughput mode
+  LOG_RATE: "100"  # logs per second per container
+  LOG_PATTERN_COUNT: "5"  # number of different log patterns
+  BURST_MODE: "false"  # enable burst logging
+  MEMORY_STRESS: "false"  # enable memory allocation stress

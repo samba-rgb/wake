@@ -60,15 +60,15 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.002  # 500 logs per second (increased from 0.01)
+            sleep 0.01  # 100 logs per second
           done
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "300m"
+            memory: "64Mi"
+            cpu: "100m"
           limits:
-            memory: "256Mi"
-            cpu: "500m"
+            memory: "128Mi"
+            cpu: "200m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -128,12 +128,12 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.002  # 500 logs per second (increased from 0.005)
+            sleep 0.005  # 200 logs per second (faster than generator 01)
           done
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "350m"
+            memory: "64Mi"
+            cpu: "150m"
           limits:
-            memory: "256Mi"
-            cpu: "600m"
+            memory: "128Mi"
+            cpu: "300m"

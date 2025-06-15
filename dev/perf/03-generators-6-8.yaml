@@ -25,7 +25,7 @@ spec:
         args:
         - -c
         - |
-          echo "Starting ultra-high-throughput ML/AI log generator 06..."
+          echo "Starting ML/AI log generator 06..."
           counter=5000
           while true; do
             timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
@@ -66,15 +66,15 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.0015  # 667 logs per second (increased from 0.01)
+            sleep 0.01  # 100 logs per second
           done
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "400m"
+            memory: "128Mi"
+            cpu: "150m"
           limits:
-            memory: "512Mi"
-            cpu: "800m"
+            memory: "256Mi"
+            cpu: "300m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -103,7 +103,7 @@ spec:
         args:
         - -c
         - |
-          echo "Starting ultra-high-throughput IoT/streaming log generator 07..."
+          echo "Starting IoT/streaming log generator 07..."
           counter=6000
           while true; do
             timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
@@ -149,15 +149,15 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.0012  # 833 logs per second (increased from 0.003)
+            sleep 0.003  # 333 logs per second (high frequency IoT)
           done
         resources:
           requests:
-            memory: "192Mi"
-            cpu: "380m"
+            memory: "96Mi"
+            cpu: "180m"
           limits:
-            memory: "384Mi"
-            cpu: "750m"
+            memory: "192Mi"
+            cpu: "350m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -186,7 +186,7 @@ spec:
         args:
         - -c
         - |
-          echo "Starting ultra-high-throughput error-heavy log generator 08..."
+          echo "Starting error-heavy log generator 08..."
           counter=7000
           while true; do
             timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
@@ -223,12 +223,12 @@ spec:
             esac
             
             counter=$((counter + 1))
-            sleep 0.0013  # 769 logs per second (increased from 0.004)
+            sleep 0.004  # 250 logs per second (error-heavy)
           done
         resources:
           requests:
-            memory: "160Mi"
-            cpu: "340m"
+            memory: "80Mi"
+            cpu: "140m"
           limits:
-            memory: "320Mi"
-            cpu: "680m"
+            memory: "160Mi"
+            cpu: "280m"
