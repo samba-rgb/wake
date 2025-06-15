@@ -16,6 +16,7 @@ pub struct DisplayManager {
     pub total_logs: usize,
     pub filtered_logs: usize,
     pub show_timestamps: bool,
+    pub auto_scroll: bool,  // New field to control auto-scrolling
 }
 
 impl DisplayManager {
@@ -27,6 +28,7 @@ impl DisplayManager {
             total_logs: 0,
             filtered_logs: 0,
             show_timestamps,
+            auto_scroll: true, // Default to auto-scroll enabled
         })
     }
 
@@ -34,6 +36,8 @@ impl DisplayManager {
         // Remove oldest entries if we exceed max_lines
         if self.log_entries.len() >= self.max_lines {
             self.log_entries.pop_front();
+            // When removing entries from front, we need to adjust scroll offset more carefully
+            // to maintain the user's relative position in the log history
             if self.scroll_offset > 0 {
                 self.scroll_offset = self.scroll_offset.saturating_sub(1);
             }
@@ -42,27 +46,67 @@ impl DisplayManager {
         self.log_entries.push_back(entry.clone());
         self.filtered_logs += 1;
         self.total_logs += 1;
+        
+        // If auto-scroll is enabled, keep scroll at bottom
+        if self.auto_scroll {
+            // Calculate viewport height conservatively (will be corrected during render)
+            let estimated_viewport = 20; // Conservative estimate
+            let max_scroll = self.log_entries.len().saturating_sub(estimated_viewport);
+            self.scroll_offset = max_scroll;
+        }
     }
 
     pub fn scroll_up(&mut self, lines: usize) {
         self.scroll_offset = self.scroll_offset.saturating_sub(lines);
+        self.auto_scroll = false; // Disable auto-scroll on manual scroll
+        
+        // Validate scroll offset bounds
+        self.validate_scroll_bounds(50); // Use conservative viewport estimate
     }
 
     pub fn scroll_down(&mut self, lines: usize, viewport_height: usize) {
-        // Calculate the total number of display lines (accounting for wrapped lines)
-        let total_display_lines = self.calculate_total_display_lines(viewport_height);
-        let max_scroll = total_display_lines.saturating_sub(viewport_height);
+        // Enhanced scrolling logic - get total logs count as maximum scroll value
+        let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
+        
+        // Make sure we don't scroll beyond the maximum
         self.scroll_offset = (self.scroll_offset + lines).min(max_scroll);
+        
+        // Auto-enable auto-scroll when user manually scrolls to the bottom
+        // This matches the behavior of most terminal applications
+        if self.scroll_offset >= max_scroll {
+            self.auto_scroll = true;
+        } else {
+            self.auto_scroll = false;
+        }
+        
+        // Validate scroll offset bounds
+        self.validate_scroll_bounds(viewport_height);
     }
 
     pub fn scroll_to_top(&mut self) {
         self.scroll_offset = 0;
+        self.auto_scroll = false; // Disable auto-scroll on manual scroll
     }
 
     pub fn scroll_to_bottom(&mut self, viewport_height: usize) {
         // Fix: Calculate scroll offset based on actual log lines, not display lines
         let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
         self.scroll_offset = max_scroll;
+        // Auto-enable auto-scroll when going to bottom
+        self.auto_scroll = true;
+    }
+
+    /// Validate and fix scroll bounds to prevent corruption
+    fn validate_scroll_bounds(&mut self, viewport_height: usize) {
+        let max_possible_scroll = if self.log_entries.len() > viewport_height {
+            self.log_entries.len() - viewport_height
+        } else {
+            0
+        };
+        
+        if self.scroll_offset > max_possible_scroll {
+            self.scroll_offset = max_possible_scroll;
+        }
     }
 
     /// Calculate the total number of display lines including wrapped lines
@@ -77,7 +121,7 @@ impl DisplayManager {
         }).sum()
     }
 
-    pub fn render(&self, f: &mut Frame, input_handler: &InputHandler) {
+    pub fn render(&mut self, f: &mut Frame, input_handler: &InputHandler) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -175,8 +219,29 @@ impl DisplayManager {
         }
     }
 
-    fn render_log_area(&self, f: &mut Frame, area: Rect, _input_handler: &InputHandler) {
+    fn render_log_area(&mut self, f: &mut Frame, area: Rect, _input_handler: &InputHandler) {
         let viewport_height = area.height.saturating_sub(2) as usize; // Account for borders
+        
+        // Validate and fix scroll offset before rendering to prevent out-of-bounds access
+        if self.scroll_offset >= self.log_entries.len() && !self.log_entries.is_empty() {
+            // If scroll offset is invalid, reset to bottom and update the actual field
+            self.scroll_offset = if self.log_entries.len() > viewport_height {
+                self.log_entries.len() - viewport_height
+            } else {
+                0
+            };
+        }
+        
+        // Additional safety check for edge cases
+        let max_safe_offset = if self.log_entries.len() > viewport_height {
+            self.log_entries.len() - viewport_height
+        } else {
+            0
+        };
+        
+        if self.scroll_offset > max_safe_offset {
+            self.scroll_offset = max_safe_offset;
+        }
         
         // Get the visible log entries with proper bounds checking
         let visible_entries: Vec<&LogEntry> = self.log_entries
@@ -443,6 +508,25 @@ impl DisplayManager {
             InputMode::Help => "HELP",
         };
 
+        // Auto-scroll indicator
+        let auto_scroll_indicator = if self.auto_scroll {
+            Span::styled(
+                " FOLLOW ",
+                Style::default()
+                    .bg(Color::Green)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD)
+            )
+        } else {
+            Span::styled(
+                " PAUSED ",
+                Style::default()
+                    .bg(Color::Yellow)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD)
+            )
+        };
+
         let status_spans = vec![
             Span::styled(
                 format!(" {} ", mode_text),
@@ -451,6 +535,8 @@ impl DisplayManager {
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD)
             ),
+            Span::raw(" "),
+            auto_scroll_indicator,
             Span::raw(" "),
             Span::styled(
                 format!("Lines: {}/{}", self.filtered_logs, self.total_logs),
@@ -463,7 +549,7 @@ impl DisplayManager {
             ),
             Span::raw(" | "),
             Span::styled(
-                "h:Help q:Quit ↑↓:Scroll i:Include e:Exclude",
+                "f:Toggle-Follow h:Help q:Quit ↑↓:Scroll i:Include e:Exclude",
                 Style::default().fg(Color::DarkGray)
             ),
         ];
