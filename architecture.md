@@ -8,7 +8,7 @@ Wake is a command-line tool for tailing multiple pods and containers in Kubernet
 wake/
 ├── Cargo.toml            # Project configuration and dependencies
 ├── LICENSE               # MIT license file
-├── README.md             # Project documentation
+├── README.md            # Project documentation
 ├── src/                  # Source code directory
 │   ├── main.rs           # Application entry point
 │   ├── cli/              # Command-line interface components
@@ -25,8 +25,15 @@ wake/
 │   │   └── selector.rs   # Selector creation for filtering
 │   ├── logging/          # Log processing components
 │   │   └── mod.rs        # Logging module organization
-│   └── output/           # Output formatting components
-│       └── mod.rs        # Output module organization
+│   ├── output/           # Output formatting components
+│   │   ├── formatter.rs  # Log entry formatting implementation
+│   │   └── mod.rs        # Output module organization
+│   └── ui/               # Interactive UI components
+│       ├── app.rs        # Main UI application
+│       ├── display.rs    # Terminal UI display manager
+│       ├── filter_manager.rs # Dynamic filter management
+│       ├── input.rs      # User input handling
+│       └── mod.rs        # UI module organization
 ```
 
 ## Code Flow
@@ -71,7 +78,14 @@ wake/
    - Supports different output formats (text, JSON, raw)
    - Handles color coding for different pods and containers
 
+9. **Interactive UI Mode (`ui/mod.rs`)**:
+   - Provides terminal-based user interface using `ratatui`
+   - Allows real-time filtering without restarting the application
+   - Handles keyboard input and displays logs with scrolling capabilities
+
 ## Component Diagram
+
+![Component Flow Diagram](flow_details/component_flow.png)
 
 ```
 ┌────────────────────────────────────────────────────┐
@@ -165,9 +179,57 @@ wake/
 ├────────────────────────────────────────────────────┤
 │ from_str(s: &str): Option<Self>                    │
 └────────────────────────────────────────────────────┘
-```
+
+┌────────────────────────────────────────────────────┐
+│                  InputHandler                      │
+├────────────────────────────────────────────────────┤
+│ mode: InputMode                                    │
+│ include_input: String                              │
+│ exclude_input: String                              │
+│ cursor_position: usize                             │
+│ input_history: VecDeque<String>                    │
+│ history_index: Option<usize>                       │
+├────────────────────────────────────────────────────┤
+│ new(initial_include, initial_exclude): Self        │
+│ handle_key_event(key: KeyEvent): Option<InputEvent>│
+│ get_help_text(): Vec<&'static str>                 │
+└────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────┐
+│                DisplayManager                      │
+├────────────────────────────────────────────────────┤
+│ log_lines: VecDeque<String>                        │
+│ scroll_offset: usize                               │
+│ max_lines: usize                                   │
+│ total_logs: usize                                  │
+│ filtered_logs: usize                               │
+│ formatter: Formatter                               │
+├────────────────────────────────────────────────────┤
+│ new(max_lines: usize, timestamps: bool): Result<Self>│
+│ add_log_entry(entry: &LogEntry)                    │
+│ add_system_message(message: &str)                  │
+│ scroll_up/down/to_top/to_bottom()                  │
+│ render(f: &mut Frame, input_handler: &InputHandler)│
+└────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────┐
+│                 DynamicFilterManager               │
+├────────────────────────────────────────────────────┤
+│ include_pattern: Arc<RwLock<Option<Arc<Regex>>>>   │
+│ exclude_pattern: Arc<RwLock<Option<Arc<Regex>>>>   │
+│ log_buffer: Arc<RwLock<Vec<LogEntry>>>             │
+│ buffer_size: usize                                 │
+├────────────────────────────────────────────────────┤
+│ new(initial_include, initial_exclude): Result<Self>│
+│ update_include/exclude_pattern(pattern: Option<String>) │
+│ should_include(entry: &LogEntry): bool             │
+│ add_to_buffer(entry: LogEntry)                     │
+│ start_filtering(input_rx): Receiver<LogEntry>      │
+└────────────────────────────────────────────────────┘
 
 ## Data Flow
+
+![Complete Flow Diagram](flow_details/complete_flow.png)
 
 ```
                                    ┌───────────────┐
@@ -214,22 +276,27 @@ wake/
                             └──────────────────────┬───────────────────────┘
                                                   │
                                                   ▼
-                            ┌──────────────────────────────────────────────┐
-                            │         filtering::LogFilter                 │
-                            │     OS thread-based log filtering            │
-                            └──────────────────────┬───────────────────────┘
-                                                  │
-                                                  ▼
-                                      ┌────────────────────────┐
-                                      │  Formatter::format     │
-                                      │  Format each log entry │
-                                      └────────────┬───────────┘
-                                                  │
-                                                  ▼
-                                      ┌────────────────────────┐
-                                      │     stdout output      │
-                                      │    Display to user     │
-                                      └────────────────────────┘
+                       ┌─────────────────────────────────────────────────┐
+                       │              UI / CLI Mode Split                │
+                       └───────────────┬─────────────────┬───────────────┘
+                                       │                 │
+                                       ▼                 ▼
+    ┌─────────────────────────────────────────┐  ┌───────────────────────────────────┐
+    │            ui::run_with_ui              │  │      filtering::LogFilter         │
+    │   Terminal UI with interactive filters  │  │   OS thread-based log filtering   │
+    └────────────────────┬──────────────────┬─┘  └───────────────────┬───────────────┘
+                         │                  │                        │
+                         ▼                  │                        ▼
+    ┌─────────────────────────────────────┐ │            ┌────────────────────────┐
+    │      ui::DisplayManager::render     │ │            │  Formatter::format     │
+    │     Terminal rendering with ratatui │ │            │  Format each log entry │
+    └─────────────────────────────────────┘ │            └────────────┬───────────┘
+                                            │                         │
+                                            ▼                         ▼
+                          ┌────────────────────────────┐   ┌────────────────────────┐
+                          │   ui::InputHandler         │   │     stdout output      │
+                          │ Process keyboard input     │   │    Display to user     │
+                          └────────────────────────────┘   └────────────────────────┘
 ```
 
 ## Key Dependencies
@@ -244,6 +311,8 @@ wake/
 - **serde_json**: JSON serialization/deserialization
 - **threadpool**: Thread pool for parallel log filtering
 - **num_cpus**: CPU detection for optimal thread allocation
+- **ratatui**: Terminal UI framework for interactive viewing
+- **crossterm**: Terminal manipulation and event handling
 
 ## Multi-threaded Filtering System
 
@@ -270,3 +339,38 @@ Wake now includes a specialized OS thread-based filtering system for high-perfor
    - Implements backpressure handling through bounded channels
 
 This architecture provides significant performance improvements for log filtering operations, especially when working with complex regex patterns or high-volume log streams, all while maintaining a clean separation of concerns in the codebase.
+
+## Interactive UI Architecture
+
+Wake now features a powerful interactive terminal user interface (TUI) mode that enhances the user experience when working with logs:
+
+1. **Real-time Filter Management**:
+   - Update include/exclude patterns without restarting
+   - Instantly see results as filters are applied
+   - View filter statistics for total vs. filtered log count
+   - Access filter history for quick recall of previous patterns
+
+2. **Terminal UI Components**:
+   - Three-panel layout (filter area, log area, status bar)
+   - Dynamic color-coding of logs by pod and container
+   - Scrollable log view with keyboard navigation
+   - Interactive help overlay accessed via keyboard shortcut
+
+3. **Input Handling System**:
+   - Modal input system (normal, editing, help modes)
+   - Keyboard shortcuts for all common operations
+   - Command history for quick reuse of previous patterns
+   - Active cursor for text editing in filter fields
+
+4. **Dynamic Log Buffer**:
+   - Circular log buffer retains recent logs
+   - Re-filterable without needing to reconnect to K8s
+   - Configurable buffer size to balance memory use and history
+   - Thread-safe design using Arc<RwLock<>> for shared access
+
+5. **UI/Processing Separation**:
+   - Event loop for UI rendering separate from log processing
+   - Non-blocking architecture prevents UI freezing during processing
+   - Clean separation between data processing and presentation
+
+This UI architecture makes Wake not just a log tailing tool but a complete interactive log exploration environment, allowing users to dynamically refine their view of Kubernetes logs without disrupting their workflow.
