@@ -226,12 +226,12 @@ wake/
 │ add_to_buffer(entry: LogEntry)                     │
 │ start_filtering(input_rx): Receiver<LogEntry>      │
 └────────────────────────────────────────────────────┘
-
+```
 ## Data Flow
 
 ![Complete Flow Diagram](flow_details/complete_flow.png)
 
-```
+
                                    ┌───────────────┐
                                    │    main.rs    │
                                    │ Program Entry │

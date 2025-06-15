@@ -11,7 +11,7 @@ use ratatui::{
 };
 use std::io::{self, Write};
 use std::pin::Pin;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
@@ -132,7 +132,7 @@ pub async fn run_app(
     let render_interval = Duration::from_millis(100); // 10 FPS
     let mut loop_count = 0;
 
-    loop {
+    'main_loop: loop {
         loop_count += 1;
         if loop_count % 1000 == 0 {
             debug!("UI: Main loop iteration #{}", loop_count);
@@ -140,118 +140,191 @@ pub async fn run_app(
         
         // Handle input events with higher priority - increased timeout for better responsiveness
         if event::poll(Duration::from_millis(50))? {
-            if let Event::Key(key) = event::read()? {
-                if let Some(input_event) = input_handler.handle_key_event(key) {
-                    match input_event {
-                        InputEvent::Quit => break,
-                        InputEvent::UpdateIncludeFilter(pattern) => {
-                            let pattern_opt = if pattern.is_empty() { None } else { Some(pattern.clone()) };
-                            if let Err(e) = filter_manager.update_include_pattern(pattern_opt.clone()).await {
-                                error!("Failed to update include pattern: {}", e);
-                            } else {
-                                // Add a filter change notification to the display (old logs remain)
-                                let filter_msg = if pattern.is_empty() {
-                                    "── Filter cleared: showing all new logs ──".to_string()
+            match event::read()? {
+                Event::Key(key) => {
+                    if let Some(input_event) = input_handler.handle_key_event(key) {
+                        match input_event {
+                            InputEvent::Quit => {
+                                info!("UI: Quit signal received, breaking main loop");
+                                break 'main_loop;
+                            }
+                            InputEvent::UpdateIncludeFilter(pattern) => {
+                                let pattern_opt = if pattern.is_empty() { None } else { Some(pattern.clone()) };
+                                if let Err(e) = filter_manager.update_include_pattern(pattern_opt.clone()).await {
+                                    error!("Failed to update include pattern: {}", e);
                                 } else {
-                                    format!("── Filter applied: {} (affects new logs only) ──", pattern)
+                                    // Add a filter change notification to the display (old logs remain)
+                                    let filter_msg = if pattern.is_empty() {
+                                        "── Filter cleared: showing all new logs ──".to_string()
+                                    } else {
+                                        format!("── Filter applied: {} (affects new logs only) ──", pattern)
+                                    };
+                                    display_manager.add_system_message(&filter_msg);
+                                    info!("Include filter updated: {:?}", pattern_opt);
+                                }
+                            }
+                            InputEvent::UpdateExcludeFilter(pattern) => {
+                                let pattern_opt = if pattern.is_empty() { None } else { Some(pattern.clone()) };
+                                if let Err(e) = filter_manager.update_exclude_pattern(pattern_opt.clone()).await {
+                                    error!("Failed to update exclude pattern: {}", e);
+                                } else {
+                                    // Add a filter change notification to the display (old logs remain)
+                                    let filter_msg = if pattern.is_empty() {
+                                        "── Exclude filter cleared: showing all new logs ──".to_string()
+                                    } else {
+                                        format!("── Exclude filter applied: {} (affects new logs only) ──", pattern)
+                                    };
+                                    display_manager.add_system_message(&filter_msg);
+                                    info!("Exclude filter updated: {:?}", pattern_opt);
+                                }
+                            }
+                            InputEvent::ScrollUp => {
+                                display_manager.scroll_up(1);
+                            }
+                            InputEvent::ScrollDown => {
+                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                display_manager.scroll_down(1, viewport_height);
+                            }
+                            InputEvent::ScrollPageUp => {
+                                // Scroll up by a full page (minus a couple lines for context)
+                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                let page_size = viewport_height.saturating_sub(2).max(1);
+                                display_manager.scroll_up(page_size);
+                            }
+                            InputEvent::ScrollPageDown => {
+                                // Scroll down by a full page (minus a couple lines for context)
+                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                let page_size = viewport_height.saturating_sub(2).max(1);
+                                display_manager.scroll_down(page_size, viewport_height);
+                            }
+                            InputEvent::ScrollToTop => {
+                                display_manager.scroll_to_top();
+                            }
+                            InputEvent::ScrollToBottom => {
+                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                display_manager.scroll_to_bottom(viewport_height);
+                            }
+                            InputEvent::ToggleAutoScroll => {
+                                // Toggle auto-scroll mode
+                                display_manager.auto_scroll = !display_manager.auto_scroll;
+                                let status_message = if display_manager.auto_scroll {
+                                    // Immediately scroll to bottom when auto-scroll is enabled
+                                    let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                    display_manager.scroll_to_bottom(viewport_height);
+                                    "── Auto-scroll enabled: logs will follow new entries ──"
+                                } else {
+                                    "── Auto-scroll disabled: logs will stay at current position ──"
                                 };
-                                display_manager.add_system_message(&filter_msg);
-                                info!("Include filter updated: {:?}", pattern_opt);
+                                display_manager.add_system_message(status_message);
+                            }
+                            InputEvent::Refresh => {
+                                // Only refresh display without changing logs - no retroactive filtering
+                                info!("Display refreshed - old logs preserved");
+                            }
+                            InputEvent::ToggleHelp => {
+                                input_handler.mode = if input_handler.mode == InputMode::Help {
+                                    InputMode::Normal
+                                } else {
+                                    InputMode::Help
+                                };
                             }
                         }
-                        InputEvent::UpdateExcludeFilter(pattern) => {
-                            let pattern_opt = if pattern.is_empty() { None } else { Some(pattern.clone()) };
-                            if let Err(e) = filter_manager.update_exclude_pattern(pattern_opt.clone()).await {
-                                error!("Failed to update exclude pattern: {}", e);
-                            } else {
-                                // Add a filter change notification to the display (old logs remain)
-                                let filter_msg = if pattern.is_empty() {
-                                    "── Exclude filter cleared: showing all new logs ──".to_string()
-                                } else {
-                                    format!("── Exclude filter applied: {} (affects new logs only) ──", pattern)
-                                };
-                                display_manager.add_system_message(&filter_msg);
-                                info!("Exclude filter updated: {:?}", pattern_opt);
-                            }
-                        }
-                        InputEvent::ScrollUp => {
-                            display_manager.scroll_up(1);
-                        }
-                        InputEvent::ScrollDown => {
-                            let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
-                            display_manager.scroll_down(1, viewport_height);
-                        }
-                        InputEvent::ScrollToTop => {
-                            display_manager.scroll_to_top();
-                        }
-                        InputEvent::ScrollToBottom => {
-                            let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
-                            display_manager.scroll_to_bottom(viewport_height);
-                        }
-                        InputEvent::Refresh => {
-                            // Only refresh display without changing logs - no retroactive filtering
-                            info!("Display refreshed - old logs preserved");
-                        }
-                        InputEvent::ToggleHelp => {
-                            input_handler.mode = if input_handler.mode == InputMode::Help {
-                                InputMode::Normal
-                            } else {
-                                InputMode::Help
-                            };
-                        }
+                        
+                        // Force immediate render after input to improve responsiveness
+                        terminal.draw(|f| {
+                            display_manager.render(f, &input_handler);
+                        })?;
+                        last_render = std::time::Instant::now();
+                        continue; // Skip log processing this iteration to prioritize UI updates
                     }
+                },
+                Event::Mouse(mouse_event) => {
+                    use crossterm::event::{MouseEvent, MouseEventKind};
                     
-                    // Force immediate render after input to improve responsiveness
-                    terminal.draw(|f| {
-                        display_manager.render(f, &input_handler);
-                    })?;
-                    last_render = std::time::Instant::now();
-                    continue; // Skip log processing this iteration to prioritize UI updates
-                }
+                    match mouse_event.kind {
+                        MouseEventKind::ScrollDown => {
+                            let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                            // Scroll down by 3 lines for smoother experience
+                            display_manager.scroll_down(3, viewport_height);
+                            
+                            // Force immediate render after mouse scroll to improve responsiveness
+                            terminal.draw(|f| {
+                                display_manager.render(f, &input_handler);
+                            })?;
+                            last_render = std::time::Instant::now();
+                        },
+                        MouseEventKind::ScrollUp => {
+                            // Scroll up by 3 lines for smoother experience
+                            display_manager.scroll_up(3);
+                            
+                            // Force immediate render after mouse scroll to improve responsiveness
+                            terminal.draw(|f| {
+                                display_manager.render(f, &input_handler);
+                            })?;
+                            last_render = std::time::Instant::now();
+                        },
+                        _ => {}  // Ignore other mouse events for now
+                    }
+                    continue;  // Skip log processing this iteration to prioritize UI updates
+                },
+                _ => {}  // Ignore other event types
             }
         }
 
-        // Process new filtered log entries in smaller batches to avoid blocking input
+        // Process new filtered log entries with timeout to avoid blocking input
         let mut display_count = 0;
         let mut batch_processed = 0;
-        const MAX_BATCH_SIZE: usize = 50; // Process max 50 logs per iteration
+        const MAX_BATCH_SIZE: usize = 10;
+        const BATCH_TIMEOUT: Duration = Duration::from_millis(20); // Maximum time to spend processing logs
         
-        while let Ok(entry) = filtered_log_rx.try_recv() {
-            display_count += 1;
-            batch_processed += 1;
-            
-            if display_count <= 10 || display_count % 100 == 0 {
-                info!("UI_DISPLAY: Processing filtered log entry #{}: pod={}, container={}, message={}", 
-                      display_count, entry.pod_name, entry.container_name,
-                      entry.message.chars().take(50).collect::<String>());
-            }
-            
-            // Add to UI display FIRST with clean LogEntry
-            display_manager.add_log_entry(&entry);
-            
-            // SEPARATELY format for file output if specified
-            if let (Some(writer), Some(fmt)) = (&mut file_writer, &formatter) {
-                if let Some(formatted) = fmt.format_without_filtering(&entry) {
-                    if let Err(e) = writeln!(writer, "{}", formatted) {
-                        error!("Failed to write to output file: {:?}", e);
-                    } else {
-                        // Flush immediately for real-time file output
-                        let _ = writer.flush();
+        let batch_start = Instant::now();
+        
+        while batch_start.elapsed() < BATCH_TIMEOUT && batch_processed < MAX_BATCH_SIZE {
+            match tokio::time::timeout(Duration::from_millis(1), filtered_log_rx.recv()).await {
+                Ok(Some(entry)) => {
+                    display_count += 1;
+                    batch_processed += 1;
+                    
+                    if display_count <= 10 || display_count % 100 == 0 {
+                        info!("UI_DISPLAY: Processing filtered log entry #{}: pod={}, container={}, message={}", 
+                              display_count, entry.pod_name, entry.container_name,
+                              entry.message.chars().take(50).collect::<String>());
+                    }
+                    
+                    // Add to UI display FIRST with clean LogEntry
+                    // Always store logs for display, but use different strategies for performance
+                    display_manager.add_log_entry(&entry);
+                    
+                    // SEPARATELY format for file output if specified
+                    if let (Some(writer), Some(fmt)) = (&mut file_writer, &formatter) {
+                        if let Some(formatted) = fmt.format_without_filtering(&entry) {
+                            if let Err(e) = writeln!(writer, "{}", formatted) {
+                                error!("Failed to write to output file: {:?}", e);
+                            } else {
+                                // Flush immediately for real-time file output
+                                let _ = writer.flush();
+                            }
+                        }
                     }
                 }
-            }
-            
-            // Break after processing batch to yield control back to input handling
-            if batch_processed >= MAX_BATCH_SIZE {
-                break;
+                Ok(None) => {
+                    // Channel closed
+                    break;
+                }
+                Err(_) => {
+                    // Timeout - no more logs available right now
+                    break;
+                }
             }
         }
         
         if batch_processed > 0 {
             info!("UI_DISPLAY: Processed {} filtered log entries in this batch", batch_processed);
-            // Auto-scroll to bottom for new logs after batch processing
-            let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
-            display_manager.scroll_to_bottom(viewport_height);
+            // Auto-scroll to bottom for new logs only if auto-scroll is enabled
+            if display_manager.auto_scroll {
+                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                display_manager.scroll_to_bottom(viewport_height);
+            }
         }
 
         // Render UI at regular intervals
