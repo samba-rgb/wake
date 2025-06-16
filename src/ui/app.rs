@@ -41,7 +41,8 @@ pub async fn run_app(
     info!("UI: Setting up terminal...");
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen)?;
+    // Note: We're NOT enabling mouse capture by default to allow terminal text selection
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -49,6 +50,9 @@ pub async fn run_app(
     info!("UI: Creating display manager and input handler...");
     let mut display_manager = DisplayManager::new(args.buffer_size, args.timestamps, args.dev)?;
     let mut input_handler = InputHandler::new(args.include.clone(), args.exclude.clone());
+    
+    // Track mouse capture state
+    let mut mouse_capture_enabled = false;
     
     // Set up file writer if output file is specified
     let mut file_writer: Option<Box<dyn Write + Send>> = if let Some(ref output_file) = args.output_file {
@@ -340,6 +344,20 @@ pub async fn run_app(
                                 display_manager.exit_selection_mode();
                                 display_manager.add_system_log("── Selection mode exited - Buffer restored ──");
                             }
+                            InputEvent::ToggleMouseCapture => {
+                                // Toggle mouse capture mode
+                                if mouse_capture_enabled {
+                                    // Disable mouse capture - allows terminal text selection
+                                    execute!(terminal.backend_mut(), DisableMouseCapture)?;
+                                    mouse_capture_enabled = false;
+                                    display_manager.add_system_log("── Mouse capture disabled - Terminal text selection enabled ──");
+                                } else {
+                                    // Enable mouse capture - allows application mouse events
+                                    execute!(terminal.backend_mut(), EnableMouseCapture)?;
+                                    mouse_capture_enabled = true;
+                                    display_manager.add_system_log("── Mouse capture enabled - Application mouse selection enabled ──");
+                                }
+                            }
                             // Mouse events are handled directly in the Event::Mouse match above
                             InputEvent::MouseClick(_, _) | InputEvent::MouseDrag(_, _) | InputEvent::MouseRelease(_, _) => {
                                 // These events are handled directly in the mouse event processing
@@ -458,7 +476,7 @@ pub async fn run_app(
                 input_handler.mode = InputMode::Normal;
                 display_manager.exit_selection_mode();
                 display_manager.add_system_log("── Automatically exited selection mode due to buffer size limit ──");
-            }
+                       }
             
             // Auto-scroll if enabled
             if display_manager.auto_scroll {
