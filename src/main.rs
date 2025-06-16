@@ -68,15 +68,13 @@ async fn main() -> Result<()> {
     
     // When dev mode is enabled, also log to a file
     if args.dev {
-        // Create a timestamp for the log file name
-        use chrono::Local;
-        let timestamp = Local::now().format("%Y%m%d_%H%M%S").to_string();
-        let log_file_path = format!("wake_dev_{}.log", timestamp);
+        // Use a single log file name instead of timestamped files
+        let log_file_path = "wake_dev.log";
         
         println!("🔍 Development mode enabled. Logs will be written to: {}", log_file_path);
         
         // Create a file appender that writes to the dev log file
-        let file_appender = tracing_appender::rolling::never("", &log_file_path);
+        let file_appender = tracing_appender::rolling::never("", log_file_path);
         let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
         
         // Set up logging to file for dev mode
