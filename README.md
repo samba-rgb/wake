@@ -10,7 +10,7 @@ Wake is a command-line tool for tailing multiple pods and containers in Kubernet
 - **File Output Support** - save logs to files while optionally showing UI
 - **Development Mode** - show internal application logs for debugging
 - Color-coded output for easier log differentiation
-- Regular expression filtering for pods and containers
+- Advanced pattern filtering for pods and containers with logical operators
 - Support for various Kubernetes resources (pods, deployments, statefulsets, etc.)
 - Multiple output formats (text, json, raw)
 - Timestamp support
@@ -288,8 +288,8 @@ Options:
   -x, --context <CONTEXT>         Kubernetes context to use
   -t, --tail <TAIL>               Lines of logs to display from beginning [default: 10]
   -f, --follow                    Follow logs (stream in real time) [default: true]
-  -i, --include <INCLUDE>         Filter logs by regex pattern (supports advanced syntax)
-  -E, --exclude <EXCLUDE>         Exclude logs by regex pattern (supports advanced syntax)
+  -i, --include <INCLUDE>         Filter logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
+  -E, --exclude <EXCLUDE>         Exclude logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
   -T, --timestamps                Show timestamps in logs
   -o, --output <OUTPUT>           Output format (text, json, raw) [default: text]
   -w, --output-file <FILE>        Write logs to file (use with --ui for both file and UI)

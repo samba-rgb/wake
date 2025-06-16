@@ -166,14 +166,15 @@ impl LogFilter {
 
     /// Creates a new log filter with simple regex patterns (for backward compatibility)
     #[deprecated(note = "Use new() with FilterPattern instead for advanced filtering support")]
+    #[allow(dead_code)]
     pub fn new_with_regex(
-        include_pattern: Option<Regex>,
-        exclude_pattern: Option<Regex>,
+        include_regex: Option<Regex>,
+        exclude_regex: Option<Regex>,
         num_threads: usize,
     ) -> Self {
         // Convert regex patterns to FilterPattern
-        let include_filter = include_pattern.map(FilterPattern::Simple);
-        let exclude_filter = exclude_pattern.map(FilterPattern::Simple);
+        let include_filter = include_regex.map(FilterPattern::Simple);
+        let exclude_filter = exclude_regex.map(FilterPattern::Simple);
         
         Self::new(include_filter, exclude_filter, num_threads)
     }

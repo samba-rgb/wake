@@ -15,6 +15,19 @@ pub enum InputEvent {
     ToggleAutoScroll,
     Quit,
     Refresh,
+    CopyLogs,
+    CopySelection,
+    ToggleSelection,
+    SelectUp,
+    SelectDown,
+    EnterSelectionMode,
+    ExitSelectionMode,
+    #[allow(dead_code)]
+    MouseClick(u16, u16),
+    #[allow(dead_code)]
+    MouseDrag(u16, u16),
+    #[allow(dead_code)]
+    MouseRelease(u16, u16),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,6 +36,7 @@ pub enum InputMode {
     EditingInclude,
     EditingExclude,
     Help,
+    Selection,
 }
 
 pub struct InputHandler {
@@ -52,12 +66,16 @@ impl InputHandler {
             InputMode::EditingInclude => self.handle_editing_mode(key, true),
             InputMode::EditingExclude => self.handle_editing_mode(key, false),
             InputMode::Help => self.handle_help_mode(key),
+            InputMode::Selection => self.handle_selection_mode(key),
         }
     }
 
     fn handle_normal_mode(&mut self, key: KeyEvent) -> Option<InputEvent> {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => Some(InputEvent::Quit),
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                Some(InputEvent::CopyLogs)
+            }
             KeyCode::Char('i') => {
                 self.mode = InputMode::EditingInclude;
                 self.cursor_position = self.include_input.len();
@@ -79,6 +97,11 @@ impl InputHandler {
             KeyCode::PageUp => Some(InputEvent::ScrollPageUp),
             KeyCode::PageDown => Some(InputEvent::ScrollPageDown),
             KeyCode::Char('f') => Some(InputEvent::ToggleAutoScroll), // Add 'f' key to toggle follow/auto-scroll mode
+            KeyCode::Char('s') => {
+                self.mode = InputMode::Selection;
+                // Return event to trigger buffer expansion when entering selection mode
+                Some(InputEvent::EnterSelectionMode)
+            }
             _ => None,
         }
     }
@@ -201,6 +224,24 @@ impl InputHandler {
         }
     }
 
+    fn handle_selection_mode(&mut self, key: KeyEvent) -> Option<InputEvent> {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('s') => {
+                self.mode = InputMode::Normal;
+                Some(InputEvent::ExitSelectionMode)
+            }
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                Some(InputEvent::CopySelection)
+            }
+            KeyCode::Up | KeyCode::Char('k') => Some(InputEvent::SelectUp),
+            KeyCode::Down | KeyCode::Char('j') => Some(InputEvent::SelectDown),
+            KeyCode::Char('x') => Some(InputEvent::ToggleSelection),
+            KeyCode::Char('r') => Some(InputEvent::Refresh),
+            KeyCode::Char('f') => Some(InputEvent::ToggleAutoScroll),
+            _ => None,
+        }
+    }
+
     fn add_to_history(&mut self, input: String) {
         if !input.is_empty() && self.input_history.front() != Some(&input) {
             self.input_history.push_front(input);
@@ -270,6 +311,15 @@ impl InputHandler {
             "    i           Edit include pattern         e           Edit exclude pattern",
             "    r           Refresh with current filters",
             "",
+            "  Selection & Copying:",
+            "    s           Enter selection mode         x           Toggle selection at cursor",
+            "    Ctrl+c      Copy visible logs            Ctrl+c      Copy selection (in selection mode)",
+            "",
+            "  In Selection Mode:",
+            "    ↑/k         Move cursor up & extend      ↓/j         Move cursor down & extend",
+            "    x           Toggle selection start/end   Esc/s       Exit selection mode",
+            "    Ctrl+c      Copy selected lines",
+            "",
             "  While editing filters:",
             "    Enter       Apply filter                 Esc         Cancel editing",
             "    ↑/↓         Navigate filter history      Ctrl+u      Clear input",
@@ -277,7 +327,16 @@ impl InputHandler {
             "",
             "  General:",
             "    h           Toggle this help             q/Esc       Quit application",
-            "    Ctrl+c      Copy logs (or force quit in filter edit mode)",
+            "",
+            "  File Output:",
+            "    💡 TIP: Use '--output-file file.log' with UI mode for best experience!",
+            "       UI mode allows real-time viewing while simultaneously writing to file.",
+            "       This gives you both interactive filtering AND permanent log storage.",
+            "",
+            "  Buffer Configuration:",
+            "    • Default buffer: 10,000 lines (configurable with --buffer-size)",
+            "    • In selection mode: buffer expands to 2x size to preserve history",
+            "    • Higher buffer sizes (20k, 30k) allow longer selection history",
             "",
             "  Filter Examples:",
             "    Basic regex: 'ERROR|WARN'               - Show only error and warning logs",
@@ -293,6 +352,11 @@ impl InputHandler {
             "  Pattern Examples:",
             "    '(info || debug) && \"32\"'              - Logs with 'info' or 'debug' AND '32'",
             "    '\"INFO\" || \"DEBUG\" && \"32\"'         - Exact text matches with AND logic",
+            "",
+            "  Selection Highlighting:",
+            "    • Selected lines are highlighted with white background",
+            "    • Current cursor position is shown with reversed colors",
+            "    • Yellow border indicates selection mode is active",
             "",
             "  Press any key to close help...",
             "",

@@ -36,7 +36,9 @@ pub async fn run(args: Args) -> Result<()> {
           args.ui, args.no_ui, args.output_file);
     
     // Always print the big text WAKE
-    print_wake_big_text();
+    if args.no_ui {
+        print_wake_big_text();
+    }
     
     // Determine UI behavior - UI is now the default
     let should_use_ui = if args.no_ui {
