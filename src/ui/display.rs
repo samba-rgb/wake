@@ -992,28 +992,30 @@ impl DisplayManager {
         if let Some(ref mut selection) = self.selection {
             if selection.is_dragging && 
                x >= log_area.x + 1 && x < log_area.x + log_area.width - 1 &&
-               y > log_area.y + 1 && y < log_area.y + log_area.height - 1 {
+               y >= log_area.y + 2 && y < log_area.y + log_area.height - 1 {
                 
                 // Calculate which log line is being dragged to
                 let content_start_y = log_area.y + 2;
+                let relative_y = (y - content_start_y) as usize;
+                let drag_line = self.scroll_offset + relative_y;
                 
-                if y >= content_start_y {
-                    let relative_y = (y - content_start_y) as usize;
-                    let drag_line = self.scroll_offset + relative_y;
+                // Ensure we don't go beyond available logs and viewport bounds
+                let viewport_height = (log_area.height as usize).saturating_sub(3);
+                if drag_line < self.log_entries.len() && relative_y < viewport_height {
+                    let old_start = selection.start_line;
+                    let old_end = selection.end_line;
+                    selection.extend_to(drag_line);
                     
-                    // Ensure we don't go beyond available logs
-                    if drag_line < self.log_entries.len() {
-                        let old_start = selection.start_line;
-                        let old_end = selection.end_line;
-                        selection.extend_to(drag_line);
-                        
-                        // Log selection changes during dragging
-                        tracing::info!("Selection extended: {}..{} → {}..{} (drag_line={}, scroll_offset={})",
-                            old_start, old_end, selection.start_line, selection.end_line, 
-                            drag_line, self.scroll_offset);
-                        
-                        return true;
-                    }
+                    // Add debug logging for drag operations
+                    self.add_system_log(&format!("🔄 Drag: y={}, rel_y={}, drag_line={}, selection={}..{}", 
+                        y, relative_y, drag_line, selection.start_line, selection.end_line));
+                    
+                    // Log selection changes during dragging
+                    tracing::info!("Selection extended: {}..{} → {}..{} (drag_line={}, scroll_offset={})",
+                        old_start, old_end, selection.start_line, selection.end_line, 
+                        drag_line, self.scroll_offset);
+                    
+                    return true;
                 }
             }
         }
