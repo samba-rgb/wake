@@ -22,6 +22,7 @@ pub enum InputEvent {
     SelectDown,
     EnterSelectionMode,
     ExitSelectionMode,
+    ToggleMouseCapture,
     #[allow(dead_code)]
     MouseClick(u16, u16),
     #[allow(dead_code)]
@@ -101,6 +102,10 @@ impl InputHandler {
                 self.mode = InputMode::Selection;
                 // Return event to trigger buffer expansion when entering selection mode
                 Some(InputEvent::EnterSelectionMode)
+            }
+            KeyCode::Char('m') => {
+                // Toggle mouse capture mode
+                Some(InputEvent::ToggleMouseCapture)
             }
             _ => None,
         }
@@ -327,6 +332,12 @@ impl InputHandler {
             "",
             "  General:",
             "    h           Toggle this help             q/Esc       Quit application",
+            "    m           Toggle mouse capture mode",
+            "",
+            "  Mouse Modes:",
+            "    • Mouse capture OFF (default): Terminal text selection works normally",
+            "    • Mouse capture ON: Application mouse selection and scrolling enabled",
+            "    💡 Press 'm' to switch between terminal and application mouse modes",
             "",
             "  File Output:",
             "    💡 TIP: Use '--output-file file.log' with UI mode for best experience!",

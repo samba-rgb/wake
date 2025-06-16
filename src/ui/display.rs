@@ -338,7 +338,7 @@ impl DisplayManager {
         if self.scroll_offset > max_safe_offset {
             self.scroll_offset = max_safe_offset;
         }
-        
+
         // Get the visible log entries with proper bounds checking
         let visible_entries: Vec<LogEntry> = self.log_entries
             .iter()
@@ -350,8 +350,8 @@ impl DisplayManager {
         // Add debugging for selection state
         if let Some(ref selection) = self.selection {
             if selection.is_active {
-                tracing::debug!("Active selection: start_line={}, end_line={}, scroll_offset={}, is_dragging={}", 
-                    selection.start_line, selection.end_line, self.scroll_offset, selection.is_dragging);
+                tracing::debug!("Active selection: start_line={}, end_line={}, scroll_offset={}, selection_cursor={}", 
+                    selection.start_line, selection.end_line, self.scroll_offset, self.selection_cursor);
             }
         }
         
@@ -366,28 +366,33 @@ impl DisplayManager {
                 let log_idx = self.scroll_offset + display_idx;
                 let mut line = self.create_colored_log_line(entry);
                 
-                // Apply selection highlighting if we have an active selection
+                // Determine if this line should be highlighted based on selection state
+                let mut is_selected = false;
+                let mut is_cursor_line = false;
+                
+                // Check if line is within active selection range
                 if let Some(ref selection) = self.selection {
-                    if selection.is_active {
-                        if log_idx >= selection.start_line && log_idx <= selection.end_line {
-                            // Log which lines are being highlighted
-                            tracing::debug!("Highlighting line {} (display_idx={}, scroll_offset={})", 
-                                log_idx, display_idx, self.scroll_offset);
-                            
-                            // Highlight selected lines by inverting colors
-                            let highlighted_spans: Vec<Span> = line.spans.into_iter().map(|span| {
-                                Span::styled(
-                                    span.content,
-                                    span.style.bg(Color::White).fg(Color::Black)
-                                )
-                            }).collect();
-                            line = Line::from(highlighted_spans);
-                        }
+                    if selection.is_active && log_idx >= selection.start_line && log_idx <= selection.end_line {
+                        is_selected = true;
                     }
                 }
                 
-                // Show selection cursor in selection mode
-                if input_handler.mode == InputMode::Selection && display_idx == self.selection_cursor {
+                // Check if this is the current cursor line in selection mode
+                if input_handler.mode == InputMode::Selection {
+                    // Calculate the absolute line index for the current cursor position
+                    let cursor_absolute_line = self.scroll_offset + self.selection_cursor;
+                    if log_idx == cursor_absolute_line {
+                        is_cursor_line = true;
+                    }
+                }
+                
+                // Apply highlighting with proper priority:
+                // 1. Cursor line gets reversed colors (highest priority)
+                // 2. Selected lines get white background
+                // 3. Normal lines get default styling
+                
+                if is_cursor_line {
+                    // Cursor line: apply reversed styling for visibility
                     let cursor_spans: Vec<Span> = line.spans.into_iter().map(|span| {
                         Span::styled(
                             span.content,
@@ -395,6 +400,15 @@ impl DisplayManager {
                         )
                     }).collect();
                     line = Line::from(cursor_spans);
+                } else if is_selected {
+                    // Selected line: apply white background with black text
+                    let highlighted_spans: Vec<Span> = line.spans.into_iter().map(|span| {
+                        Span::styled(
+                            span.content,
+                            span.style.bg(Color::White).fg(Color::Black)
+                        )
+                    }).collect();
+                    line = Line::from(highlighted_spans);
                 }
                 
                 line
