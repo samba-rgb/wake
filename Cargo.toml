@@ -8,6 +8,11 @@ edition = "2024"
 name = "wake"
 path = "src/lib.rs"
 
+# Add binary target configuration
+[[bin]]
+name = "wake"
+path = "src/main.rs"
+
 [dependencies]
 # Kubernetes client - using openssl-tls to avoid ring dependency
 kube = { version = "0.87.1", features = ["runtime", "derive", "ws", "openssl-tls", "client", "config"], default-features = false }
