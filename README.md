@@ -135,6 +135,39 @@ wake -n apps log-generator --dev
 - **Performance insights** - View filtering and processing timings
 - **Troubleshooting** - Detailed internal operation logs
 
+## Buffer Management
+
+Wake uses an intelligent buffer system to manage log storage in memory, especially important for UI mode and selection functionality:
+
+### Buffer Configuration
+
+```bash
+# Default buffer size (10,000 lines)
+wake -n apps log-generator --ui
+
+# Larger buffer for longer history (20,000 lines)
+wake -n apps log-generator --ui --buffer-size 20000
+
+# High-capacity buffer for extensive selection (50,000 lines)  
+wake -n apps log-generator --ui --buffer-size 50k
+
+# Alternative format with 'k' suffix
+wake -n apps log-generator --ui --buffer-size 30k
+```
+
+### Buffer Features
+- **Automatic expansion** - Buffer doubles in size when entering selection mode
+- **Memory efficient** - Old logs are rotated out when buffer limit is reached
+- **Selection history** - Larger buffers allow selecting from more log history
+- **Performance optimized** - Buffer size affects memory usage but not processing speed
+
+### Buffer Size Recommendations
+- **Default (10k)**: Good for general log viewing and basic selection
+- **Medium (20k-30k)**: Better for extended selection and history browsing
+- **Large (50k+)**: Best for comprehensive log analysis and long selection sessions
+
+Note: Buffer size is specified as number of log entries, not bytes. Each log entry typically uses 100-500 bytes depending on content.
+
 ## Smart Filter Management
 
 Wake intelligently handles filter changes:
@@ -297,6 +330,7 @@ Options:
       --template <TEMPLATE>       Custom template for log output
       --since <SINCE>             Since time (e.g., 5s, 2m, 3h)
       --threads <THREADS>         Number of threads for log filtering
+      --buffer-size <SIZE>        Number of log entries to keep in memory [default: 10000]
       --ui                        Enable interactive UI mode with dynamic filtering
       --dev                       Enable development mode (show internal logs)
   -v, --verbosity <VERBOSITY>     Verbosity level for debug output [default: 0]
