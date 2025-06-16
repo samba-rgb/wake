@@ -8,6 +8,11 @@ use ratatui::{
 use crate::k8s::logs::LogEntry;
 use crate::ui::input::{InputHandler, InputMode};
 use std::collections::{VecDeque, HashMap};
+use std::sync::OnceLock;
+use regex::Regex;
+
+/// Global regex instance for ANSI stripping - compiled once
+static ANSI_REGEX: OnceLock<Regex> = OnceLock::new();
 
 pub struct DisplayManager {
     pub log_entries: VecDeque<LogEntry>,
@@ -16,10 +21,13 @@ pub struct DisplayManager {
     pub total_logs: usize,
     pub filtered_logs: usize,
     pub show_timestamps: bool,
-    pub auto_scroll: bool,  // New field to control auto-scrolling
-    // Cache for expensive operations
+    pub auto_scroll: bool,
+    // Performance optimizations
     rendered_lines_cache: HashMap<usize, Line<'static>>,
     cache_generation: usize,
+    // Pre-computed colors for pods/containers
+    pod_color_cache: HashMap<String, Color>,
+    container_color_cache: HashMap<String, Color>,
 }
 
 impl DisplayManager {
@@ -34,6 +42,8 @@ impl DisplayManager {
             auto_scroll: true, // Default to auto-scroll enabled
             rendered_lines_cache: HashMap::new(),
             cache_generation: 0,
+            pod_color_cache: HashMap::new(),
+            container_color_cache: HashMap::new(),
         })
     }
 
@@ -252,10 +262,11 @@ impl DisplayManager {
         }
         
         // Get the visible log entries with proper bounds checking
-        let visible_entries: Vec<&LogEntry> = self.log_entries
+        let visible_entries: Vec<LogEntry> = self.log_entries
             .iter()
             .skip(self.scroll_offset)
             .take(viewport_height)
+            .cloned()
             .collect();
         
         // Create colored lines from log entries
@@ -282,8 +293,52 @@ impl DisplayManager {
         f.render_widget(logs_paragraph, area);
     }
 
+    /// Get a color for a pod name based on its hash
+    fn get_pod_color(&mut self, pod_name: &str) -> Color {
+        // Check cache first
+        if let Some(&color) = self.pod_color_cache.get(pod_name) {
+            return color;
+        }
+
+        let colors = [
+            Color::Cyan, Color::Green, Color::Yellow, Color::Blue,
+            Color::Magenta, Color::LightCyan, Color::LightGreen, Color::LightYellow,
+            Color::LightBlue, Color::LightMagenta
+        ];
+        
+        let hash = pod_name.chars().map(|c| c as usize).sum::<usize>();
+        let color = colors[hash % colors.len()];
+
+        // Cache the computed color
+        self.pod_color_cache.insert(pod_name.to_string(), color);
+
+        color
+    }
+
+    /// Get a color for a container name based on its hash
+    fn get_container_color(&mut self, container_name: &str) -> Color {
+        // Check cache first
+        if let Some(&color) = self.container_color_cache.get(container_name) {
+            return color;
+        }
+
+        let colors = [
+            Color::LightCyan, Color::LightGreen, Color::LightYellow,
+            Color::LightBlue, Color::LightMagenta, Color::Cyan,
+            Color::Green, Color::Yellow, Color::Blue, Color::Magenta
+        ];
+        
+        let hash = container_name.chars().map(|c| c as usize).sum::<usize>();
+        let color = colors[hash % colors.len()];
+
+        // Cache the computed color
+        self.container_color_cache.insert(container_name.to_string(), color);
+
+        color
+    }
+
     /// Create a colored line from a log entry
-    fn create_colored_log_line(&self, entry: &LogEntry) -> Line<'static> {
+    fn create_colored_log_line(&mut self, entry: &LogEntry) -> Line<'static> {
         let mut spans = Vec::new();
 
         // System messages (filter notifications) get special treatment
@@ -336,30 +391,6 @@ impl DisplayManager {
         spans.extend(colored_message_spans);
 
         Line::from(spans)
-    }
-
-    /// Get a color for a pod name based on its hash
-    fn get_pod_color(&self, pod_name: &str) -> Color {
-        let colors = [
-            Color::Cyan, Color::Green, Color::Yellow, Color::Blue,
-            Color::Magenta, Color::LightCyan, Color::LightGreen, Color::LightYellow,
-            Color::LightBlue, Color::LightMagenta
-        ];
-        
-        let hash = pod_name.chars().map(|c| c as usize).sum::<usize>();
-        colors[hash % colors.len()]
-    }
-
-    /// Get a color for a container name based on its hash
-    fn get_container_color(&self, container_name: &str) -> Color {
-        let colors = [
-            Color::LightCyan, Color::LightGreen, Color::LightYellow,
-            Color::LightBlue, Color::LightMagenta, Color::Cyan,
-            Color::Green, Color::Yellow, Color::Blue, Color::Magenta
-        ];
-        
-        let hash = container_name.chars().map(|c| c as usize).sum::<usize>();
-        colors[hash % colors.len()]
     }
 
     /// Parse log message and apply colors based on log level and content
@@ -441,33 +472,10 @@ impl DisplayManager {
         }
     }
 
-    /// Format a log entry specifically for UI display (used for wrapping calculations)
-    fn format_log_for_ui(&self, entry: &LogEntry) -> String {
-        let time_part = if self.show_timestamps {
-            if let Some(ts) = entry.timestamp {
-                format!("{} ", ts.format("%H:%M:%S"))
-            } else {
-                String::new()
-            }
-        } else {
-            String::new()
-        };
-
-        let clean_message = Self::strip_ansi_codes(&entry.message);
-        let clean_pod_name = Self::strip_ansi_codes(&entry.pod_name);
-        let clean_container_name = Self::strip_ansi_codes(&entry.container_name);
-
-        format!("{}{}/{} {}", 
-            time_part,
-            clean_pod_name,
-            clean_container_name,
-            clean_message
-        )
-    }
-
     /// Strip ANSI escape codes from a string to ensure clean UI display
     fn strip_ansi_codes(text: &str) -> String {
-        let ansi_regex = regex::Regex::new(r"(\x1b\[[0-9;]*[a-zA-Z]|\x1b\[[0-9;]*m|\[[0-9;]*m)").unwrap();
+        // Use the global regex instance for ANSI stripping
+        let ansi_regex = ANSI_REGEX.get_or_init(|| Regex::new(r"(\x1b\[[0-9;]*[a-zA-Z]|\x1b\[[0-9;]*m|\[[0-9;]*m)").unwrap());
         ansi_regex.replace_all(text, "").to_string()
     }
 
@@ -577,6 +585,30 @@ impl DisplayManager {
             .wrap(Wrap { trim: true });
 
         f.render_widget(help_paragraph, popup_area);
+    }
+
+    /// Format a log entry specifically for UI display (used for wrapping calculations)
+    fn format_log_for_ui(&self, entry: &LogEntry) -> String {
+        let time_part = if self.show_timestamps {
+            if let Some(ts) = entry.timestamp {
+                format!("{} ", ts.format("%H:%M:%S"))
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        let clean_message = Self::strip_ansi_codes(&entry.message);
+        let clean_pod_name = Self::strip_ansi_codes(&entry.pod_name);
+        let clean_container_name = Self::strip_ansi_codes(&entry.container_name);
+
+        format!("{}{}/{} {}", 
+            time_part,
+            clean_pod_name,
+            clean_container_name,
+            clean_message
+        )
     }
 }
 

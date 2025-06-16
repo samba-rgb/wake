@@ -55,11 +55,13 @@ pub async fn process_logs(
     // Set up the thread pool for filtering
     let num_threads = args.threads.unwrap_or_else(LogFilter::recommended_threads);
     
-    // Extract regex patterns from args
-    let include_pattern = args.include_regex().transpose()?;
-    let exclude_pattern = args.exclude_regex().transpose()?;
+    // Extract advanced filter patterns from args
+    let include_pattern = args.include_pattern().transpose()
+        .map_err(|e| anyhow::anyhow!("Invalid include pattern: {}", e))?;
+    let exclude_pattern = args.exclude_pattern().transpose()
+        .map_err(|e| anyhow::anyhow!("Invalid exclude pattern: {}", e))?;
     
-    // Create the log filter
+    // Create the log filter with advanced patterns
     let filter = LogFilter::new(include_pattern, exclude_pattern, num_threads);
     info!("Created log filter with {} worker threads", num_threads);
     

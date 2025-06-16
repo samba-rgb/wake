@@ -44,27 +44,32 @@ Wake supports sophisticated filtering patterns with logical operators:
 
 #### Basic Examples
 ```bash
-# Simple regex patterns
-wake -n apps log-generator -i "ERROR|WARN"     # Show only errors and warnings
-wake -n apps log-generator -i "user.*login"    # Show user login patterns
+# Show only error logs
+wake -n apps log-generator -i "error"
+
+# Show only info logs  
+wake -n apps log-generator -i "info"
+
+# Show both info and error logs
+wake -n apps log-generator -i "info|error"
 ```
 
 #### Advanced Logical Operators
 ```bash
 # Logical AND - logs must contain both patterns
-wake -n apps log-generator -i '(info || debug) && "32"'
+wake -n apps log-generator -i 'info && "user"'
 
 # Logical OR - logs containing either pattern
-wake -n apps log-generator -i '"ERROR" || "WARN"'
+wake -n apps log-generator -i '"info" || "error"'
 
-# Negation - exclude specific patterns
-wake -n apps log-generator -i 'ERROR && !"timeout"'
+# Negation - exclude debug logs, show everything else
+wake -n apps log-generator -i '!debug'
 
 # Complex combinations with grouping
-wake -n apps log-generator -i '(INFO || DEBUG) && "user" && !"test"'
+wake -n apps log-generator -i '(info || error) && !"test"'
 
 # Exact text matching with quotes
-wake -n apps log-generator -i '"exact text match"'
+wake -n apps log-generator -i '"error"'
 ```
 
 #### Pattern Syntax Reference
