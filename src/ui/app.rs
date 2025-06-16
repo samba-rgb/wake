@@ -8,6 +8,7 @@ use futures::StreamExt;
 use ratatui::{
     backend::CrosstermBackend,
     Terminal,
+    layout::Rect,
 };
 use std::io::{self, Write};
 use std::pin::Pin;
@@ -129,24 +130,51 @@ pub async fn run_app(
     info!("UI: Entering main application loop...");
     // Main application loop
     let mut last_render = std::time::Instant::now();
-    let render_interval = Duration::from_millis(50); // Increased from 100ms to 50ms for smoother scrolling
-    let mut loop_count = 0;
-
-    'main_loop: loop {
-        loop_count += 1;
-        if loop_count % 1000 == 0 {
-            debug!("UI: Main loop iteration #{}", loop_count);
+    let render_interval = Duration::from_millis(16); // ~60 FPS max
+    let mut pending_logs = Vec::new(); // Buffer for batching log entries
+    
+    loop {
+        // Check for cancellation
+        if cancellation_token.is_cancelled() {
+            break;
         }
-        
-        // Handle input events with higher priority - increased timeout for better responsiveness
-        if event::poll(Duration::from_millis(50))? {
+
+        // Handle input events with better polling
+        if let Ok(true) = event::poll(Duration::from_millis(50)) {
             match event::read()? {
                 Event::Key(key) => {
+                    debug!("UI: Key event received: {:?} in mode {:?}", key, input_handler.mode);
                     if let Some(input_event) = input_handler.handle_key_event(key) {
+                        debug!("UI: Input event generated: {:?}", input_event);
                         match input_event {
                             InputEvent::Quit => {
                                 info!("UI: Quit signal received, breaking main loop");
-                                break 'main_loop;
+                                break;
+                            }
+                            InputEvent::ToggleAutoScroll => {
+                                // Toggle auto-scroll mode
+                                display_manager.auto_scroll = !display_manager.auto_scroll;
+                                let status_message = if display_manager.auto_scroll {
+                                    // Immediately scroll to bottom when auto-scroll is enabled
+                                    let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                    display_manager.scroll_to_bottom(viewport_height);
+                                    "── Auto-scroll enabled: logs will follow new entries ──"
+                                } else {
+                                    "── Auto-scroll disabled: logs will stay at current position ──"
+                                };
+                                display_manager.add_system_message(status_message);
+                                info!("UI: Auto-scroll toggled to: {}", display_manager.auto_scroll);
+                            }
+                            InputEvent::Refresh => {
+                                // Only refresh display without changing logs - no retroactive filtering
+                                info!("Display refreshed - old logs preserved");
+                            }
+                            InputEvent::ToggleHelp => {
+                                input_handler.mode = if input_handler.mode == InputMode::Help {
+                                    InputMode::Normal
+                                } else {
+                                    InputMode::Help
+                                };
                             }
                             InputEvent::UpdateIncludeFilter(pattern) => {
                                 let pattern_opt = if pattern.is_empty() { None } else { Some(pattern.clone()) };
@@ -204,124 +232,76 @@ pub async fn run_app(
                                 let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
                                 display_manager.scroll_to_bottom(viewport_height);
                             }
-                            InputEvent::ToggleAutoScroll => {
-                                // Toggle auto-scroll mode
-                                display_manager.auto_scroll = !display_manager.auto_scroll;
-                                let status_message = if display_manager.auto_scroll {
-                                    // Immediately scroll to bottom when auto-scroll is enabled
-                                    let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
-                                    display_manager.scroll_to_bottom(viewport_height);
-                                    "── Auto-scroll enabled: logs will follow new entries ──"
-                                } else {
-                                    "── Auto-scroll disabled: logs will stay at current position ──"
-                                };
-                                display_manager.add_system_message(status_message);
-                            }
-                            InputEvent::Refresh => {
-                                // Only refresh display without changing logs - no retroactive filtering
-                                info!("Display refreshed - old logs preserved");
-                            }
-                            InputEvent::ToggleHelp => {
-                                input_handler.mode = if input_handler.mode == InputMode::Help {
-                                    InputMode::Normal
-                                } else {
-                                    InputMode::Help
-                                };
-                            }
                         }
                         
-                        // Force immediate render after input to improve responsiveness
-                        terminal.draw(|f| {
-                            display_manager.render(f, &input_handler);
-                        })?;
-                        last_render = std::time::Instant::now();
-                        continue; // Skip log processing this iteration to prioritize UI updates
+                        // Schedule render for next frame instead of immediate render
+                        last_render = std::time::Instant::now().checked_sub(render_interval).unwrap_or_else(|| std::time::Instant::now());
                     }
                 },
                 Event::Mouse(mouse_event) => {
-                    use crossterm::event::MouseEventKind;
+                    use crossterm::event::{MouseEventKind, MouseButton};
                     
                     match mouse_event.kind {
                         MouseEventKind::ScrollDown => {
                             let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
                             // Scroll down by 3 lines for smoother experience
                             display_manager.scroll_down(3, viewport_height);
-                            
-                            // Don't immediately render - let the main render loop handle it
-                            // This prevents excessive rendering during rapid scrolling
                         },
                         MouseEventKind::ScrollUp => {
                             // Scroll up by 3 lines for smoother experience
                             display_manager.scroll_up(3);
-                            
-                            // Don't immediately render - let the main render loop handle it
-                            // This prevents excessive rendering during rapid scrolling
                         },
-                        _ => {}  // Ignore other mouse events for now
+                        _ => {}  // Ignore all other mouse events
                     }
-                    // Don't continue here - allow normal processing to continue
                 },
                 _ => {}  // Ignore other event types
             }
         }
 
-        // Process new filtered log entries with timeout to avoid blocking input
-        let mut display_count = 0;
-        let mut batch_processed = 0;
-        const MAX_BATCH_SIZE: usize = 10;
-        const BATCH_TIMEOUT: Duration = Duration::from_millis(20); // Maximum time to spend processing logs
-        
+        // Process new filtered log entries in batches
         let batch_start = Instant::now();
+        const BATCH_TIMEOUT: Duration = Duration::from_millis(10); // Reduced from 20ms
+        const MAX_BATCH_SIZE: usize = 50; // Increased from 10
         
+        let mut batch_processed = 0;
         while batch_start.elapsed() < BATCH_TIMEOUT && batch_processed < MAX_BATCH_SIZE {
             match tokio::time::timeout(Duration::from_millis(1), filtered_log_rx.recv()).await {
                 Ok(Some(entry)) => {
-                    display_count += 1;
+                    pending_logs.push(entry);
                     batch_processed += 1;
-                    
-                    if display_count <= 10 || display_count % 100 == 0 {
-                        info!("UI_DISPLAY: Processing filtered log entry #{}: pod={}, container={}, message={}", 
-                              display_count, entry.pod_name, entry.container_name,
-                              entry.message.chars().take(50).collect::<String>());
-                    }
-                    
-                    // Add to UI display FIRST with clean LogEntry
-                    // Always store logs for display, but use different strategies for performance
-                    display_manager.add_log_entry(&entry);
-                    
-                    // SEPARATELY format for file output if specified
-                    if let (Some(writer), Some(fmt)) = (&mut file_writer, &formatter) {
-                        if let Some(formatted) = fmt.format_without_filtering(&entry) {
-                            if let Err(e) = writeln!(writer, "{}", formatted) {
+                }
+                Ok(None) => break, // Channel closed
+                Err(_) => break,   // Timeout - no more logs available
+            }
+        }
+
+        // Add all pending logs to display in one batch
+        if !pending_logs.is_empty() {
+            for entry in pending_logs.drain(..) {
+                display_manager.add_log_entry(&entry);
+                
+                // Write to file if specified
+                if let Some(ref mut file_writer) = file_writer {
+                    if let Some(ref formatter) = formatter {
+                        if let Some(formatted) = formatter.format_without_filtering(&entry) {
+                            if let Err(e) = writeln!(file_writer, "{}", formatted) {
                                 error!("Failed to write to output file: {:?}", e);
                             } else {
-                                // Flush immediately for real-time file output
-                                let _ = writer.flush();
+                                let _ = file_writer.flush();
                             }
                         }
                     }
                 }
-                Ok(None) => {
-                    // Channel closed
-                    break;
-                }
-                Err(_) => {
-                    // Timeout - no more logs available right now
-                    break;
-                }
             }
-        }
-        
-        if batch_processed > 0 {
-            info!("UI_DISPLAY: Processed {} filtered log entries in this batch", batch_processed);
-            // Auto-scroll to bottom for new logs only if auto-scroll is enabled
+            
+            // Auto-scroll if enabled
             if display_manager.auto_scroll {
                 let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
                 display_manager.scroll_to_bottom(viewport_height);
             }
         }
 
-        // Render UI at regular intervals
+        // Render UI at controlled intervals
         if last_render.elapsed() >= render_interval {
             terminal.draw(|f| {
                 display_manager.render(f, &input_handler);
@@ -329,8 +309,8 @@ pub async fn run_app(
             last_render = std::time::Instant::now();
         }
 
-        // Reduced delay - only sleep if no input was processed
-        tokio::time::sleep(Duration::from_millis(5)).await;
+        // Reduced sleep time for better responsiveness
+        tokio::time::sleep(Duration::from_millis(2)).await;
     }
 
     // Signal cancellation to the log stream processing task

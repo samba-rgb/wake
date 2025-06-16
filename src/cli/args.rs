@@ -1,6 +1,7 @@
 use clap::Parser;
 use regex::Regex;
 use std::path::PathBuf;
+use crate::filtering::FilterPattern; // Add import for FilterPattern
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -45,11 +46,18 @@ pub struct Args {
     #[arg(short, long, default_value_t = true, action = clap::ArgAction::Set, num_args = 0..=1)]
     pub follow: bool,
 
-    /// Filter logs by regex pattern
+    /// Filter logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
+    /// Examples: 
+    ///   - Simple regex: "ERROR|WARN"
+    ///   - Logical AND: "\"info\" && \"user\""
+    ///   - Logical OR: "\"debug\" || \"error\""
+    ///   - Negation: "!\"timeout\""
+    ///   - Complex: "(info || debug) && !\"noise\""
     #[arg(short, long)]
     pub include: Option<String>,
 
-    /// Exclude logs by regex pattern
+    /// Exclude logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
+    /// Same syntax as --include but for exclusion
     #[arg(short = 'E', long)]
     pub exclude: Option<String>,
 
@@ -112,10 +120,22 @@ impl Args {
         Regex::new(&self.container)
     }
 
+    // Updated to use advanced FilterPattern instead of simple regex
+    pub fn include_pattern(&self) -> Option<Result<FilterPattern, String>> {
+        self.include.as_ref().map(|p| FilterPattern::parse(p))
+    }
+
+    pub fn exclude_pattern(&self) -> Option<Result<FilterPattern, String>> {
+        self.exclude.as_ref().map(|p| FilterPattern::parse(p))
+    }
+
+    // Keep the old methods for backward compatibility, but mark as deprecated
+    #[deprecated(note = "Use include_pattern() instead for advanced filtering support")]
     pub fn include_regex(&self) -> Option<Result<Regex, regex::Error>> {
         self.include.as_ref().map(|p| Regex::new(p))
     }
 
+    #[deprecated(note = "Use exclude_pattern() instead for advanced filtering support")]
     pub fn exclude_regex(&self) -> Option<Result<Regex, regex::Error>> {
         self.exclude.as_ref().map(|p| Regex::new(p))
     }

@@ -78,9 +78,6 @@ impl InputHandler {
             KeyCode::End | KeyCode::Char('G') => Some(InputEvent::ScrollToBottom),
             KeyCode::PageUp => Some(InputEvent::ScrollPageUp),
             KeyCode::PageDown => Some(InputEvent::ScrollPageDown),
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                Some(InputEvent::Quit)
-            }
             KeyCode::Char('f') => Some(InputEvent::ToggleAutoScroll), // Add 'f' key to toggle follow/auto-scroll mode
             _ => None,
         }
@@ -280,22 +277,21 @@ impl InputHandler {
             "",
             "  General:",
             "    h           Toggle this help             q/Esc       Quit application",
-            "    Ctrl+c      Force quit",
+            "    Ctrl+c      Copy logs (or force quit in filter edit mode)",
             "",
             "  Filter Examples:",
             "    Basic regex: 'ERROR|WARN'               - Show only error and warning logs",
             "    Text search: 'user.*login'              - Show logs matching user login pattern",
             "",
-            "  Advanced Pattern Syntax (NEW!):",
+            "  Advanced Pattern Syntax:",
             "    Logical AND: '\"info\" && \"32\"'          - Logs containing both 'info' and '32'",
             "    Logical OR:  '\"debug\" || \"error\"'       - Logs containing either 'debug' or 'error'",
             "    Grouping:    '(info || debug) && \"32\"'  - Complex logic with parentheses",
             "    Negation:    '!\"debug\"'                 - Logs NOT containing 'debug'",
             "    Mixed:       'ERROR && !\"timeout\"'      - Error logs excluding timeouts",
             "",
-            "  Pattern Examples for Your Case:",
+            "  Pattern Examples:",
             "    '(info || debug) && \"32\"'              - Logs with 'info' or 'debug' AND '32'",
-            "    '(?i)(info|debug) && \"32\"'             - Case-insensitive version",
             "    '\"INFO\" || \"DEBUG\" && \"32\"'         - Exact text matches with AND logic",
             "",
             "  Press any key to close help...",

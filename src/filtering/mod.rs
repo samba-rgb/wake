@@ -144,13 +144,13 @@ pub struct LogFilter {
 impl LogFilter {
     /// Creates a new log filter with the specified patterns and thread count
     pub fn new(
-        include_pattern: Option<Regex>,
-        exclude_pattern: Option<Regex>,
+        include_pattern: Option<FilterPattern>,
+        exclude_pattern: Option<FilterPattern>,
         num_threads: usize,
     ) -> Self {
         // Convert patterns to Arc for safe sharing between threads
-        let include_arc = include_pattern.map(|p| Arc::new(FilterPattern::Simple(p)));
-        let exclude_arc = exclude_pattern.map(|p| Arc::new(FilterPattern::Simple(p)));
+        let include_arc = include_pattern.map(Arc::new);
+        let exclude_arc = exclude_pattern.map(Arc::new);
 
         // Create a thread pool with the specified number of threads
         let thread_pool = ThreadPool::new(num_threads);
@@ -162,6 +162,20 @@ impl LogFilter {
             exclude_pattern: exclude_arc,
             thread_pool,
         }
+    }
+
+    /// Creates a new log filter with simple regex patterns (for backward compatibility)
+    #[deprecated(note = "Use new() with FilterPattern instead for advanced filtering support")]
+    pub fn new_with_regex(
+        include_pattern: Option<Regex>,
+        exclude_pattern: Option<Regex>,
+        num_threads: usize,
+    ) -> Self {
+        // Convert regex patterns to FilterPattern
+        let include_filter = include_pattern.map(FilterPattern::Simple);
+        let exclude_filter = exclude_pattern.map(FilterPattern::Simple);
+        
+        Self::new(include_filter, exclude_filter, num_threads)
     }
     
     /// Start the filtering process, consuming from input channel and sending to output channel
