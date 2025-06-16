@@ -325,10 +325,6 @@ pub async fn run_app(
                                 let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
                                 display_manager.select_down(viewport_height);
                             }
-                            InputEvent::ClearSelection => {
-                                display_manager.clear_selection();
-                                display_manager.add_system_message("── Selection cleared ──");
-                            }
                             InputEvent::EnterSelectionMode => {
                                 // Expand buffer size when entering selection mode
                                 display_manager.enter_selection_mode();
