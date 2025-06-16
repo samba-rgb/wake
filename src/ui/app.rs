@@ -42,7 +42,8 @@ pub async fn run_app(
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
-    // Note: We're NOT enabling mouse capture by default to allow terminal text selection
+    // Note: Mouse capture is disabled by default to allow terminal text selection
+    // Users can press 'm' to enable application mouse features if needed
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
