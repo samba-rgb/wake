@@ -236,8 +236,7 @@ impl LogWatcher {
                 Ok(seconds) => {
                     // Calculate the timestamp by subtracting seconds from now
                     log_params.since_seconds = Some(seconds);
-                    info!("CONTAINER_LOGS: Applied since parameter: {} -> {} seconds ago -> timestamp: {}", 
-                          since_val, seconds, since_time);
+                    info!("CONTAINER_LOGS: Using since parameter: {} seconds ago", seconds);
                 },
                 Err(e) => {
                     error!("CONTAINER_LOGS: Failed to parse since parameter '{}': {}", since_val, e);
