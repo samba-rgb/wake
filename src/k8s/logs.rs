@@ -221,17 +221,21 @@ impl LogWatcher {
         // Create log params
         let mut log_params = LogParams::default();
         log_params.follow = follow;
-        log_params.tail_lines = Some(tail_lines);
+        
         log_params.timestamps = timestamps;
         log_params.container = Some(container_name.to_string());
+
+        // if since is not load tail line
+        if since.is_none() {
+            log_params.tail_lines = Some(tail_lines); // Set to 0 to load all logs if no since parameter
+        }
         
         // Add since parameter if provided
         if let Some(since_val) = since {
             match parse_duration_to_seconds(&since_val) {
                 Ok(seconds) => {
                     // Calculate the timestamp by subtracting seconds from now
-                    let since_time = chrono::Utc::now() - chrono::Duration::seconds(seconds);
-                    log_params.since_time = Some(since_time.into());
+                    log_params.since_seconds = Some(seconds);
                     info!("CONTAINER_LOGS: Applied since parameter: {} -> {} seconds ago -> timestamp: {}", 
                           since_val, seconds, since_time);
                 },
