@@ -17,7 +17,8 @@ file output support, and development mode for debugging. Supports advanced filte
   • Complex combinations: '(info || debug) && !\"noise\"'\n\
   • Exact text matching: '\"exact phrase\"'\n\
 \n\
-Use --ui for interactive mode with real-time filter editing, or --dev for detailed debugging information."
+By default, Wake runs in CLI mode. Use --ui to enable interactive UI mode with real-time filter editing,\n\
+or --dev for detailed debugging information."
 )]
 pub struct Args {
     /// Pod selector regular expression
