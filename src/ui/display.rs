@@ -1016,7 +1016,7 @@ impl DisplayManager {
                         drag_line, self.scroll_offset);
                     
                     // Add debug logging after the selection borrow ends
-                    drop(selection); // Explicitly drop the mutable borrow
+                    let _ = selection; // Explicitly drop the mutable borrow
                     self.add_system_log(&format!("🔄 Drag: y={}, rel_y={}, drag_line={}, selection={}..{}", 
                         y, relative_y, drag_line, new_start, new_end));
                     
