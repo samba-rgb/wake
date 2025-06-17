@@ -2,6 +2,18 @@
 
 Wake is a command-line tool for tailing multiple pods and containers in Kubernetes clusters, inspired by [stern](https://github.com/stern/stern).
 
+## Installation
+
+### macOS (Homebrew)
+
+```bash
+brew install samba-rgb/wake/wake
+```
+
+### Building from Source
+
+See the [Building from Source](#building-from-source) section below for detailed instructions.
+
 ## Features
 
 - Multi-pod and container log tailing for Kubernetes
