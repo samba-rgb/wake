@@ -4,7 +4,21 @@ use std::path::PathBuf;
 use crate::filtering::FilterPattern; // Add import for FilterPattern
 
 #[derive(Parser, Debug, Clone)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author, 
+    version, 
+    about = "Advanced Kubernetes log tailing with intelligent filtering and interactive UI",
+    long_about = "Wake is a powerful command-line tool for tailing logs from multiple Kubernetes pods and containers.\n\
+Features advanced pattern syntax with logical operators (&&, ||, !), interactive UI mode with dynamic filtering,\n\
+file output support, and development mode for debugging. Supports advanced filtering patterns like:\n\
+  • Regex patterns: \"ERROR|WARN\"\n\
+  • Logical operations: '\"info\" && \"user\"' or '\"debug\" || \"error\"'\n\
+  • Negation: '!\"timeout\"'\n\
+  • Complex combinations: '(info || debug) && !\"noise\"'\n\
+  • Exact text matching: '\"exact phrase\"'\n\
+\n\
+Use --ui for interactive mode with real-time filter editing, or --dev for detailed debugging information."
+)]
 pub struct Args {
     /// Pod selector regular expression
     #[arg(default_value = ".*")]
@@ -48,7 +62,7 @@ pub struct Args {
 
     /// Filter logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
     /// Examples: 
-    ///   - Simple regex: "ERROR|WARN"
+    ///   - Regex patterns: "ERROR|WARN"
     ///   - Logical AND: "\"info\" && \"user\""
     ///   - Logical OR: "\"debug\" || \"error\""
     ///   - Negation: "!\"timeout\""
@@ -102,6 +116,10 @@ pub struct Args {
     #[arg(long)]
     pub dev: bool,
 
+    /// Buffer size for log storage (e.g., 10k, 20k, 30k). Higher values use more memory but allow longer history in selection mode
+    #[arg(long, default_value = "10000", help = "Number of log entries to keep in memory (10k, 20k, 30k, etc.)")]
+    pub buffer_size: usize,
+
     /// Verbosity level for debug output
     #[arg(short, long, default_value = "0")]
     pub verbosity: u8,
@@ -131,11 +149,13 @@ impl Args {
 
     // Keep the old methods for backward compatibility, but mark as deprecated
     #[deprecated(note = "Use include_pattern() instead for advanced filtering support")]
+    #[allow(dead_code)]
     pub fn include_regex(&self) -> Option<Result<Regex, regex::Error>> {
         self.include.as_ref().map(|p| Regex::new(p))
     }
 
     #[deprecated(note = "Use exclude_pattern() instead for advanced filtering support")]
+    #[allow(dead_code)]
     pub fn exclude_regex(&self) -> Option<Result<Regex, regex::Error>> {
         self.exclude.as_ref().map(|p| Regex::new(p))
     }
@@ -168,6 +188,7 @@ impl Default for Args {
             ui: false, // Default to false, will be determined by logic
             no_ui: false, // Default to false
             dev: false, // Default to false
+            buffer_size: 10000, // Default buffer size
         }
     }
 }

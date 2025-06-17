@@ -1,4 +1,5 @@
 use anyhow::Result;
+use arboard::Clipboard;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event},
     execute,
@@ -8,7 +9,7 @@ use futures::StreamExt;
 use ratatui::{
     backend::CrosstermBackend,
     Terminal,
-    layout::Rect,
+    layout::{Layout, Direction, Constraint},
 };
 use std::io::{self, Write};
 use std::pin::Pin;
@@ -40,14 +41,19 @@ pub async fn run_app(
     info!("UI: Setting up terminal...");
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen)?;
+    // Note: Mouse capture is disabled by default to allow terminal text selection
+    // Users can press 'm' to enable application mouse features if needed
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
     // Create application state
     info!("UI: Creating display manager and input handler...");
-    let mut display_manager = DisplayManager::new(10000, args.timestamps)?;
+    let mut display_manager = DisplayManager::new(args.buffer_size, args.timestamps, args.dev)?;
     let mut input_handler = InputHandler::new(args.include.clone(), args.exclude.clone());
+    
+    // Track mouse capture state
+    let mut mouse_capture_enabled = false;
     
     // Set up file writer if output file is specified
     let mut file_writer: Option<Box<dyn Write + Send>> = if let Some(ref output_file) = args.output_file {
@@ -162,7 +168,7 @@ pub async fn run_app(
                                 } else {
                                     "── Auto-scroll disabled: logs will stay at current position ──"
                                 };
-                                display_manager.add_system_message(status_message);
+                                display_manager.add_system_log(status_message);
                                 info!("UI: Auto-scroll toggled to: {}", display_manager.auto_scroll);
                             }
                             InputEvent::Refresh => {
@@ -187,7 +193,7 @@ pub async fn run_app(
                                     } else {
                                         format!("── Filter applied: {} (affects new logs only) ──", pattern)
                                     };
-                                    display_manager.add_system_message(&filter_msg);
+                                    display_manager.add_system_log(&filter_msg);
                                     info!("Include filter updated: {:?}", pattern_opt);
                                 }
                             }
@@ -202,7 +208,7 @@ pub async fn run_app(
                                     } else {
                                         format!("── Exclude filter applied: {} (affects new logs only) ──", pattern)
                                     };
-                                    display_manager.add_system_message(&filter_msg);
+                                    display_manager.add_system_log(&filter_msg);
                                     info!("Exclude filter updated: {:?}", pattern_opt);
                                 }
                             }
@@ -232,6 +238,132 @@ pub async fn run_app(
                                 let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
                                 display_manager.scroll_to_bottom(viewport_height);
                             }
+                            InputEvent::CopyLogs => {
+                                // Copy currently visible logs to clipboard
+                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                let logs_text = display_manager.get_visible_logs_as_text(viewport_height);
+                                
+                                match Clipboard::new() {
+                                    Ok(mut clipboard) => {
+                                        match clipboard.set_text(&logs_text) {
+                                            Ok(()) => {
+                                                let lines_copied = logs_text.lines().count();
+                                                display_manager.add_system_log(&format!(
+                                                    "── Copied {} visible log lines to clipboard ──", 
+                                                    lines_copied
+                                                ));
+                                                info!("Successfully copied {} lines to clipboard", lines_copied);
+                                            }
+                                            Err(e) => {
+                                                display_manager.add_system_log(&format!(
+                                                    "── Failed to copy to clipboard: {} ──", 
+                                                    e
+                                                ));
+                                                error!("Failed to copy to clipboard: {}", e);
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        display_manager.add_system_log(&format!(
+                                            "── Failed to initialize clipboard: {} ──", 
+                                            e
+                                        ));
+                                        error!("Failed to initialize clipboard: {}", e);
+                                    }
+                                }
+                            }
+                            InputEvent::CopySelection => {
+                                // Copy selected logs to clipboard
+                                let logs_text = display_manager.get_selected_logs_as_text();
+                                
+                                match Clipboard::new() {
+                                    Ok(mut clipboard) => {
+                                        match clipboard.set_text(&logs_text) {
+                                            Ok(()) => {
+                                                let lines_copied = logs_text.lines().count();
+                                                display_manager.add_system_log(&format!(
+                                                    "── Copied {} selected log lines to clipboard ──", 
+                                                    lines_copied
+                                                ));
+                                                info!("Successfully copied {} selected lines to clipboard", lines_copied);
+                                                
+                                                // Auto-return to normal mode and re-enable follow after successful copy
+                                                input_handler.mode = InputMode::Normal;
+                                                display_manager.clear_selection();
+                                                display_manager.auto_scroll = true;
+                                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                                display_manager.scroll_to_bottom(viewport_height);
+                                                display_manager.add_system_log("── Returned to normal mode with follow enabled ──");
+                                            }
+                                            Err(e) => {
+                                                display_manager.add_system_log(&format!(
+                                                    "── Failed to copy selection to clipboard: {} ──", 
+                                                    e
+                                                ));
+                                                error!("Failed to copy selection to clipboard: {}", e);
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        display_manager.add_system_log(&format!(
+                                            "── Failed to initialize clipboard: {} ──", 
+                                            e
+                                        ));
+                                        error!("Failed to initialize clipboard: {}", e);
+                                    }
+                                }
+                            }
+                            InputEvent::ToggleSelection => {
+                                display_manager.toggle_selection();
+                                if display_manager.selection.is_some() {
+                                    // When entering selection mode, automatically pause auto-scroll
+                                    display_manager.add_system_log("── Selection started - Auto-scroll paused ──");
+                                } else {
+                                    // When clearing selection, auto-scroll is automatically restored in toggle_selection()
+                                    display_manager.add_system_log("── Selection cleared - Auto-scroll restored ──");
+                                }
+                            }
+                            InputEvent::SelectUp => {
+                                display_manager.select_up();
+                            }
+                            InputEvent::SelectDown => {
+                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                display_manager.select_down(viewport_height);
+                            }
+                            InputEvent::EnterSelectionMode => {
+                                // Expand buffer size when entering selection mode
+                                display_manager.enter_selection_mode();
+                                // Start selection at current cursor position
+                                display_manager.toggle_selection();
+                                // Pause auto-scroll to stabilize the view
+                                display_manager.auto_scroll = false;
+                                display_manager.add_system_log("── Selection mode entered - Buffer expanded, Auto-scroll paused ──");
+                            }
+                            InputEvent::ExitSelectionMode => {
+                                // Clear selection and restore buffer size
+                                display_manager.clear_selection();
+                                display_manager.exit_selection_mode();
+                                display_manager.add_system_log("── Selection mode exited - Buffer restored ──");
+                            }
+                            InputEvent::ToggleMouseCapture => {
+                                // Toggle mouse capture mode
+                                if mouse_capture_enabled {
+                                    // Disable mouse capture - allows terminal text selection
+                                    execute!(terminal.backend_mut(), DisableMouseCapture)?;
+                                    mouse_capture_enabled = false;
+                                    display_manager.add_system_log("── Mouse capture disabled - Terminal text selection enabled ──");
+                                } else {
+                                    // Enable mouse capture - allows application mouse events
+                                    execute!(terminal.backend_mut(), EnableMouseCapture)?;
+                                    mouse_capture_enabled = true;
+                                    display_manager.add_system_log("── Mouse capture enabled - Application mouse selection enabled ──");
+                                }
+                            }
+                            // Mouse events are handled directly in the Event::Mouse match above
+                            InputEvent::MouseClick(_, _) | InputEvent::MouseDrag(_, _) | InputEvent::MouseRelease(_, _) => {
+                                // These events are handled directly in the mouse event processing
+                                // No additional action needed here
+                            }
                         }
                         
                         // Schedule render for next frame instead of immediate render
@@ -242,6 +374,51 @@ pub async fn run_app(
                     use crossterm::event::{MouseEventKind, MouseButton};
                     
                     match mouse_event.kind {
+                        MouseEventKind::Down(MouseButton::Left) => {
+                            // Handle mouse click for selection
+                            let log_area = Layout::default()
+                                .direction(Direction::Vertical)
+                                .constraints([
+                                    Constraint::Length(3), // Filter input area
+                                    Constraint::Min(0),    // Log display area
+                                    Constraint::Length(1), // Status bar
+                                ])
+                                .split(terminal.size()?)[1]; // Get log area
+
+                            if display_manager.handle_mouse_click(mouse_event.column, mouse_event.row, log_area) {
+                                // Enter selection mode automatically on mouse click and pause auto-scroll
+                                input_handler.mode = InputMode::Selection;
+                                display_manager.auto_scroll = false;
+                                display_manager.add_system_log("── Mouse selection started - Auto-scroll paused ──");
+                            }
+                        }
+                        MouseEventKind::Drag(MouseButton::Left) => {
+                            // Handle mouse drag for selection extension
+                            let log_area = Layout::default()
+                                .direction(Direction::Vertical)
+                                .constraints([
+                                    Constraint::Length(3), // Filter input area
+                                    Constraint::Min(0),    // Log display area
+                                    Constraint::Length(1), // Status bar
+                                ])
+                                .split(terminal.size()?)[1]; // Get log area
+
+                            display_manager.handle_mouse_drag(mouse_event.column, mouse_event.row, log_area);
+                        }
+                        MouseEventKind::Up(MouseButton::Left) => {
+                            // Handle mouse release to end selection
+                            if display_manager.handle_mouse_release() {
+                                if let Some(ref selection) = display_manager.selection {
+                                    if selection.is_active {
+                                        let lines_selected = selection.end_line - selection.start_line + 1;
+                                        display_manager.add_system_log(&format!(
+                                            "── Selected {} lines (click & drag to extend, Ctrl+C to copy) ──",
+                                            lines_selected
+                                        ));
+                                    }
+                                }
+                            }
+                        }
                         MouseEventKind::ScrollDown => {
                             let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
                             // Scroll down by 3 lines for smoother experience
@@ -293,6 +470,14 @@ pub async fn run_app(
                     }
                 }
             }
+            
+            // Check if display manager forced follow mode due to buffer size limit
+            if display_manager.auto_scroll && input_handler.mode == InputMode::Selection {
+                // Buffer size limit was hit, automatically exit selection mode
+                input_handler.mode = InputMode::Normal;
+                display_manager.exit_selection_mode();
+                display_manager.add_system_log("── Automatically exited selection mode due to buffer size limit ──");
+                       }
             
             // Auto-scroll if enabled
             if display_manager.auto_scroll {

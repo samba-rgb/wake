@@ -221,15 +221,28 @@ impl LogWatcher {
         // Create log params
         let mut log_params = LogParams::default();
         log_params.follow = follow;
-        log_params.tail_lines = Some(tail_lines);
+        
         log_params.timestamps = timestamps;
         log_params.container = Some(container_name.to_string());
+
+        // if since is not load tail line
+        if since.is_none() {
+            log_params.tail_lines = Some(tail_lines); // Set to 0 to load all logs if no since parameter
+        }
         
         // Add since parameter if provided
         if let Some(since_val) = since {
-            log_params.since_seconds = parse_duration_to_seconds(&since_val).ok();
-            info!("CONTAINER_LOGS: Applied since parameter: {} -> {:?} seconds", 
-                  since_val, log_params.since_seconds);
+            match parse_duration_to_seconds(&since_val) {
+                Ok(seconds) => {
+                    // Calculate the timestamp by subtracting seconds from now
+                    log_params.since_seconds = Some(seconds);
+                    info!("CONTAINER_LOGS: Using since parameter: {} seconds ago", seconds);
+                },
+                Err(e) => {
+                    error!("CONTAINER_LOGS: Failed to parse since parameter '{}': {}", since_val, e);
+                    return Err(anyhow!("Invalid since parameter '{}': {}", since_val, e));
+                }
+            }
         }
         
         info!("CONTAINER_LOGS: Attempting to get logs for {}/{}/{}", namespace, pod_name, container_name);
