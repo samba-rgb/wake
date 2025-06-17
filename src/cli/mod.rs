@@ -35,29 +35,25 @@ pub async fn run(args: Args) -> Result<()> {
     info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
           args.ui, args.no_ui, args.output_file);
     
-    // Always print the big text WAKE
-    if args.no_ui {
-        print_wake_big_text();
-    }
-    
-    // Determine UI behavior - UI is now the default
+    // Determine UI behavior - CLI is now the default, UI only when explicitly requested
     let should_use_ui = if args.no_ui {
         // If --no-ui is explicitly specified, force CLI mode
         info!("CLI: Using CLI mode (--no-ui specified)");
         false
-    } else if args.output_file.is_some() && !args.ui {
-        // If output file is specified without explicit --ui, use CLI mode for compatibility
-        info!("CLI: Using CLI mode (output file specified without --ui)");
-        false
-    } else if args.list_containers {
-        // Always use CLI mode for listing containers
-        info!("CLI: Using CLI mode (list_containers=true)");
-        false
-    } else {
-        // Default behavior: use UI mode unless explicitly disabled
-        info!("CLI: Using UI mode (default behavior)");
+    } else if args.ui {
+        // If --ui is explicitly specified, use UI mode
+        info!("CLI: Using UI mode (--ui specified)");
         true
+    } else {
+        // Default behavior: use CLI mode
+        info!("CLI: Using CLI mode (default behavior)");
+        false
     };
+    
+    // Print the big text WAKE in CLI mode (default behavior)
+    if !should_use_ui {
+        print_wake_big_text();
+    }
     
     info!("CLI: Final decision - should_use_ui: {}", should_use_ui);
     
