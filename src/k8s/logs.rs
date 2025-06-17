@@ -229,9 +229,11 @@ impl LogWatcher {
         if let Some(since_val) = since {
             match parse_duration_to_seconds(&since_val) {
                 Ok(seconds) => {
-                    log_params.since_seconds = Some(seconds);
-                    info!("CONTAINER_LOGS: Applied since parameter: {} -> {} seconds", 
-                          since_val, seconds);
+                    // Calculate the timestamp by subtracting seconds from now
+                    let since_time = chrono::Utc::now() - chrono::Duration::seconds(seconds);
+                    log_params.since_time = Some(since_time.into());
+                    info!("CONTAINER_LOGS: Applied since parameter: {} -> {} seconds ago -> timestamp: {}", 
+                          since_val, seconds, since_time);
                 },
                 Err(e) => {
                     error!("CONTAINER_LOGS: Failed to parse since parameter '{}': {}", since_val, e);
