@@ -18,7 +18,7 @@ Wake is a command-line tool for tailing multiple pods and containers in Kubernet
 
 ## Interactive UI Mode
 
-Wake features a powerful interactive UI mode that allows dynamic filtering and real-time log viewing:
+Wake features a powerful interactive UI mode that allows dynamic filtering and real-time log viewing. **To use the interactive UI, add the `--ui` flag to your command.**
 
 ### Key Features
 - **Real-time filtering** - Apply include/exclude patterns without restarting
