@@ -227,9 +227,17 @@ impl LogWatcher {
         
         // Add since parameter if provided
         if let Some(since_val) = since {
-            log_params.since_seconds = parse_duration_to_seconds(&since_val).ok();
-            info!("CONTAINER_LOGS: Applied since parameter: {} -> {:?} seconds", 
-                  since_val, log_params.since_seconds);
+            match parse_duration_to_seconds(&since_val) {
+                Ok(seconds) => {
+                    log_params.since_seconds = Some(seconds);
+                    info!("CONTAINER_LOGS: Applied since parameter: {} -> {} seconds", 
+                          since_val, seconds);
+                },
+                Err(e) => {
+                    error!("CONTAINER_LOGS: Failed to parse since parameter '{}': {}", since_val, e);
+                    return Err(anyhow!("Invalid since parameter '{}': {}", since_val, e));
+                }
+            }
         }
         
         info!("CONTAINER_LOGS: Attempting to get logs for {}/{}/{}", namespace, pod_name, container_name);

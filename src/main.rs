@@ -13,12 +13,8 @@ async fn main() -> Result<()> {
     // Parse command line arguments first to determine if we're using UI mode
     let args = cli::parse_args();
     
-    // Determine if UI will be used (same logic as in cli::run)
-    let should_use_ui = if args.output_file.is_some() {
-        args.ui
-    } else {
-        !is_default_run(&args) && !args.list_containers
-    };
+    // Determine if UI will be used - UI should only be enabled when explicitly requested
+    let should_use_ui = args.ui && !args.no_ui;
     
     // Validate include and exclude patterns before proceeding
     if let Some(ref include_pattern) = args.include {
@@ -95,14 +91,4 @@ async fn main() -> Result<()> {
     
     // Run the main application logic
     cli::run(args).await
-}
-
-/// Helper function to check if using default run (copied from cli module)
-fn is_default_run(args: &cli::Args) -> bool {
-    args.pod_selector == ".*" &&
-    args.container == ".*" &&
-    args.namespace == "default" &&
-    !args.all_namespaces &&
-    args.resource.is_none() &&
-    !args.list_containers
 }

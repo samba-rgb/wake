@@ -1006,14 +1006,19 @@ impl DisplayManager {
                     let old_end = selection.end_line;
                     selection.extend_to(drag_line);
                     
-                    // Add debug logging for drag operations
-                    self.add_system_log(&format!("🔄 Drag: y={}, rel_y={}, drag_line={}, selection={}..{}", 
-                        y, relative_y, drag_line, selection.start_line, selection.end_line));
+                    // Store values for logging before the borrow ends
+                    let new_start = selection.start_line;
+                    let new_end = selection.end_line;
                     
                     // Log selection changes during dragging
                     tracing::info!("Selection extended: {}..{} → {}..{} (drag_line={}, scroll_offset={})",
-                        old_start, old_end, selection.start_line, selection.end_line, 
+                        old_start, old_end, new_start, new_end, 
                         drag_line, self.scroll_offset);
+                    
+                    // Add debug logging after the selection borrow ends
+                    drop(selection); // Explicitly drop the mutable borrow
+                    self.add_system_log(&format!("🔄 Drag: y={}, rel_y={}, drag_line={}, selection={}..{}", 
+                        y, relative_y, drag_line, new_start, new_end));
                     
                     return true;
                 }
