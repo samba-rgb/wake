@@ -154,7 +154,15 @@ pub async fn run_app(
                         debug!("UI: Input event generated: {:?}", input_event);
                         match input_event {
                             InputEvent::Quit => {
-                                info!("UI: Quit signal received, breaking main loop");
+                                info!("UI: Quit signal received, performing cleanup before exit");
+                                
+                                // Explicit buffer cleanup for better performance
+                                display_manager.clear_all_buffers();
+                                
+                                // Signal cancellation to background tasks
+                                cancellation_token.cancel();
+                                
+                                info!("UI: Buffers cleared and shutdown initiated");
                                 break;
                             }
                             InputEvent::ToggleAutoScroll => {

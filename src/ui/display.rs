@@ -14,6 +14,104 @@ use regex::Regex;
 /// Global regex instance for ANSI stripping - compiled once
 static ANSI_REGEX: OnceLock<Regex> = OnceLock::new();
 
+/// Color scheme that adapts to terminal background
+#[derive(Debug, Clone, Copy)]
+pub enum ColorScheme {
+    Dark,   // For dark terminal backgrounds
+    Light,  // For light terminal backgrounds
+}
+
+impl ColorScheme {
+    /// Detect terminal background color scheme
+    /// This is a heuristic since there's no reliable way to detect terminal background
+    pub fn detect() -> Self {
+        // Check environment variables that might indicate light theme
+        if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
+            // Some terminals set this when using light themes
+            if term_program.contains("light") {
+                return ColorScheme::Light;
+            }
+        }
+        
+        // Check for VS Code integrated terminal (often light)
+        if std::env::var("VSCODE_INJECTION").is_ok() {
+            return ColorScheme::Light;
+        }
+        
+        // Check COLORFGBG environment variable (some terminals set this)
+        if let Ok(colorfgbg) = std::env::var("COLORFGBG") {
+            // Format is usually "foreground;background"
+            if let Some(bg) = colorfgbg.split(';').nth(1) {
+                if let Ok(bg_num) = bg.parse::<i32>() {
+                    // Light colors (white-ish) have higher numbers
+                    if bg_num >= 7 {
+                        return ColorScheme::Light;
+                    }
+                }
+            }
+        }
+        
+        // Default to dark theme (most terminals)
+        ColorScheme::Dark
+    }
+    
+    /// Get text color that's visible on this background
+    pub fn text_color(self) -> Color {
+        match self {
+            ColorScheme::Dark => Color::White,
+            ColorScheme::Light => Color::Black,
+        }
+    }
+    
+    /// Get dim text color
+    pub fn dim_text_color(self) -> Color {
+        match self {
+            ColorScheme::Dark => Color::DarkGray,
+            ColorScheme::Light => Color::Gray,
+        }
+    }
+    
+    /// Get default message color for unknown log levels
+    pub fn default_message_color(self) -> Color {
+        match self {
+            ColorScheme::Dark => Color::White,
+            ColorScheme::Light => Color::Black,
+        }
+    }
+    
+    /// Get colors that work well on this background
+    pub fn pod_colors(self) -> &'static [Color] {
+        match self {
+            ColorScheme::Dark => &[
+                Color::Cyan, Color::Green, Color::Yellow, Color::Blue,
+                Color::Magenta, Color::LightCyan, Color::LightGreen, Color::LightYellow,
+                Color::LightBlue, Color::LightMagenta
+            ],
+            ColorScheme::Light => &[
+                Color::Blue, Color::Red, Color::Green, Color::Magenta,
+                Color::Cyan, Color::DarkGray, Color::LightRed, Color::LightGreen,
+                Color::LightBlue, Color::LightMagenta
+            ],
+        }
+    }
+    
+    /// Get container colors that work well on this background
+    pub fn container_colors(self) -> &'static [Color] {
+        match self {
+            ColorScheme::Dark => &[
+                Color::LightCyan, Color::LightGreen, Color::LightYellow,
+                Color::LightBlue, Color::LightMagenta, Color::Cyan,
+                Color::Green, Color::Yellow, Color::Blue, Color::Magenta
+            ],
+            ColorScheme::Light => &[
+                Color::Blue, Color::Red, Color::Green, Color::Magenta,
+                Color::Cyan, Color::DarkGray, Color::LightRed, Color::LightGreen,
+                Color::LightBlue, Color::LightMagenta
+            ],
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Selection {
     pub start_line: usize,
@@ -77,11 +175,18 @@ pub struct DisplayManager {
     // Pre-computed colors for pods/containers
     pod_color_cache: HashMap<String, Color>,
     container_color_cache: HashMap<String, Color>,
+    // Color scheme for adaptive colors
+    color_scheme: ColorScheme,
 }
 
 impl DisplayManager {
     pub fn new(max_lines: usize, show_timestamps: bool, dev_mode: bool) -> anyhow::Result<Self> {
         let actual_max_lines = max_lines;
+        let color_scheme = ColorScheme::detect();
+        
+        // Log detected color scheme
+        tracing::info!("Detected terminal color scheme: {:?}", color_scheme);
+        
         Ok(Self {
             log_entries: VecDeque::with_capacity(actual_max_lines),
             scroll_offset: 0,
@@ -96,6 +201,7 @@ impl DisplayManager {
             selection: None,
             selection_cursor: 0,
             dev_mode: dev_mode, // Set dev mode from parameter
+            color_scheme,
         })
     }
 
@@ -455,12 +561,7 @@ impl DisplayManager {
             return color;
         }
 
-        let colors = [
-            Color::Cyan, Color::Green, Color::Yellow, Color::Blue,
-            Color::Magenta, Color::LightCyan, Color::LightGreen, Color::LightYellow,
-            Color::LightBlue, Color::LightMagenta
-        ];
-        
+        let colors = self.color_scheme.pod_colors();
         let hash = pod_name.chars().map(|c| c as usize).sum::<usize>();
         let color = colors[hash % colors.len()];
 
@@ -477,12 +578,7 @@ impl DisplayManager {
             return color;
         }
 
-        let colors = [
-            Color::LightCyan, Color::LightGreen, Color::LightYellow,
-            Color::LightBlue, Color::LightMagenta, Color::Cyan,
-            Color::Green, Color::Yellow, Color::Blue, Color::Magenta
-        ];
-        
+        let colors = self.color_scheme.container_colors();
         let hash = container_name.chars().map(|c| c as usize).sum::<usize>();
         let color = colors[hash % colors.len()];
 
@@ -516,7 +612,7 @@ impl DisplayManager {
             if let Some(ts) = entry.timestamp {
                 spans.push(Span::styled(
                     format!("{} ", ts.format("%H:%M:%S")),
-                    Style::default().fg(Color::DarkGray)
+                    Style::default().fg(self.color_scheme.dim_text_color())
                 ));
             }
         }
@@ -529,7 +625,7 @@ impl DisplayManager {
         ));
 
         // Add separator
-        spans.push(Span::styled("/".to_string(), Style::default().fg(Color::DarkGray)));
+        spans.push(Span::styled("/".to_string(), Style::default().fg(self.color_scheme.dim_text_color())));
 
         // Add container name with different color
         let container_color = self.get_container_color(&clean_container_name);
@@ -571,13 +667,13 @@ impl DisplayManager {
                     
                     // Add colored log level
                     let level_color = match level {
-                        "TRACE" => Color::DarkGray,
+                        "TRACE" => self.color_scheme.dim_text_color(),
                         "DEBUG" => Color::Blue,
                         "INFO" => Color::Green,
                         "WARN" | "WARNING" => Color::Yellow,
                         "ERROR" => Color::Red,
                         "FATAL" => Color::LightRed,
-                        _ => Color::White,
+                        _ => self.color_scheme.text_color(),
                     };
                     
                     spans.push(Span::styled(
@@ -605,13 +701,13 @@ impl DisplayManager {
 
     /// Fast message content coloring with reduced allocations
     fn color_message_content_fast(&self, content: &str, log_level: &str) -> Vec<Span<'static>> {
-        // Base color depends on log level
+        // Base color depends on log level and adapts to background
         let base_color = match log_level {
             "ERROR" | "FATAL" => Color::LightRed,
             "WARN" | "WARNING" => Color::LightYellow,
             "DEBUG" => Color::LightBlue,
-            "TRACE" => Color::Gray,
-            _ => Color::White,
+            "TRACE" => self.color_scheme.dim_text_color(),
+            _ => self.color_scheme.default_message_color(),
         };
         
         // For performance, only do basic coloring on scrolling
@@ -703,12 +799,12 @@ impl DisplayManager {
             Span::raw(" "),
             Span::styled(
                 format!("Lines: {}", self.filtered_logs),
-                Style::default().fg(Color::White)
+                Style::default().fg(self.color_scheme.text_color())
             ),
             Span::raw(" | "),
             Span::styled(
                 format!("Scroll: {}/{}", self.scroll_offset, self.log_entries.len()),
-                Style::default().fg(Color::White)
+                Style::default().fg(self.color_scheme.text_color())
             ),
             Span::raw(" | "),
         ];
@@ -721,7 +817,7 @@ impl DisplayManager {
 
         status_spans.push(Span::styled(
             help_text,
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(self.color_scheme.dim_text_color())
         ));
 
         let status_line = Line::from(status_spans);
@@ -1080,6 +1176,33 @@ impl DisplayManager {
         
         // Always restore auto-scroll when exiting selection mode
         self.auto_scroll = true;
+    }
+
+    /// Clear all buffers for performance optimization during shutdown
+    pub fn clear_all_buffers(&mut self) {
+        let buffer_size_before = self.log_entries.len();
+        let cache_entries_before = self.pod_color_cache.len() + self.container_color_cache.len();
+        
+        // Clear main log buffer
+        self.log_entries.clear();
+        self.log_entries.shrink_to_fit();
+        
+        // Clear color caches
+        self.pod_color_cache.clear();
+        self.container_color_cache.clear();
+        
+        // Clear selection state
+        self.selection = None;
+        self.selection_cursor = 0;
+        
+        // Reset counters
+        self.filtered_logs = 0;
+        self.scroll_offset = 0;
+        self.cache_generation = 0;
+        
+        // Log cleanup for performance monitoring
+        tracing::info!("Buffer cleanup completed: {} log entries cleared, {} cache entries cleared", 
+                      buffer_size_before, cache_entries_before);
     }
 }
 
