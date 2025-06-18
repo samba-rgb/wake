@@ -40,3 +40,28 @@ async fn create_client_from_kubeconfig(path: &Path, context: Option<&str>) -> Re
     let client = Client::try_from(client_config)?;
     Ok(client)
 }
+
+/// Gets the default namespace from the current Kubernetes context
+pub fn get_current_context_namespace() -> Option<String> {
+    // Try to read from default kubeconfig location
+    if let Some(home_dir) = dirs::home_dir() {
+        let default_kubeconfig_path = home_dir.join(".kube/config");
+        if let Ok(kubeconfig) = Kubeconfig::read_from(&default_kubeconfig_path) {
+            // Get the current context name
+            if let Some(current_context_name) = &kubeconfig.current_context {
+                // Find the context and get its namespace
+                if let Some(named_context) = kubeconfig.contexts.iter()
+                    .find(|ctx| &ctx.name == current_context_name) {
+                    // The context field is Option<Context>, so we need to unwrap it
+                    if let Some(context) = &named_context.context {
+                        return context.namespace.clone();
+                    }
+                }
+            }
+        }
+    }
+    
+    // If no kubeconfig or no namespace in context, return None
+    // This will cause the caller to fall back to "default"
+    None
+}

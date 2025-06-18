@@ -7,6 +7,10 @@ mod ui; // Add the UI module declaration
 
 use anyhow::Result;
 use tracing_appender;
+use tracing_subscriber::layer::SubscriberExt; // Add missing import
+use tracing_subscriber::util::SubscriberInitExt; // Add missing import
+use tracing_subscriber::filter::LevelFilter; // Add missing import
+use tracing_subscriber::Layer; // Add missing Layer trait import
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -49,16 +53,19 @@ async fn main() -> Result<()> {
     
     // Always initialize tracing, but configure log level based on UI mode and dev flag
     // - In CLI mode: show logs based on verbosity
-    // - In UI mode without --dev: suppress most logs (ERROR only)
-    // - In UI mode with --dev: show logs based on verbosity
+    // - In UI mode without --dev: suppress ALL logs to stdout/stderr (UI only)
+    // - In UI mode with --dev: logs go to file only, not stdout/stderr
     use tracing_subscriber::fmt;
     use tracing::Level;
     
     let log_level = if should_use_ui && !args.dev {
-        // In UI mode without dev flag, only show errors to avoid interfering with UI
-        Level::ERROR
+        // In UI mode without dev flag, completely suppress logging to avoid UI interference
+        Level::ERROR  // Will be redirected to null writer
+    } else if should_use_ui && args.dev {
+        // In UI mode with dev flag, use verbosity-based level but only to file
+        logging::get_log_level(args.verbosity)
     } else {
-        // In CLI mode or UI mode with dev flag, use verbosity-based level
+        // In CLI mode, use verbosity-based level to stdout
         logging::get_log_level(args.verbosity)
     };
     
@@ -67,20 +74,38 @@ async fn main() -> Result<()> {
         // Use a single log file name instead of timestamped files
         let log_file_path = "wake_dev.log";
         
-        println!("🔍 Development mode enabled. Logs will be written to: {}", log_file_path);
+        if !should_use_ui {
+            println!("🔍 Development mode enabled. Logs will be written to: {}", log_file_path);
+        }
         
         // Create a file appender that writes to the dev log file
         let file_appender = tracing_appender::rolling::never("", log_file_path);
         let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
         
-        // Set up logging to file for dev mode
+        if should_use_ui {
+            // In UI mode with dev: logs go ONLY to file, not stdout/stderr
+            fmt()
+                .with_max_level(log_level)
+                .with_ansi(false) // No colors in log file
+                .with_writer(non_blocking) // Write to file only
+                .init();
+        } else {
+            // In CLI mode with dev: logs go to both stdout and file
+            tracing_subscriber::registry()
+                .with(fmt::layer().with_filter(LevelFilter::from_level(log_level))) // stdout
+                .with(fmt::layer().with_ansi(false).with_writer(non_blocking).with_filter(LevelFilter::from_level(log_level))) // file
+                .init();
+        }
+    } else if should_use_ui {
+        // UI mode without dev: use null writer to completely suppress logs
+        use std::io::sink;
+        use tracing_subscriber::filter::LevelFilter;
         fmt()
-            .with_max_level(log_level)
-            .with_ansi(false) // No colors in log file
-            .with_writer(non_blocking) // Write to file
+            .with_max_level(LevelFilter::OFF) // Completely disable logging
+            .with_writer(sink) // Redirect to null
             .init();
     } else {
-        // Normal logging to stdout only
+        // Normal CLI mode logging to stdout only
         fmt()
             .with_max_level(log_level)
             .init();

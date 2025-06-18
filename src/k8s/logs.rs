@@ -1,5 +1,5 @@
 use crate::cli::Args;
-use crate::k8s::pod::select_pods;
+use crate::k8s::pod::{select_pods, PodInfo};
 use anyhow::{Result, Context, anyhow};
 use futures::Stream;
 use k8s_openapi::api::core::v1::Pod;
@@ -8,6 +8,7 @@ use kube::api::LogParams;
 use regex::Regex;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{info, debug, error};
@@ -51,157 +52,460 @@ impl LogWatcher {
         }
     }
     
-    /// Starts streaming logs from all matching pods/containers
+    /// Intelligently determines the default container for a pod with fallback to first container
+    async fn determine_default_container(
+        client: &Client,
+        namespace: &str,
+        pod_info: &PodInfo,
+        all_pods: &[PodInfo]
+    ) -> String {
+        // Strategy 1: Check for Kubernetes default container annotation
+        if let Some(annotated_default) = Self::get_annotated_default_container(client, namespace, &pod_info.name).await {
+            if pod_info.containers.contains(&annotated_default) {
+                info!("LOG_WATCHER: Using annotated default container: {}", annotated_default);
+                return annotated_default;
+            }
+        }
+        
+        // Strategy 2: Use smart name-based heuristics
+        if let Some(smart_default) = Self::get_smart_default_container(&pod_info.containers) {
+            info!("LOG_WATCHER: Using smart name-based default: {}", smart_default);
+            return smart_default;
+        }
+        
+        // Strategy 3: Use namespace-wide container frequency analysis (only if multiple pods)
+        if all_pods.len() > 1 {
+            if let Some(frequent_default) = Self::get_most_common_container(all_pods) {
+                if pod_info.containers.contains(&frequent_default) {
+                    info!("LOG_WATCHER: Using most common container in namespace: {}", frequent_default);
+                    return frequent_default;
+                }
+            }
+        }
+        
+        // Fallback: Use first container (current behavior - always works)
+        let first_container = pod_info.containers[0].clone();
+        info!("LOG_WATCHER: No clear default found, falling back to first container: {}", first_container);
+        first_container
+    }
+    
+    /// Check for kubectl.kubernetes.io/default-container annotation
+    async fn get_annotated_default_container(
+        client: &Client,
+        namespace: &str,
+        pod_name: &str
+    ) -> Option<String> {
+        let pods: Api<Pod> = Api::namespaced(client.clone(), namespace);
+        
+        if let Ok(pod) = pods.get(pod_name).await {
+            if let Some(annotations) = &pod.metadata.annotations {
+                if let Some(default_container) = annotations.get("kubectl.kubernetes.io/default-container") {
+                    debug!("Found annotated default container: {}", default_container);
+                    return Some(default_container.clone());
+                }
+            }
+        }
+        None
+    }
+    
+    /// Use smart heuristics to find the main application container
+    fn get_smart_default_container(containers: &[String]) -> Option<String> {
+        // Priority order for common container names (higher score = higher priority)
+        let priority_patterns = [
+            // Main application containers
+            ("app", 100),
+            ("main", 95),
+            ("application", 90),
+            ("server", 85),
+            ("service", 80),
+            
+            // Web/API containers
+            ("web", 75),
+            ("api", 70),
+            ("backend", 65),
+            ("frontend", 60),
+            
+            // Common web servers
+            ("nginx", 55),
+            ("apache", 50),
+            ("httpd", 50),
+        ];
+        
+        let mut best_match = None;
+        let mut best_score = 0;
+        
+        for container in containers {
+            let container_lower = container.to_lowercase();
+            
+            for (pattern, score) in &priority_patterns {
+                let current_score = if container_lower == *pattern {
+                    *score + 20 // Bonus for exact match
+                } else if container_lower.contains(pattern) {
+                    *score // Partial match
+                } else {
+                    continue;
+                };
+                
+                if current_score > best_score {
+                    best_score = current_score;
+                    best_match = Some(container.clone());
+                }
+            }
+        }
+        
+        // Only return if we found a meaningful match (score > 50)
+        if best_score > 50 {
+            debug!("Found smart default container with score {}: {:?}", best_score, best_match);
+            best_match
+        } else {
+            debug!("No smart default found, scores too low");
+            None
+        }
+    }
+    
+    /// Find the most common container name across all pods in namespace
+    fn get_most_common_container(all_pods: &[PodInfo]) -> Option<String> {
+        let mut container_counts = HashMap::new();
+        
+        for pod in all_pods {
+            for container in &pod.containers {
+                *container_counts.entry(container.clone()).or_insert(0) += 1;
+            }
+        }
+        
+        // Only consider containers that appear in multiple pods
+        let most_common = container_counts.into_iter()
+            .filter(|(_, count)| *count > 1) // Must appear in at least 2 pods
+            .max_by_key(|(_, count)| *count)
+            .map(|(name, count)| {
+                debug!("Most common container: {} (appears {} times)", name, count);
+                name
+            });
+            
+        most_common
+    }
+
+    /// Starts streaming logs from all matching pods/containers with dynamic pod discovery
     pub async fn stream(&self) -> Result<Pin<Box<dyn Stream<Item = LogEntry> + Send>>> {
-        info!("LOG_WATCHER: Starting to stream logs...");
+        info!("LOG_WATCHER: Starting to stream logs with dynamic pod discovery...");
         let pod_regex = self.args.pod_regex()
             .context("Invalid pod selector regex")?;
         
         info!("LOG_WATCHER: Pod regex: {:?}", pod_regex.as_str());
         
         // If no specific container is provided (i.e., default pattern ".*") and 
-        // all_containers is false, we need to behave like kubectl logs and use the first container
-        let use_first_container = self.args.container == ".*" && !self.args.all_containers;
+        // all_containers is false, we need to behave like kubectl logs and use intelligent default
+        let use_smart_default = self.args.container == ".*" && !self.args.all_containers;
         
-        info!("LOG_WATCHER: Use first container only: {}", use_first_container);
+        info!("LOG_WATCHER: Use smart default container selection: {}", use_smart_default);
         
-        // If we're not using the first container, use the provided container regex
+        // If we're not using smart defaults, use the provided container regex
         let container_regex = self.args.container_regex()
             .context("Invalid container selector regex")?;
             
         info!("LOG_WATCHER: Container regex: {:?}", container_regex.as_str());
         
-        // Get pods matching our criteria - always get all containers first
-        info!("LOG_WATCHER: Selecting pods in namespace: {}", self.args.namespace);
-        let pods = select_pods(
-            &self.client, 
-            &self.args.namespace, 
-            &pod_regex, 
-            &Regex::new(".*").unwrap(), // Get all containers first, we'll filter later
-            self.args.all_namespaces,
-            self.args.resource.as_deref(), // Pass the resource query if present
-        ).await?;
-        
-        info!("LOG_WATCHER: Found {} matching pods", pods.len());
-        for (i, pod) in pods.iter().enumerate() {
-            info!("LOG_WATCHER: Pod #{}: {}/{} with {} containers", 
-                  i+1, pod.namespace, pod.name, pod.containers.len());
-        }
-        
-        if pods.is_empty() {
-            error!("LOG_WATCHER: No pods found matching the selection criteria");
-            return Err(anyhow!("No pods found matching the selection criteria"));
-        }
-        
         // Create a channel with larger buffer to handle high-volume logs
-        // Buffer size is based on number of pods * estimated lines per second * buffer time
-        let buffer_size = std::cmp::max(
-            5000,  // Increased minimum buffer size from 1000 to 5000
-            pods.len() * 500 * 5  // Increased to (pods * ~500 lines/s * 5s buffer)
-        );
+        let buffer_size = 10000; // Increased for dynamic discovery
         info!("LOG_WATCHER: Creating log channel with buffer size: {}", buffer_size);
         let (tx, rx) = mpsc::channel::<LogEntry>(buffer_size);
         
-        // Get the since parameter from args
-        let since_param = self.args.since.clone();
-        info!("LOG_WATCHER: Since parameter: {:?}", since_param);
+        // Start dynamic pod discovery and monitoring
+        let client_clone = self.client.clone();
+        let args_clone = self.args.clone();
+        let tx_clone = tx.clone();
         
-        // Start streaming logs from each container
-        info!("LOG_WATCHER: Starting log streams for {} pods", pods.len());
-        for pod_info in pods {
-            let client = self.client.clone();
-            let tail_lines = self.args.tail;
-            let follow = self.args.follow;
-            let timestamps = self.args.timestamps;
-            let tx = tx.clone();
+        tokio::spawn(async move {
+            if let Err(e) = Self::dynamic_pod_discovery(
+                client_clone,
+                args_clone,
+                tx_clone,
+            ).await {
+                error!("Dynamic pod discovery failed: {:?}", e);
+            }
+        });
+        
+        info!("LOG_WATCHER: Dynamic pod discovery started, returning stream");
+        Ok(Box::pin(ReceiverStream::new(rx)))
+    }
+    
+    /// Continuously discovers and monitors pods dynamically
+    async fn dynamic_pod_discovery(
+        client: Client,
+        args: Arc<Args>,
+        tx: mpsc::Sender<LogEntry>,
+    ) -> Result<()> {
+        use tokio::time::{Duration, interval};
+        
+        let mut known_pods: HashSet<String> = HashSet::new();
+        let mut pod_tasks: HashMap<String, tokio::task::JoinHandle<()>> = HashMap::new();
+        let mut discovery_interval = interval(Duration::from_secs(5)); // Check every 5 seconds
+        
+        // Initial pod discovery
+        info!("DYNAMIC_DISCOVERY: Starting initial pod discovery");
+        Self::discover_and_start_pods(&client, &args, &tx, &mut known_pods, &mut pod_tasks).await?;
+        
+        loop {
+            discovery_interval.tick().await;
             
-            info!("LOG_WATCHER: Processing pod {}/{} with containers: {:?}", 
-                  pod_info.namespace, pod_info.name, pod_info.containers);
-            
-            // If we should use the first container only (kubectl-like behavior)
-            if use_first_container && !pod_info.containers.is_empty() {
-                let first_container = pod_info.containers[0].clone();
-                info!("LOG_WATCHER: Using only first container: {} in pod: {}/{}", 
-                      first_container, pod_info.namespace, pod_info.name);
-                
-                let pod_info_clone = pod_info.clone();
-                let tx_clone = tx.clone();
-                let client_clone = client.clone();
-                let since_clone = since_param.clone();
-                
-                tokio::spawn(async move {
-                    info!("CONTAINER_TASK: Starting log stream for {}/{}/{}", 
-                          pod_info_clone.namespace, pod_info_clone.name, first_container);
-                    if let Err(e) = Self::stream_container_logs(
-                        client_clone, 
-                        &pod_info_clone.namespace, 
-                        &pod_info_clone.name, 
-                        &first_container,
-                        follow,
-                        tail_lines,
-                        timestamps,
-                        tx_clone,
-                        since_clone
-                    ).await {
-                        error!("CONTAINER_TASK: Error streaming logs from {}/{}/{}: {:?}", 
-                               pod_info_clone.namespace, pod_info_clone.name, first_container, e);
-                    } else {
-                        info!("CONTAINER_TASK: Completed streaming logs from {}/{}/{}", 
-                              pod_info_clone.namespace, pod_info_clone.name, first_container);
+            // Periodic pod discovery
+            match Self::discover_and_start_pods(&client, &args, &tx, &mut known_pods, &mut pod_tasks).await {
+                Ok(new_count) => {
+                    if new_count > 0 {
+                        info!("DYNAMIC_DISCOVERY: Found {} new pods", new_count);
                     }
-                });
+                }
+                Err(e) => {
+                    error!("DYNAMIC_DISCOVERY: Failed to discover pods: {:?}", e);
+                    // Continue despite errors - might be temporary
+                }
+            }
+            
+            // Clean up completed tasks
+            pod_tasks.retain(|pod_key, handle| {
+                if handle.is_finished() {
+                    info!("DYNAMIC_DISCOVERY: Cleaned up completed task for pod: {}", pod_key);
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+    }
+    
+    /// Discovers pods and starts streaming for new ones
+    async fn discover_and_start_pods(
+        client: &Client,
+        args: &Arc<Args>,
+        tx: &mpsc::Sender<LogEntry>,
+        known_pods: &mut HashSet<String>,
+        pod_tasks: &mut HashMap<String, tokio::task::JoinHandle<()>>,
+    ) -> Result<usize> {
+        let pod_regex = args.pod_regex().context("Invalid pod selector regex")?;
+        let container_regex = args.container_regex().context("Invalid container selector regex")?;
+        
+        // Get current pods
+        let pods = select_pods(
+            client, 
+            &args.namespace, 
+            &pod_regex, 
+            &Regex::new(".*").unwrap(),
+            args.all_namespaces,
+            args.resource.as_deref(),
+        ).await?;
+        
+        let mut new_pods_count = 0;
+        
+        for pod_info in pods {
+            let pod_key = format!("{}/{}", pod_info.namespace, pod_info.name);
+            
+            // Skip if we're already monitoring this pod
+            if known_pods.contains(&pod_key) {
+                continue;
+            }
+            
+            info!("DYNAMIC_DISCOVERY: New pod detected: {}", pod_key);
+            known_pods.insert(pod_key.clone());
+            new_pods_count += 1;
+            
+            // Send notification about new pod
+            let discovery_entry = LogEntry {
+                namespace: pod_info.namespace.clone(),
+                pod_name: pod_info.name.clone(),
+                container_name: "system".to_string(),
+                message: format!("🆕 New pod discovered and added to monitoring: {}/{}", 
+                               pod_info.namespace, pod_info.name),
+                timestamp: Some(chrono::Utc::now()),
+            };
+            let _ = tx.send(discovery_entry).await;
+            
+            // Determine which containers to monitor
+            let use_smart_default = args.container == ".*" && !args.all_containers;
+            
+            if use_smart_default && !pod_info.containers.is_empty() {
+                // Use smart default container selection for new pod
+                let default_container = Self::determine_default_container(
+                    client,
+                    &args.namespace,
+                    &pod_info,
+                    &[pod_info.clone()], // Single pod for now
+                ).await;
+                
+                let task = Self::spawn_container_task(
+                    client.clone(),
+                    pod_info.clone(),
+                    default_container.clone(),
+                    args.clone(),
+                    tx.clone(),
+                ).await;
+                
+                pod_tasks.insert(format!("{}/{}", pod_key, default_container), task);
             } else {
-                // Use all containers that match the regex (or all if all_containers is true)
-                info!("LOG_WATCHER: Processing all containers for pod {}/{}", 
-                      pod_info.namespace, pod_info.name);
+                // Monitor all matching containers
                 for container_name in &pod_info.containers {
-                    // Skip containers that don't match the regex (unless all_containers is true)
-                    if !self.args.all_containers && !container_regex.is_match(container_name) {
-                        info!("LOG_WATCHER: Skipping container {} (doesn't match regex)", container_name);
+                    if !args.all_containers && !container_regex.is_match(container_name) {
                         continue;
                     }
                     
-                    info!("LOG_WATCHER: Including container {} for streaming", container_name);
+                    let task = Self::spawn_container_task(
+                        client.clone(),
+                        pod_info.clone(),
+                        container_name.clone(),
+                        args.clone(),
+                        tx.clone(),
+                    ).await;
                     
-                    let pod_info = pod_info.clone();
-                    let container_name = container_name.clone();
-                    let tx = tx.clone();
-                    let client = client.clone();
-                    let since_clone = since_param.clone();
-                    
-                    // Spawn a task for each container
-                    tokio::spawn(async move {
-                        info!("CONTAINER_TASK: Starting log stream for {}/{}/{}", 
-                              pod_info.namespace, pod_info.name, container_name);
-                        if let Err(e) = Self::stream_container_logs(
-                            client, 
-                            &pod_info.namespace, 
-                            &pod_info.name, 
-                            &container_name,
-                            follow,
-                            tail_lines,
-                            timestamps,
-                            tx,
-                            since_clone
-                        ).await {
-                            error!("CONTAINER_TASK: Error streaming logs from {}/{}/{}: {:?}", 
-                                   pod_info.namespace, pod_info.name, container_name, e);
-                        } else {
-                            info!("CONTAINER_TASK: Completed streaming logs from {}/{}/{}", 
-                                  pod_info.namespace, pod_info.name, container_name);
-                        }
-                    });
+                    pod_tasks.insert(format!("{}/{}", pod_key, container_name), task);
                 }
             }
         }
         
-        info!("LOG_WATCHER: All container streaming tasks spawned, returning stream");
-        // Return the receiving stream
-        Ok(Box::pin(ReceiverStream::new(rx)))
+        Ok(new_pods_count)
     }
     
-    /// Stream logs from a single container
+    /// Spawns a task to monitor a specific container
+    async fn spawn_container_task(
+        client: Client,
+        pod_info: PodInfo,
+        container_name: String,
+        args: Arc<Args>,
+        tx: mpsc::Sender<LogEntry>,
+    ) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            info!("CONTAINER_TASK: Starting log stream for {}/{}/{}", 
+                  pod_info.namespace, pod_info.name, container_name);
+            
+            if let Err(e) = Self::stream_container_logs(
+                client,
+                &pod_info.namespace,
+                &pod_info.name,
+                &container_name,
+                args.follow,
+                args.tail,
+                args.timestamps,
+                tx,
+                args.since.clone(),
+            ).await {
+                error!("CONTAINER_TASK: Error streaming logs from {}/{}/{}: {:?}", 
+                       pod_info.namespace, pod_info.name, container_name, e);
+            } else {
+                info!("CONTAINER_TASK: Completed streaming logs from {}/{}/{}", 
+                      pod_info.namespace, pod_info.name, container_name);
+            }
+        })
+    }
+    
+    /// Stream logs from a single container with retry logic
     async fn stream_container_logs(
+        client: Client,
+        namespace: &str,
+        pod_name: &str,
+        container_name: &str,
+        follow: bool,
+        tail_lines: i64,
+        timestamps: bool,
+        tx: mpsc::Sender<LogEntry>,
+        since: Option<String>,
+    ) -> Result<()> {
+        const MAX_RETRIES: u32 = 3;
+        const INITIAL_RETRY_DELAY: u64 = 1000; // 1 second
+        const MAX_RETRY_DELAY: u64 = 30000;    // 30 seconds
+        
+        let mut retry_count = 0;
+        let mut retry_delay = INITIAL_RETRY_DELAY;
+        
+        loop {
+            let result = Self::stream_container_logs_once(
+                client.clone(),
+                namespace,
+                pod_name,
+                container_name,
+                follow,
+                tail_lines,
+                timestamps,
+                tx.clone(),
+                since.clone(),
+            ).await;
+            
+            match result {
+                Ok(()) => {
+                    info!("CONTAINER_LOGS: Successfully completed streaming for {}/{}/{}", 
+                          namespace, pod_name, container_name);
+                    return Ok(());
+                }
+                Err(e) => {
+                    retry_count += 1;
+                    
+                    if retry_count > MAX_RETRIES {
+                        error!("CONTAINER_LOGS: Max retries ({}) exceeded for {}/{}/{}: {:?}", 
+                               MAX_RETRIES, namespace, pod_name, container_name, e);
+                        return Err(e);
+                    }
+                    
+                    // Determine if error is retryable
+                    if Self::is_retryable_error(&e) {
+                        info!("CONTAINER_LOGS: Retryable error for {}/{}/{} (attempt {}/{}): {:?}", 
+                              namespace, pod_name, container_name, retry_count, MAX_RETRIES, e);
+                        
+                        // Send a system notification about the retry
+                        let retry_entry = LogEntry {
+                            namespace: namespace.to_string(),
+                            pod_name: pod_name.to_string(),
+                            container_name: container_name.to_string(),
+                            message: format!("🔄 Connection lost, retrying... (attempt {}/{}) - {}", 
+                                           retry_count, MAX_RETRIES, e),
+                            timestamp: Some(chrono::Utc::now()),
+                        };
+                        
+                        // Send retry notification (ignore if channel closed)
+                        let _ = tx.send(retry_entry).await;
+                        
+                        // Exponential backoff with jitter
+                        let jitter = fastrand::u64(0..retry_delay / 4); // Up to 25% jitter
+                        tokio::time::sleep(std::time::Duration::from_millis(retry_delay + jitter)).await;
+                        
+                        // Increase delay for next retry, cap at max
+                        retry_delay = std::cmp::min(retry_delay * 2, MAX_RETRY_DELAY);
+                    } else {
+                        error!("CONTAINER_LOGS: Non-retryable error for {}/{}/{}: {:?}", 
+                               namespace, pod_name, container_name, e);
+                        return Err(e);
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Determine if an error is worth retrying
+    fn is_retryable_error(error: &anyhow::Error) -> bool {
+        let error_str = error.to_string().to_lowercase();
+        
+        // Retryable errors
+        if error_str.contains("connection") || 
+           error_str.contains("timeout") ||
+           error_str.contains("network") ||
+           error_str.contains("temporary") ||
+           error_str.contains("rate limit") ||
+           error_str.contains("service unavailable") ||
+           error_str.contains("too many requests") {
+            return true;
+        }
+        
+        // Non-retryable errors
+        if error_str.contains("not found") ||
+           error_str.contains("forbidden") ||
+           error_str.contains("unauthorized") ||
+           error_str.contains("invalid") ||
+           error_str.contains("malformed") {
+            return false;
+        }
+        
+        // Default to retryable for unknown errors
+        true
+    }
+    
+    /// Single attempt at streaming container logs (original implementation)
+    async fn stream_container_logs_once(
         client: Client,
         namespace: &str,
         pod_name: &str,
@@ -315,6 +619,7 @@ impl LogWatcher {
                             Err(e) => {
                                 error!("CONTAINER_LOGS: Error reading log line from {}/{}/{}: {:?}", 
                                        namespace, pod_name, container_name, e);
+                                // Don't return error for individual line failures, continue streaming
                             }
                         }
                     }
