@@ -139,12 +139,6 @@ impl Selection {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn contains(&self, line: usize) -> bool {
-        // Only include a line if selection is active and the line is actually within the selection range
-        self.is_active && line >= self.start_line && line <= self.end_line
-    }
-
     pub fn clear(&mut self) {
         self.is_active = false;
         self.is_dragging = false;
@@ -167,9 +161,12 @@ pub struct DisplayManager {
     pub filtered_logs: usize,  // Only count logs in buffer (all are filtered)
     pub show_timestamps: bool,
     pub auto_scroll: bool,
-    pub selection: Option<Selection>,
-    pub selection_cursor: usize,
     pub dev_mode: bool, // Add dev mode flag
+    // Enhanced buffer management
+    pub enhanced_buffer_active: bool, // Whether 5x buffer expansion is active
+    pub memory_warning_shown: bool,   // Track if we've shown the 90% warning
+    pub memory_warning_active: bool,  // Track if warning popup is currently displayed
+    pub file_output_mode: bool,       // When true, skip display buffer and write only to file
     // Performance optimizations
     cache_generation: usize,
     // Pre-computed colors for pods/containers
@@ -177,6 +174,11 @@ pub struct DisplayManager {
     container_color_cache: HashMap<String, Color>,
     // Color scheme for adaptive colors
     color_scheme: ColorScheme,
+    pub selection: Option<Selection>, // Add back selection for pause mode
+    pub selection_cursor: usize,     // Cursor position for keyboard selection
+    // Display window tracking
+    pub display_start_index: usize,  // Start index of visible display window
+    pub display_end_index: usize,    // End index of visible display window
 }
 
 impl DisplayManager {
@@ -191,58 +193,280 @@ impl DisplayManager {
             log_entries: VecDeque::with_capacity(actual_max_lines),
             scroll_offset: 0,
             max_lines: actual_max_lines,
-            original_max_lines: actual_max_lines, // Store original buffer size for selection mode
+            original_max_lines: actual_max_lines, // Store original buffer size
             filtered_logs: 0,
             show_timestamps,
             auto_scroll: true, // Default to auto-scroll enabled
             cache_generation: 0,
             pod_color_cache: HashMap::new(),
             container_color_cache: HashMap::new(),
-            selection: None,
-            selection_cursor: 0,
             dev_mode: dev_mode, // Set dev mode from parameter
             color_scheme,
+            enhanced_buffer_active: false, // Default to 5x buffer expansion inactive
+            memory_warning_shown: false,   // Memory warning not shown initially
+            memory_warning_active: false,  // Warning popup not active initially
+            file_output_mode: false,       // Normal display mode
+            selection: None,               // No active selection initially
+            selection_cursor: 0,           // Cursor position for selection
+            display_start_index: 0,        // Initialize display start index
+            display_end_index: 0,          // Initialize display end index
         })
     }
 
-    pub fn add_log_entry(&mut self, entry: &LogEntry) {
-        // Check if we're in selection mode (either active selection OR selection mode cursor visible)
-        let is_in_selection_mode = self.selection.is_some();
-        
-        // **SAFETY MECHANISM**: Force exit selection mode if buffer exceeds 2x original size
-        if is_in_selection_mode && self.log_entries.len() >= (self.original_max_lines * 2) {
-            self.add_system_log("🚨 Buffer reached 2x limit - Force exiting selection mode");
-            self.selection = None;
-            self.selection_cursor = 0;
-            self.auto_scroll = true; // Enable auto-scroll for follow mode
-            self.exit_selection_mode(); // This will trim buffer back to original size
-            self.add_system_log("📉 Returned to normal mode with original buffer size and auto-follow enabled");
+    /// Enable file output mode - logs always get written to file
+    pub fn set_file_output_mode(&mut self, enabled: bool) {
+        self.file_output_mode = enabled;
+        if enabled {
+            self.add_system_log("📁 File output mode enabled - all logs will be saved to file");
+        }
+    }
+
+    /// Activate enhanced buffer mode (5x expansion) for selection/follow modes
+    pub fn activate_enhanced_buffer(&mut self) {
+        if !self.enhanced_buffer_active {
+            let new_size = self.original_max_lines * 5; // 5x expansion
+            self.max_lines = new_size;
+            self.enhanced_buffer_active = true;
+            self.log_entries.reserve(self.original_max_lines * 4); // Reserve additional space
+            self.add_system_log(&format!("🚀 Enhanced buffer activated: {} → {} lines (5x expansion)", 
+                self.original_max_lines, new_size));
+        }
+    }
+
+    /// Deactivate enhanced buffer mode and return to normal size
+    pub fn deactivate_enhanced_buffer(&mut self) {
+        if self.enhanced_buffer_active {
+            self.enhanced_buffer_active = false;
+            self.max_lines = self.original_max_lines;
+            
+            // Trim excess entries if buffer is over normal size
+            let entries_to_remove = self.log_entries.len().saturating_sub(self.max_lines);
+            if entries_to_remove > 0 {
+                self.add_system_log(&format!("📉 Trimming {} excess entries from enhanced buffer", 
+                    entries_to_remove));
+                
+                // Remove from front to keep recent logs
+                for _ in 0..entries_to_remove {
+                    self.log_entries.pop_front();
+                    // **FIX BUFFER DEACTIVATION SCROLL**: Only adjust scroll when not in selection mode
+                    if self.selection.is_none() && self.scroll_offset > 0 {
+                        self.scroll_offset = self.scroll_offset.saturating_sub(1);
+                    }
+                }
+            }
+            
+            self.log_entries.shrink_to_fit();
+            self.add_system_log(&format!("📉 Enhanced buffer deactivated: restored to {} lines", 
+                self.max_lines));
+        }
+    }
+
+    /// Check if buffer is approaching capacity and show warning at 80%
+    pub fn check_memory_warning(&mut self) -> bool {
+        // In follow mode, we never show memory warnings as logs will cycle out automatically
+        if self.auto_scroll {
+            // Reset any active warning state if we switch to follow mode
+            if self.memory_warning_shown || self.memory_warning_active {
+                self.memory_warning_shown = false;
+                self.memory_warning_active = false;
+            }
+            return false;
         }
         
-        // Re-check selection mode status after potential forced exit
-        let is_in_selection_mode = self.selection.is_some();
+        // In selection mode (paused), calculate usage percentage against the 
+        // current max_lines (which would be 5x original in enhanced mode)
+        let usage_percent = (self.log_entries.len() as f64 / self.max_lines as f64) * 100.0;
         
-        // **CRITICAL FIX**: In selection mode, NEVER remove entries to prevent selection corruption
-        // In normal mode, apply standard buffer rotation at configured max_lines
-        if is_in_selection_mode {
-            // Selection mode: no buffer rotation, just keep adding (until 2x safety limit)
-            if self.log_entries.len() % 1000 == 0 && self.log_entries.len() > self.max_lines {
-                self.add_system_log(&format!("🛡️ Selection mode: {} lines retained (no rotation)", 
-                    self.log_entries.len()));
-            }
+        // Show warning if we hit 80.0% of the (potentially expanded) buffer size and haven't shown it yet
+        if usage_percent >= 80.0 && !self.memory_warning_shown {
+            self.memory_warning_shown = true;
+            self.memory_warning_active = true; // Activate the persistent popup
+            self.add_system_log(&format!("⚠️ Buffer usage at {:.1}% of capacity ({} entries)", 
+                                     usage_percent, self.log_entries.len()));
+            return true; // Signal to show warning popup
+        }
+        
+        // Reset warning if usage drops below 70%
+        if usage_percent < 70.0 && self.memory_warning_shown {
+            self.memory_warning_shown = false;
+            self.memory_warning_active = false; // Deactivate popup
+        }
+        
+        // Return true if popup should be displayed (persistent until dismissed)
+        self.memory_warning_active
+    }
+
+    /// Get memory usage percentage for status bar indicator
+    pub fn get_memory_usage_percent(&self) -> f64 {
+        // Use the actual 5x limit when in pause mode with enhanced buffer
+        let effective_max_buffer = if self.enhanced_buffer_active {
+            // In enhanced mode, use the full 5x limit for accurate percentage
+            self.original_max_lines * 5
         } else {
-            // Normal mode: apply buffer rotation when max_lines reached
-            if self.log_entries.len() >= self.original_max_lines {
-                self.log_entries.pop_front();
-                
-                // When removing entries from front, adjust scroll offset to maintain position
-                if self.scroll_offset > 0 {
-                    self.scroll_offset = self.scroll_offset.saturating_sub(1);
+            self.max_lines
+        };
+        
+        if effective_max_buffer == 0 {
+            return 0.0;
+        }
+        (self.log_entries.len() as f64 / effective_max_buffer as f64) * 100.0
+    }
+
+    /// Check if memory is critically high (80%+) - for status bar indicator
+    pub fn is_memory_critical(&self) -> bool {
+        // Only show memory indicator in pause mode when we have selection capability
+        if self.auto_scroll {
+            return false;
+        }
+        
+        // Show critical when we're at or near 80% of the 5x limit
+        self.get_memory_usage_percent() >= 80.0
+    }
+
+    /// Dismiss the memory warning popup
+    pub fn dismiss_memory_warning(&mut self) {
+        self.memory_warning_active = false;
+        self.add_system_log("📊 Memory warning dismissed");
+    }
+
+    /// Check if we should insert into display buffer
+    /// Returns true if we should insert, false if we should skip (but continue polling)
+    pub fn should_insert_to_buffer(&self) -> bool {
+        // **ENHANCED LOGIC**: Always insert if file output mode is enabled AND buffer not at 80% limit
+        if self.file_output_mode {
+            // In pause mode with enhanced buffer, stop inserting once we reach 90% of 5x limit
+            if !self.auto_scroll && self.enhanced_buffer_active {
+                let five_x_limit = self.original_max_lines * 5;
+                let ninety_percent_limit = (five_x_limit as f64 * 0.9) as usize;
+                if self.log_entries.len() >= ninety_percent_limit {
+                    // Buffer is at 90% of 5x - stop inserting, only write to file
+                    return false;
                 }
+            }
+            return true;
+        }
+        
+        // **CRITICAL FIX**: In pause mode with enhanced buffer active, stop at 90% of 5x capacity
+        if !self.auto_scroll && self.enhanced_buffer_active {
+            let five_x_limit = self.original_max_lines * 5;
+            let ninety_percent_limit = (five_x_limit as f64 * 0.9) as usize;
+            if self.log_entries.len() >= ninety_percent_limit {
+                // Buffer reached 90% of 5x limit - stop all insertions to preserve selection stability
+                return false;
+            }
+            // Still room in enhanced buffer (under 90%) - allow insertion
+            return true;
+        }
+        
+        // **NORMAL MODE**: Insert if buffer is not full 
+        if self.log_entries.len() < self.max_lines {
+            return true;
+        }
+        
+        // **FOLLOW MODE**: Insert with rotation when following logs
+        if self.auto_scroll {
+            return true;
+        }
+        
+        // **PAUSE MODE**: Skip insertion if buffer is full and user is not following
+        // This prevents memory bloat when user is browsing old logs
+        false
+    }
+
+    /// Toggle follow mode - activates/deactivates enhanced buffer (5x expansion)
+    pub fn toggle_follow_mode(&mut self) {
+        if self.auto_scroll {
+            // Currently following -> switch to paused mode
+            self.auto_scroll = false;
+            
+            // Save the current position before activating enhanced buffer
+            let current_position = self.scroll_offset;
+            
+            // Expand buffer in pause mode for better browsing
+            self.activate_enhanced_buffer(); 
+            
+            // Make sure we preserve the scroll position after buffer expansion
+            self.scroll_offset = current_position;
+            
+            self.add_system_log("⏸️ Follow mode disabled - Buffer expanded to 5x size for browsing");
+        } else {
+            // Currently paused -> switch to follow mode
+            
+            // Clear any active selection before switching to follow mode
+            self.selection = None;
+            self.selection_cursor = 0;
+            
+            // Clear any memory warnings since we're returning to normal mode
+            self.memory_warning_shown = false;
+            self.memory_warning_active = false;
+            
+            self.auto_scroll = true;
+            self.deactivate_enhanced_buffer(); // This will trim buffer back to normal size
+            
+            // Scroll to bottom when enabling follow mode
+            let estimated_viewport = 20;
+            let max_scroll = self.log_entries.len().saturating_sub(estimated_viewport);
+            self.scroll_offset = max_scroll;
+            self.add_system_log("▶️ Follow mode enabled - Buffer restored to original size, memory warnings cleared");
+        }
+    }
+
+    pub fn add_log_entry(&mut self, entry: &LogEntry) -> bool {
+        // Check if we should insert this entry into the display buffer
+        if !self.should_insert_to_buffer() {
+            // Skip insertion but return false to indicate we're dropping display logs
+            return false;
+        }
+
+        // **ENHANCED BUFFER MANAGEMENT**: Use 5x expansion for pause modes
+        let current_max_buffer = if self.enhanced_buffer_active {
+            self.max_lines // Already expanded to 5x in enhanced mode
+        } else {
+            self.original_max_lines // Normal 1x buffer
+        };
+
+        // **CRITICAL FIX**: Calculate 90% threshold to ensure NO ROTATION after memory full
+        let ninety_percent_threshold = if !self.auto_scroll && self.enhanced_buffer_active {
+            let five_x_limit = self.original_max_lines * 5;
+            (five_x_limit as f64 * 0.9) as usize
+        } else {
+            current_max_buffer // For normal/follow mode, use standard threshold
+        };
+
+        // **ABSOLUTE PROTECTION**: NEVER rotate if we're at or above 90% threshold
+        let should_rotate = if self.log_entries.len() >= ninety_percent_threshold {
+            // At or above 90% - NO ROTATION ALLOWED
+            false
+        } else if !self.auto_scroll && self.enhanced_buffer_active {
+            // Enhanced mode: only rotate if we're below 90% AND at max buffer
+            self.log_entries.len() >= current_max_buffer
+        } else {
+            // Normal rotation behavior for follow mode and normal buffer
+            self.log_entries.len() >= current_max_buffer
+        };
+
+        // **SMART BUFFER ROTATION**: Only rotate when necessary AND allowed
+        if should_rotate {
+            let has_active_selection = self.selection.is_some();
+            
+            if has_active_selection {
+                // If selection is active, clear it before rotation to prevent index corruption
+                self.add_system_log("⚠️ Buffer rotation with active selection - clearing selection to prevent corruption");
+                self.clear_selection();
+            }
+            
+            // Apply buffer rotation
+            self.log_entries.pop_front();
+            
+            // **FIX SCROLL COUNTER**: Only adjust scroll when not in selection mode to prevent conflicts
+            if self.selection.is_none() && self.scroll_offset > 0 {
+                self.scroll_offset = self.scroll_offset.saturating_sub(1);
             }
         }
         
         self.log_entries.push_back(entry.clone());
+        
+        // **FIX FILTERED LOGS COUNTER**: Only increment when actually inserted to buffer
         self.filtered_logs += 1;
         
         // If auto-scroll is enabled, keep scroll at bottom
@@ -251,10 +475,14 @@ impl DisplayManager {
             let estimated_viewport = 20; // Conservative estimate
             let max_scroll = self.log_entries.len().saturating_sub(estimated_viewport);
             self.scroll_offset = max_scroll;
+            self.update_display_window(estimated_viewport);
         }
 
         // Invalidate cache on new log entry
         self.cache_generation += 1;
+        
+        // Return true to indicate successful insertion
+        true
     }
 
     pub fn scroll_up(&mut self, lines: usize) {
@@ -263,6 +491,9 @@ impl DisplayManager {
         
         // Validate scroll offset bounds
         self.validate_scroll_bounds(50); // Use conservative viewport estimate
+        
+        // Update display window after manual scroll
+        self.update_display_window(50);
     }
 
     pub fn scroll_down(&mut self, lines: usize, viewport_height: usize) {
@@ -282,11 +513,17 @@ impl DisplayManager {
         
         // Validate scroll offset bounds
         self.validate_scroll_bounds(viewport_height);
+        
+        // Update display window after manual scroll
+        self.update_display_window(viewport_height);
     }
 
     pub fn scroll_to_top(&mut self) {
         self.scroll_offset = 0;
         self.auto_scroll = false; // Disable auto-scroll on manual scroll
+        
+        // Update display window to reflect scroll position
+        self.update_display_window(20);
     }
 
     pub fn scroll_to_bottom(&mut self, viewport_height: usize) {
@@ -295,6 +532,9 @@ impl DisplayManager {
         self.scroll_offset = max_scroll;
         // Auto-enable auto-scroll when going to bottom
         self.auto_scroll = true;
+        
+        // Update display window to reflect scroll position
+        self.update_display_window(viewport_height);
     }
 
     /// Validate and fix scroll bounds to prevent corruption
@@ -305,253 +545,16 @@ impl DisplayManager {
             0
         };
         
-        if self.scroll_offset > max_possible_scroll {
+        // **FIX HIGH SCROLL VALIDATION**: Only adjust if scroll is SIGNIFICANTLY beyond bounds
+        // This prevents unwanted corrections at valid high scroll positions like 10,000
+        if self.scroll_offset > max_possible_scroll + 100 {  // Allow some buffer for high positions
+            let old_scroll = self.scroll_offset;
             self.scroll_offset = max_possible_scroll;
-        }
-    }
-
-    /// Calculate the total number of display lines including wrapped lines
-    #[allow(dead_code)]
-    pub fn calculate_total_display_lines(&self, viewport_width: usize) -> usize {
-        self.log_entries.iter().map(|entry| {
-            let line = self.format_log_for_ui(entry);
-            if line.starts_with("🔧") {
-                1 // System messages are always single line
-            } else {
-                wrap_line(&line, viewport_width).len()
-            }
-        }).sum()
-    }
-
-    pub fn render(&mut self, f: &mut Frame, input_handler: &InputHandler) {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3), // Filter input area (3 lines for borders + content)
-                Constraint::Min(3),    // Log display area (minimum 3 lines)
-                Constraint::Length(1), // Status bar (1 line)
-            ])
-            .split(f.size());
-
-        // Render filter input area
-        self.render_filter_area(f, chunks[0], input_handler);
-
-        // Render log display area
-        self.render_log_area(f, chunks[1], input_handler);
-
-        // Render status bar
-        self.render_status_bar(f, chunks[2], input_handler);
-
-        // Render help popup if in help mode
-        if input_handler.mode == InputMode::Help {
-            self.render_help_popup(f, input_handler);
-        }
-    }
-
-    fn render_filter_area(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
-        let filter_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(area);
-
-        // Include filter
-        let include_style = if input_handler.mode == InputMode::EditingInclude {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::Green)
-        };
-
-        let include_block = Block::default()
-            .title("Include Pattern (i to edit)")
-            .borders(Borders::ALL)
-            .border_style(include_style);
-
-        let include_text = if input_handler.include_input.is_empty() {
-            Text::from(Span::styled("(none)", Style::default().fg(Color::DarkGray)))
-        } else {
-            Text::from(input_handler.include_input.as_str())
-        };
-
-        let include_paragraph = Paragraph::new(include_text)
-            .block(include_block)
-            .wrap(Wrap { trim: true });
-
-        f.render_widget(include_paragraph, filter_chunks[0]);
-
-        // Show cursor for include input
-        if input_handler.mode == InputMode::EditingInclude {
-            let cursor_x = filter_chunks[0].x + 1 + input_handler.cursor_position as u16;
-            let cursor_y = filter_chunks[0].y + 1;
-            if cursor_x < filter_chunks[0].x + filter_chunks[0].width - 1 {
-                f.set_cursor(cursor_x, cursor_y);
+            if self.dev_mode {
+                self.add_system_log(&format!("🔧 BOUNDS CORRECTION: {} → {} (was way beyond max {})", 
+                    old_scroll, self.scroll_offset, max_possible_scroll));
             }
         }
-
-        // Exclude filter
-        let exclude_style = if input_handler.mode == InputMode::EditingExclude {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::Red)
-        };
-
-        let exclude_block = Block::default()
-            .title("Exclude Pattern (e to edit)")
-            .borders(Borders::ALL)
-            .border_style(exclude_style);
-
-        let exclude_text = if input_handler.exclude_input.is_empty() {
-            Text::from(Span::styled("(none)", Style::default().fg(Color::DarkGray)))
-        } else {
-            Text::from(input_handler.exclude_input.as_str())
-        };
-
-        let exclude_paragraph = Paragraph::new(exclude_text)
-            .block(exclude_block)
-            .wrap(Wrap { trim: true });
-
-        f.render_widget(exclude_paragraph, filter_chunks[1]);
-
-        // Show cursor for exclude input
-        if input_handler.mode == InputMode::EditingExclude {
-            let cursor_x = filter_chunks[1].x + 1 + input_handler.cursor_position as u16;
-            let cursor_y = filter_chunks[1].y + 1;
-            if cursor_x < filter_chunks[1].x + filter_chunks[1].width - 1 {
-                f.set_cursor(cursor_x, cursor_y);
-            }
-        }
-    }
-
-    fn render_log_area(&mut self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
-        let viewport_height = area.height.saturating_sub(2) as usize; // Account for borders
-        
-        // Validate and fix scroll offset before rendering to prevent out-of-bounds access
-        if self.scroll_offset >= self.log_entries.len() && !self.log_entries.is_empty() {
-            // If scroll offset is invalid, reset to bottom and update the actual field
-            self.scroll_offset = if self.log_entries.len() > viewport_height {
-                self.log_entries.len() - viewport_height
-            } else {
-                0
-            };
-        }
-        
-        // Additional safety check for edge cases
-        let max_safe_offset = if self.log_entries.len() > viewport_height {
-            self.log_entries.len() - viewport_height
-        } else {
-            0
-        };
-        
-        if self.scroll_offset > max_safe_offset {
-            self.scroll_offset = max_safe_offset;
-        }
-
-        // Get the visible log entries with proper bounds checking
-        let visible_entries: Vec<LogEntry> = self.log_entries
-            .iter()
-            .skip(self.scroll_offset)
-            .take(viewport_height)
-            .cloned()
-            .collect();
-        
-        // Add debugging for selection state
-        if let Some(ref selection) = self.selection {
-            if selection.is_active {
-                tracing::debug!("Active selection: start_line={}, end_line={}, scroll_offset={}, selection_cursor={}", 
-                    selection.start_line, selection.end_line, self.scroll_offset, self.selection_cursor);
-            }
-        }
-        
-        // Create colored lines from log entries with selection highlighting
-        let colored_lines: Vec<Line> = if visible_entries.is_empty() {
-            vec![Line::from(Span::styled(
-                "No logs to display",
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)
-            ))]
-        } else {
-            visible_entries.iter().enumerate().map(|(display_idx, entry)| {
-                let log_idx = self.scroll_offset + display_idx;
-                let mut line = self.create_colored_log_line(entry);
-                
-                // Determine if this line should be highlighted based on selection state
-                let mut is_selected = false;
-                let mut is_cursor_line = false;
-                
-                // Check if line is within active selection range
-                if let Some(ref selection) = self.selection {
-                    if selection.is_active && log_idx >= selection.start_line && log_idx <= selection.end_line {
-                        is_selected = true;
-                    }
-                }
-                
-                // Check if this is the current cursor line in selection mode
-                if input_handler.mode == InputMode::Selection {
-                    // Calculate the absolute line index for the current cursor position
-                    let cursor_absolute_line = self.scroll_offset + self.selection_cursor;
-                    if log_idx == cursor_absolute_line {
-                        is_cursor_line = true;
-                    }
-                }
-                
-                // Apply highlighting with proper priority:
-                // 1. Cursor line gets reversed colors (highest priority)
-                // 2. Selected lines get white background
-                // 3. Normal lines get default styling
-                
-                if is_cursor_line {
-                    // Cursor line: apply reversed styling for visibility
-                    let cursor_spans: Vec<Span> = line.spans.into_iter().map(|span| {
-                        Span::styled(
-                            span.content,
-                            span.style.add_modifier(Modifier::REVERSED)
-                        )
-                    }).collect();
-                    line = Line::from(cursor_spans);
-                } else if is_selected {
-                    // Selected line: apply white background with black text
-                    let highlighted_spans: Vec<Span> = line.spans.into_iter().map(|span| {
-                        Span::styled(
-                            span.content,
-                            span.style.bg(Color::White).fg(Color::Black)
-                        )
-                    }).collect();
-                    line = Line::from(highlighted_spans);
-                }
-                
-                line
-            }).collect()
-        };
-
-        let title = if input_handler.mode == InputMode::Selection {
-            if let Some(ref selection) = self.selection {
-                if selection.is_active {
-                    let lines_selected = selection.end_line - selection.start_line + 1;
-                    format!(" Logs ({}) - Selection: {} lines ", self.filtered_logs, lines_selected)
-                } else {
-                    format!(" Logs ({}) - Selection Mode ", self.filtered_logs)
-                }
-            } else {
-                format!(" Logs ({}) - Selection Mode ", self.filtered_logs)
-            }
-        } else {
-            format!(" Logs ({}) ", self.filtered_logs)
-        };
-
-        let border_color = if input_handler.mode == InputMode::Selection {
-            Color::Yellow
-        } else {
-            Color::Blue
-        };
-
-        let logs_paragraph = Paragraph::new(colored_lines)
-            .block(
-                Block::default()
-                    .title(title)
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(border_color))
-            )
-            .wrap(Wrap { trim: false });
-
-        f.render_widget(logs_paragraph, area);
     }
 
     /// Get a color for a pod name based on its hash
@@ -742,7 +745,8 @@ impl DisplayManager {
         // Remove oldest entries if we exceed max_lines
         if self.log_entries.len() >= self.max_lines {
             self.log_entries.pop_front();
-            if self.scroll_offset > 0 {
+            // **FIX SYSTEM MESSAGE SCROLL**: Only adjust scroll when not in selection mode
+            if self.selection.is_none() && self.scroll_offset > 0 {
                 self.scroll_offset = self.scroll_offset.saturating_sub(1);
             }
         }
@@ -764,7 +768,6 @@ impl DisplayManager {
             InputMode::EditingInclude => "EDIT INCLUDE",
             InputMode::EditingExclude => "EDIT EXCLUDE", 
             InputMode::Help => "HELP",
-            InputMode::Selection => "SELECTION",
         };
 
         // Auto-scroll indicator
@@ -790,12 +793,27 @@ impl DisplayManager {
             Span::styled(
                 format!(" {} ", mode_text),
                 Style::default()
-                    .bg(if input_handler.mode == InputMode::Selection { Color::Yellow } else { Color::Blue })
+                    .bg(Color::Blue)
                     .fg(Color::Black)
                     .add_modifier(Modifier::BOLD)
             ),
             Span::raw(" "),
             auto_scroll_indicator,
+        ];
+
+        // Add memory warning indicator when in pause mode and memory is critical
+        if self.is_memory_critical() {
+            status_spans.push(Span::raw(" "));
+            status_spans.push(Span::styled(
+                " 🔴 DISPLAY BUFFER FULL ",
+                Style::default()
+                    .bg(Color::Red)
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD | Modifier::SLOW_BLINK)
+            ));
+        }
+
+        status_spans.extend(vec![
             Span::raw(" "),
             Span::styled(
                 format!("Lines: {}", self.filtered_logs),
@@ -807,13 +825,10 @@ impl DisplayManager {
                 Style::default().fg(self.color_scheme.text_color())
             ),
             Span::raw(" | "),
-        ];
+        ]);
 
-        // Add different help text based on mode
-        let help_text = match input_handler.mode {
-            InputMode::Selection => "s:Exit-Selection x:Toggle-Selection Ctrl+c:Copy-Selection ↑↓:Navigate",
-            _ => "s:Selection f:Toggle-Follow h:Help q:Quit ↑↓:Scroll i:Include e:Exclude Ctrl+c:Copy",
-        };
+        // Updated help text without selection mode references
+        let help_text = "f:Toggle-Follow h:Help q:Quit ↑↓:Scroll i:Include e:Exclude Ctrl+c:Copy";
 
         status_spans.push(Span::styled(
             help_text,
@@ -926,258 +941,6 @@ impl DisplayManager {
         result
     }
 
-    /// Start or toggle selection at the current cursor position
-    pub fn toggle_selection(&mut self) {
-        let current_line = self.scroll_offset + self.selection_cursor;
-        
-        if let Some(ref mut selection) = self.selection {
-            if selection.is_active {
-                // Clear existing selection and restore auto-scroll
-                selection.clear();
-                self.selection = None;
-                self.auto_scroll = true; // Re-enable follow mode when selection is cleared
-                tracing::debug!("Selection cleared and auto-scroll restored");
-            } else {
-                // Reactivate selection and pause auto-scroll
-                *selection = Selection::new(current_line);
-                self.auto_scroll = false; // Pause auto-scroll when selection becomes active
-                tracing::debug!("Selection reactivated at line {} and auto-scroll paused", current_line);
-            }
-        } else {
-            // Start new selection and pause auto-scroll
-            self.selection = Some(Selection::new(current_line));
-            self.auto_scroll = false; // Pause auto-scroll when starting new selection
-            tracing::debug!("New selection started at line {} and auto-scroll paused", current_line);
-        }
-    }
-
-    /// Move selection cursor up
-    pub fn select_up(&mut self) {
-        if self.selection_cursor > 0 {
-            self.selection_cursor -= 1;
-        }
-        
-        // Extend selection if active
-        if let Some(ref mut selection) = self.selection {
-            if selection.is_active {
-                let current_line = self.scroll_offset + self.selection_cursor;
-                selection.extend_to(current_line);
-            }
-        }
-    }
-
-    /// Move selection cursor down
-    pub fn select_down(&mut self, viewport_height: usize) {
-        let max_cursor = viewport_height.saturating_sub(1);
-        if self.selection_cursor < max_cursor && self.selection_cursor < self.log_entries.len().saturating_sub(1) {
-            self.selection_cursor += 1;
-        }
-        
-        // Extend selection if active
-        if let Some(ref mut selection) = self.selection {
-            if selection.is_active {
-                let current_line = self.scroll_offset + self.selection_cursor;
-                selection.extend_to(current_line);
-            }
-        }
-    }
-
-    /// Clear current selection
-    pub fn clear_selection(&mut self) {
-        self.selection = None;
-        self.selection_cursor = 0;
-        self.auto_scroll = true; // Re-enable follow mode when selection is cleared
-    }
-
-    /// Get selected logs as text for clipboard copying
-    pub fn get_selected_logs_as_text(&self) -> String {
-        if let Some(ref selection) = self.selection {
-            if !selection.is_active {
-                return "No selection active".to_string();
-            }
-
-            let mut result = String::new();
-            let start_idx = selection.start_line.min(self.log_entries.len());
-            let end_idx = (selection.end_line + 1).min(self.log_entries.len());
-            
-            for (idx, entry) in self.log_entries.iter().enumerate() {
-                if idx >= start_idx && idx < end_idx {
-                    let formatted_line = self.format_log_for_ui(entry);
-                    result.push_str(&formatted_line);
-                    result.push('\n');
-                }
-            }
-
-            // Remove the last newline to avoid extra blank line
-            if result.ends_with('\n') {
-                result.pop();
-            }
-
-            if result.is_empty() {
-                "No logs in selection range".to_string()
-            } else {
-                result
-            }
-        } else {
-            "No selection active".to_string()
-        }
-    }
-
-    /// Handle mouse click for selection
-    pub fn handle_mouse_click(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
-        // Debug messages using the new add_system_log method
-        self.add_system_log(&format!("🖱️ Click at ({}, {}) - log_area: x={}, y={}, w={}, h={}", 
-            x, y, log_area.x, log_area.y, log_area.width, log_area.height));
-        
-        // Check if click is within the log area content (excluding borders and title)
-        if x >= log_area.x + 1 && x < log_area.x + log_area.width - 1 &&
-           y >= log_area.y + 2 && y < log_area.y + log_area.height - 1 {
-            
-            // Calculate which log line was clicked
-            let relative_y = y.saturating_sub(log_area.y + 2) as usize;
-            let clicked_line = self.scroll_offset.saturating_add(relative_y);
-            
-            self.add_system_log(&format!("📊 Calc: y={}, log_y={}, start={}, rel_y={}, scroll={}, line={}", 
-                y, log_area.y, log_area.y + 2, relative_y, self.scroll_offset, clicked_line));
-            
-            // IMPORTANT: When logs are coming fast, pause auto-scroll immediately to stabilize the view
-            let was_auto_scrolling = self.auto_scroll;
-            self.auto_scroll = false;
-            
-            // Ensure we don't go beyond available logs and relative_y is in visible range
-            if !self.log_entries.is_empty() && 
-               relative_y < (log_area.height as usize).saturating_sub(3) && 
-               clicked_line < self.log_entries.len() {
-                
-                self.add_system_log(&format!("✅ Valid click - selecting line {} (auto_scroll was {})", 
-                    clicked_line, was_auto_scrolling));
-                
-                // Clear any existing selection first to prevent conflicts
-                self.selection = None;
-                self.selection_cursor = 0;
-                
-                // Create new selection at the clicked line
-                self.selection = Some(Selection::new(clicked_line));
-                
-                // Set selection cursor to the relative viewport position
-                self.selection_cursor = relative_y;
-                
-                self.add_system_log(&format!("🎯 Selection cursor set to relative_y={} for clicked_line={}", 
-                    relative_y, clicked_line));
-                
-                if let Some(ref mut selection) = self.selection {
-                    selection.start_drag();
-                    self.add_system_log(&format!("🖱️ Mouse drag started for line {}", clicked_line));
-                }
-                return true;
-            } else {
-                self.add_system_log(&format!("❌ Invalid: entries={}, rel_y={}, max_rel_y={}, clicked_line={}", 
-                    self.log_entries.len(), relative_y, log_area.height.saturating_sub(3), clicked_line));
-                // Restore auto-scroll if click was invalid
-                self.auto_scroll = was_auto_scrolling;
-            }
-        } else {
-            self.add_system_log("❌ Click outside log area bounds");
-        }
-        false
-    }
-    
-    /// Handle mouse drag for selection extension
-    pub fn handle_mouse_drag(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
-        // Check if drag is within the log area and we have an active selection
-        if let Some(ref mut selection) = self.selection {
-            if selection.is_dragging && 
-               x >= log_area.x + 1 && x < log_area.x + log_area.width - 1 &&
-               y >= log_area.y + 2 && y < log_area.y + log_area.height - 1 {
-                
-                // Calculate which log line is being dragged to
-                let content_start_y = log_area.y + 2;
-                let relative_y = (y - content_start_y) as usize;
-                let drag_line = self.scroll_offset + relative_y;
-                
-                // Ensure we don't go beyond available logs and viewport bounds
-                let viewport_height = (log_area.height as usize).saturating_sub(3);
-                if drag_line < self.log_entries.len() && relative_y < viewport_height {
-                    let old_start = selection.start_line;
-                    let old_end = selection.end_line;
-                    selection.extend_to(drag_line);
-                    
-                    // Store values for logging before the borrow ends
-                    let new_start = selection.start_line;
-                    let new_end = selection.end_line;
-                    
-                    // Log selection changes during dragging
-                    tracing::info!("Selection extended: {}..{} → {}..{} (drag_line={}, scroll_offset={})",
-                        old_start, old_end, new_start, new_end, 
-                        drag_line, self.scroll_offset);
-                    
-                    // Add debug logging after the selection borrow ends
-                    let _ = selection; // Explicitly drop the mutable borrow
-                    self.add_system_log(&format!("🔄 Drag: y={}, rel_y={}, drag_line={}, selection={}..{}", 
-                        y, relative_y, drag_line, new_start, new_end));
-                    
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    /// Handle mouse release to end selection
-    pub fn handle_mouse_release(&mut self) -> bool {
-        if let Some(ref mut selection) = self.selection {
-            if selection.is_dragging {
-                selection.end_drag();
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Enter selection mode - double the buffer size to prevent rotation
-    pub fn enter_selection_mode(&mut self) {
-        if self.max_lines == self.original_max_lines {
-            self.max_lines = self.original_max_lines * 2; // 100 -> 200
-            // Expand the VecDeque capacity to match
-            self.log_entries.reserve(self.original_max_lines);
-            self.add_system_log(&format!("📈 Buffer expanded from {} to {} lines for selection mode", 
-                self.original_max_lines, self.max_lines));
-        }
-    }
-
-    /// Exit selection mode - restore original buffer size and trim if necessary
-    pub fn exit_selection_mode(&mut self) {
-        if self.max_lines > self.original_max_lines {
-            self.max_lines = self.original_max_lines; // Back to original size
-            
-            // Before trimming, check if we have excessive entries and warn user
-            let entries_to_remove = self.log_entries.len().saturating_sub(self.max_lines);
-            if entries_to_remove > 0 {
-                self.add_system_log(&format!("📉 Trimming {} excess entries when exiting selection mode", 
-                    entries_to_remove));
-            }
-            
-            // Trim excess entries if we have more than the original buffer size
-            while self.log_entries.len() > self.max_lines {
-                self.log_entries.pop_front();
-                
-                // Adjust scroll offset when removing entries from front
-                if self.scroll_offset > 0 {
-                    self.scroll_offset = self.scroll_offset.saturating_sub(1);
-                }
-            }
-            
-            // Shrink the VecDeque capacity back to original size
-            self.log_entries.shrink_to_fit();
-            
-            self.add_system_log(&format!("📉 Buffer restored to {} lines, selection mode ended", 
-                self.max_lines));
-        }
-        
-        // Always restore auto-scroll when exiting selection mode
-        self.auto_scroll = true;
-    }
-
     /// Clear all buffers for performance optimization during shutdown
     pub fn clear_all_buffers(&mut self) {
         let buffer_size_before = self.log_entries.len();
@@ -1191,10 +954,6 @@ impl DisplayManager {
         self.pod_color_cache.clear();
         self.container_color_cache.clear();
         
-        // Clear selection state
-        self.selection = None;
-        self.selection_cursor = 0;
-        
         // Reset counters
         self.filtered_logs = 0;
         self.scroll_offset = 0;
@@ -1204,9 +963,315 @@ impl DisplayManager {
         tracing::info!("Buffer cleanup completed: {} log entries cleared, {} cache entries cleared", 
                       buffer_size_before, cache_entries_before);
     }
+
+    /// Handle mouse click for text selection in pause mode
+    pub fn handle_mouse_click(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
+        // Only allow selection in pause mode (not in follow mode)
+        if self.auto_scroll {
+            return false;
+        }
+        
+        // Check if click is within the log area
+        if x >= log_area.x + 1 && x < log_area.x + log_area.width - 1 &&
+           y >= log_area.y + 2 && y < log_area.y + log_area.height - 1 {
+            
+            let content_start_y = log_area.y + 2;
+            let relative_y = (y - content_start_y) as usize;
+            let viewport_height = (log_area.height as usize).saturating_sub(3);
+            
+            // **FIX CLICK SCROLL JUMP**: Don't validate scroll during click - preserve user's scroll position
+            // The automatic scroll validation was causing unwanted jumps at high scroll positions like 10,000
+            
+            // MEMORY-SAFE: Use safe line calculation with current scroll position (no validation)
+            if let Some(clicked_line) = self.get_absolute_line_safe(relative_y) {
+                // SMART CLICK BEHAVIOR: Check if we're clicking on existing selection
+                if let Some(ref existing_selection) = self.selection {
+                    // Check if click is within the existing selection range
+                    let selection_start = existing_selection.start_line.min(existing_selection.end_line);
+                    let selection_end = existing_selection.start_line.max(existing_selection.end_line);
+                    
+                    if clicked_line >= selection_start && clicked_line <= selection_end {
+                        // Clicking inside existing selection - clear it (user wants to deselect)
+                        self.clear_selection();
+                        self.add_system_log(&format!("🖱️ Clicked inside selection - cleared selection"));
+                        return true;
+                    } else {
+                        // Clicking outside existing selection - clear old and prepare for new selection
+                        self.add_system_log(&format!("🔄 Clearing previous selection: {}..{}", 
+                            existing_selection.start_line, existing_selection.end_line));
+                        self.selection = None; // Clear old selection
+                    }
+                }
+                
+                // Start new selection but DON'T set dragging state yet
+                // We'll only start dragging if the user actually drags the mouse
+                let new_selection = Selection::new(clicked_line);
+                self.selection = Some(new_selection);
+                self.selection_cursor = relative_y.min(viewport_height.saturating_sub(1));
+                
+                self.add_system_log(&format!("🖱️ Selection anchor set at line {} (scroll: {}) - drag to extend", 
+                    clicked_line, self.scroll_offset));
+                return true;
+            } else {
+                self.add_system_log(&format!("❌ Invalid click position: relative_y={}, scroll={}, buffer_size={}", 
+                    relative_y, self.scroll_offset, self.log_entries.len()));
+                return false;
+            }
+        }
+        false
+    }
+    
+    /// Handle mouse drag for extending selection with dynamic display adjustment
+    pub fn handle_mouse_drag(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
+        // Debug every mouse drag event
+        self.add_system_log(&format!("🖱️ Mouse drag: x={}, y={}, log_area={}x{}", x, y, log_area.width, log_area.height));
+        
+        // Check if we have a selection anchor (from mouse click)
+        if self.selection.is_none() {
+            self.add_system_log("❌ No selection anchor - click first to start selection");
+            return false;
+        }
+        
+        // Start dragging if not already dragging (first drag event after click)
+        if let Some(ref mut selection) = self.selection {
+            if !selection.is_dragging {
+                selection.start_drag();
+                self.add_system_log("🖱️ Started dragging - selection now active");
+            }
+        }
+        
+        // Now check if we have an active dragging selection
+        let has_dragging_selection = self.selection.as_ref()
+            .map(|s| s.is_dragging)
+            .unwrap_or(false);
+            
+        self.add_system_log(&format!("🔍 Has dragging selection: {}", has_dragging_selection));
+        
+        // Debug current selection state
+        if let Some(ref selection) = self.selection {
+            self.add_system_log(&format!("🔍 Current selection state: active={}, dragging={}, range={}..{}", 
+                selection.is_active, selection.is_dragging, selection.start_line, selection.end_line));
+        }
+            
+        if !has_dragging_selection {
+            self.add_system_log("❌ No active dragging selection - this shouldn't happen!");
+            return false;
+        }
+        
+        if x < log_area.x + 1 || x >= log_area.x + log_area.width - 1 {
+            self.add_system_log(&format!("❌ Mouse outside horizontal bounds: x={}, bounds={}..{}", 
+                x, log_area.x + 1, log_area.x + log_area.width - 1));
+            return false;
+        }
+        
+        let content_start_y = log_area.y + 2;
+        let content_end_y = log_area.y + log_area.height - 1;
+        let viewport_height = (log_area.height as usize).saturating_sub(3);
+        
+        self.add_system_log(&format!("🔍 Viewport: content_y={}..{}, height={}", 
+            content_start_y, content_end_y, viewport_height));
+        
+        // **FIX DRAG SCROLL JUMP**: Don't validate scroll during drag - preserve user's scroll position
+        // The automatic scroll validation was causing unwanted jumps at high scroll positions like 10,000
+        
+        // Update display window based on current scroll position (no validation)
+        self.update_display_window(viewport_height);
+        
+        // Calculate drag line position (handle edge cases)
+        let relative_y = if y < content_start_y {
+            0 // Dragging above viewport
+        } else if y >= content_end_y {
+            viewport_height.saturating_sub(1) // Dragging below viewport
+        } else {
+            (y - content_start_y) as usize // Normal position
+        };
+        
+        self.add_system_log(&format!("🔍 Drag position: relative_y={}, scroll_offset={}", 
+            relative_y, self.scroll_offset));
+        
+        // MEMORY-SAFE: Use safe line calculation for drag position (no scroll validation)
+        if let Some(drag_line) = self.get_absolute_line_safe(relative_y) {
+            if let Some(ref mut selection) = self.selection {
+                // Store the original selection for debugging
+                let original_start = selection.start_line;
+                let original_end = selection.end_line;
+                
+                // Extend selection to new drag position
+                selection.extend_to(drag_line);
+                
+                // Critical fix: Ensure we preserve the original start point
+                if selection.start_line != original_start {
+                    self.add_system_log(format!("⚠️ Selection start moved from {} to {} - fixing", 
+                        original_start, selection.start_line));
+                        
+                    // Restore proper start/end based on drag direction
+                    if drag_line < original_start {
+                        selection.start_line = drag_line;
+                        selection.end_line = original_start;
+                    } else {
+                        selection.start_line = original_start;
+                        selection.end_line = drag_line;
+                    }
+                }
+                
+                // Update selection cursor to follow drag
+                self.selection_cursor = relative_y.min(viewport_height.saturating_sub(1));
+            } else {
+                self.add_system_log("❌ Selection disappeared during drag - this shouldn't happen!");
+                return false;
+            }
+            
+            // MEMORY-SAFE: Only adjust display if not at memory limit
+            let scrolled = if !self.is_memory_critical() {
+                self.check_selection_display_adjustment(viewport_height)
+            } else {
+                // When memory is full, avoid dynamic scrolling to maintain stability
+                false
+            };
+            
+            self.add_system_log(&format!("🔄 Result: scrolled={}, memory_full={}", 
+                scrolled, self.is_memory_critical()));
+            
+            // Return true if scroll happened to force UI update
+            scrolled
+        } else {
+            self.add_system_log(&format!("❌ Invalid drag position: relative_y={}, scroll={}", 
+                relative_y, self.scroll_offset));
+            false
+        }
+    }
+    
+    /// Handle mouse release to end dragging
+    pub fn handle_mouse_release(&mut self) -> bool {
+        if let Some(ref mut selection) = self.selection {
+            if selection.is_dragging {
+                selection.end_drag();
+                let lines_selected = selection.end_line - selection.start_line + 1;
+                let start_line = selection.start_line;
+                let end_line = selection.end_line;
+                
+                // Store debug message to log after borrow ends
+                let debug_message = format!("📝 SELECTION COMPLETE: {} lines selected ({}..{}) - Ctrl+C to copy", 
+                    lines_selected, start_line, end_line);
+                
+                // Log debug message after we're done with selection borrow
+                self.add_system_log(&debug_message);
+                self.add_system_log("🔧 Selection state finalized, ready for next selection");
+                return true;
+            }
+        }
+        false
+    }
+    
+    /// Extend selection up with keyboard
+    pub fn select_up(&mut self) {
+        if let Some(ref mut selection) = self.selection {
+            if selection.start_line > 0 {
+                selection.start_line -= 1;
+                // Move cursor up as well
+                if self.selection_cursor > 0 {
+                    self.selection_cursor -= 1;
+                } else if self.scroll_offset > 0 {
+                    // **FIX KEYBOARD SELECTION SCROLL**: Only scroll when buffer is not at critical capacity
+                    // Check memory usage before scroll adjustment to avoid conflicts
+                    let usage_percent = (self.log_entries.len() as f64 / self.max_lines as f64) * 100.0;
+                    if usage_percent < 80.0 {
+                        self.scroll_offset -= 1;
+                    }
+                }
+                
+                let lines_selected = selection.end_line - selection.start_line + 1;
+                self.add_system_log(&format!("📝 Selection extended: {} lines", lines_selected));
+            }
+        }
+    }
+    
+    /// Extend selection down with keyboard
+    pub fn select_down(&mut self, viewport_height: usize) {
+        if let Some(ref mut selection) = self.selection {
+            if selection.end_line + 1 < self.log_entries.len() {
+                selection.end_line += 1;
+                // Move cursor down as well
+                let max_cursor = viewport_height.saturating_sub(3);
+                if self.selection_cursor < max_cursor {
+                    self.selection_cursor += 1;
+                } else {
+                    // **FIX KEYBOARD SELECTION SCROLL**: Only scroll when buffer is not at critical capacity
+                    // Check memory usage before scroll adjustment to avoid conflicts
+                    let usage_percent = (self.log_entries.len() as f64 / self.max_lines as f64) * 100.0;
+                    if usage_percent < 80.0 {
+                        let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
+                        if self.scroll_offset < max_scroll {
+                            self.scroll_offset += 1;
+                        }
+                    }
+                }
+                
+                let lines_selected = selection.end_line - selection.start_line + 1;
+                self.add_system_log(&format!("📝 Selection extended: {} lines", lines_selected));
+            }
+        }
+    }
+    
+    /// Get selected logs as text for clipboard copying
+    pub fn get_selected_logs_as_text(&self) -> String {
+        if let Some(ref selection) = self.selection {
+            if selection.is_active {
+                let start = selection.start_line;
+                let end = selection.end_line.min(self.log_entries.len().saturating_sub(1));
+                
+                let mut result = String::new();
+                for i in start..=end {
+                    if let Some(entry) = self.log_entries.get(i) {
+                        let formatted_line = self.format_log_for_ui(entry);
+                        result.push_str(&formatted_line);
+                        result.push('\n');
+                    }
+                }
+                
+                // Remove the last newline to avoid extra blank line
+                if result.ends_with('\n') {
+                    result.pop();
+                }
+                
+                return result;
+            }
+        }
+        
+        "No text selected".to_string()
+    }
+    
+    /// Clear current selection and completely reset all selection state
+    pub fn clear_selection(&mut self) {
+        self.selection = None;
+        self.selection_cursor = 0;
+        
+        // Reset any selection-related display state that might persist
+        // This ensures a completely fresh start for the next selection
+        self.add_system_log("📝 Selection cleared - all state reset");
+    }
+    
+    /// Toggle selection mode and select all logs if no selection exists
+    pub fn toggle_selection_all(&mut self) {
+        if self.selection.is_some() {
+            // If selection exists, clear it
+            self.clear_selection();
+        } else if !self.log_entries.is_empty() {
+            // Create a selection spanning all logs
+            self.selection = Some(Selection {
+                start_line: 0,
+                end_line: self.log_entries.len() - 1,
+                is_active: true,
+                is_dragging: false,
+            });
+            let count = self.log_entries.len();
+            self.add_system_log(&format!("📝 Selected all {} logs (Ctrl+C to copy)", count));
+        }
+    }
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+fn centered_rect(percent_x: u16, percent_y: u16, r: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    use ratatui::layout::{Constraint, Direction, Layout};
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

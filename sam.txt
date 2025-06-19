@@ -1,0 +1,558 @@
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-01-8fc6b55bd-tnsxq[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-01-8fc6b55bd-xzpth[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] User authentication successful for user_1401460[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Processing request req_1401461 with payload size 1024[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Database connection established to primary DB[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Cache miss for key user:session:1401463[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] Memory usage: 64%[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] HTTP request completed in 75ms[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Failed to connect to external service timeout after 5s[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Configuration loaded from /etc/config/app.yaml[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] Health check passed for component-3[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] Background job job_1401469 started successfully[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Queue processing: 70 items remaining[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] SSL certificate will expire in 201 days[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-02-758d9c8c87-46wb7[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Rate limit exceeded for IP 192.168.1.247[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-02-758d9c8c87-z6c6w[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Backup operation completed: 32GB transferred[0m
+[36mperf-generator-02-844d8bfdcc-9g96x[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-02-844d8bfdcc-9g96x[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] Kubernetes pod perf-generator-01 scheduled on node-0[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] S3 bucket sync started: 8084 objects to process[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] gRPC call user.GetProfile(1008085) completed successfully[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Circuit breaker opened for service payment-gateway[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Kubernetes deployment scaled from 3 to 6 replicas[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] NGINX access log: GET /api/v2/data?id=1008088 200 32ms[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Audit log: user admin_1008089 performed action DELETE on resource_1008089[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] API endpoint /v1/users/1008090 responded in 90ms[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] Redis cache hit ratio: 91%[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] Elasticsearch index updated with 92 documents[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] JWT token validation failed for user_1008093: expired[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Database query executed: SELECT * FROM users WHERE id=1008094[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] Metrics exported: cpu=75% memory=35%[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Failed to connect to external service timeout after 5s[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Configuration loaded from /etc/config/app.yaml[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] Health check passed for component-3[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] Background job job_1393729 started successfully[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Queue processing: 30 items remaining[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] SSL certificate will expire in 261 days[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Rate limit exceeded for IP 192.168.1.157[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Backup operation completed: 32GB transferred[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] Kubernetes pod perf-generator-01 scheduled on node-0[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] Metrics exported: cpu=35% memory=55%[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Transaction tx_1393736 rolled back due to constraint violation[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-03-6d64f694d6-fwrt8[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Message published to topic events.user.actions with key=1008095[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Transaction tx_1401476 rolled back due to constraint violation[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] File uploaded: document_1393737.pdf size=737KB[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Database query executed: SELECT * FROM users WHERE id=1399069[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Message published to topic events.user.actions with key=1399070[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Docker image pulled: app:v1.71[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Load balancer health check failed for backend-2[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Prometheus scrape completed: 1024 metrics collected[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] S3 bucket sync started: 9074 objects to process[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] gRPC call user.GetProfile(1399075) completed successfully[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] Circuit breaker opened for service payment-gateway[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Kubernetes deployment scaled from 3 to 4 replicas[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] NGINX access log: GET /api/v2/data?id=1399078 200 32ms[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] File uploaded: document_1401477.pdf size=477KB[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] Audit log: user admin_1399079 performed action DELETE on resource_1399079[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] WebSocket connection established from client_1393738[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-03-6d64f694d6-pb78l[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] Scheduled maintenance window starts in 59 minutes[0m
+[32mperf-generator-03-784dd7c76-rttgz[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-03-784dd7c76-rttgz[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] API endpoint /v1/users/1399080 responded in 80ms[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Docker image pulled: app:v1.96[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] WebSocket connection established from client_1401478[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] [user-service] Profile updated for user_2296289: email, preferences[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] [notification-service] Email sent to user_2296290 subject=welcome[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] [inventory-service] Stock check item_2296291: available=91[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] [auth-service] Login attempt user_2296292 from IP 10.0.17.17[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] [order-service] Order order_2296293 created status=pending total=1293[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] [shipping-service] Package pkg_2296294 dispatched carrier=ups tracking=2296294[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] [analytics-service] Event tracked: page_view user=2296295 page=/dashboard[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [payment-service] Transaction txn_2296296 processed amount=6296[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [user-service] Profile updated for user_2296297: email, preferences[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [notification-service] Email sent to user_2296298 subject=welcome[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [inventory-service] Stock check item_2296299: available=99[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] User authentication successful for user_1393740[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [payment-service] Transaction txn_2298640 processed amount=8640[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] [user-service] Profile updated for user_2298641: email, preferences[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] [notification-service] Email sent to user_2298642 subject=welcome[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] [inventory-service] Stock check item_2298643: available=43[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:32] [WARN] [auth-service] Login attempt user_2298644 from IP 10.0.74.74[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] [order-service] Order order_2298645 created status=pending total=3645[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] [shipping-service] Package pkg_2298646 dispatched carrier=ups tracking=2298646[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:32] [ERROR] [analytics-service] Event tracked: page_view user=2298647 page=/dashboard[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [payment-service] Transaction txn_2298648 processed amount=8648[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [user-service] Profile updated for user_2298649: email, preferences[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [notification-service] Email sent to user_2298650 subject=welcome[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Processing request req_1393741 with payload size 1024[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [auth-service] Login attempt user_2296300 from IP 10.0.25.25[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] Scheduled maintenance window starts in 59 minutes[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Load balancer health check failed for backend-2[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] Redis cache hit ratio: 81%[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:32] [DEBUG] [order-service] Order order_2296301 created status=pending total=1301[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [inventory-service] Stock check item_2298651: available=51[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] User authentication successful for user_1401480[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Database connection established to primary DB[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Prometheus scrape completed: 1024 metrics collected[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Processing request req_1401481 with payload size 1024[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [auth-service] Login attempt user_2298652 from IP 10.0.82.82[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [shipping-service] Package pkg_2296302 dispatched carrier=ups tracking=2296302[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] S3 bucket sync started: 8099 objects to process[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Elasticsearch index updated with 82 documents[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Cache miss for key user:session:1393743[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Database connection established to primary DB[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] JWT token validation failed for user_1399083: expired[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [analytics-service] Event tracked: page_view user=2296303 page=/dashboard[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [order-service] Order order_2298653 created status=pending total=3653[0m
+[33mperf-generator-04-677ffc5969-zmdgv[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-04-677ffc5969-zmdgv[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Cache miss for key user:session:1401483[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] gRPC call user.GetProfile(1008100) completed successfully[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Memory usage: 94%[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Memory usage: 84%[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [shipping-service] Package pkg_2298654 dispatched carrier=ups tracking=2298654[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [payment-service] Transaction txn_2296304 processed amount=6304[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] HTTP request completed in 55ms[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [user-service] Profile updated for user_2296305: email, preferences[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Circuit breaker opened for service payment-gateway[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [analytics-service] Event tracked: page_view user=2298655 page=/dashboard[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Database query executed: SELECT * FROM users WHERE id=1399084[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] HTTP request completed in 95ms[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Failed to connect to external service timeout after 5s[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [notification-service] Email sent to user_2296306 subject=welcome[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [payment-service] Transaction txn_2298656 processed amount=8656[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [user-service] Profile updated for user_2298657: email, preferences[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [inventory-service] Stock check item_2296307: available=7[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-04-84f474cdff-4xhkn[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Kubernetes deployment scaled from 3 to 7 replicas[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [auth-service] Login attempt user_2296308 from IP 10.0.33.33[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Configuration loaded from /etc/config/app.yaml[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Failed to connect to external service timeout after 5s[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-04-84f474cdff-cl9gd[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Message published to topic events.user.actions with key=1399085[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [notification-service] Email sent to user_2298658 subject=welcome[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Health check passed for component-3[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Configuration loaded from /etc/config/app.yaml[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] NGINX access log: GET /api/v2/data?id=1008103 200 32ms[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Health check passed for component-3[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [inventory-service] Stock check item_2298659: available=59[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [order-service] Order order_2296309 created status=pending total=1309[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Background job job_1393749 started successfully[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-05-58c78979d9-dtk6x[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Background job job_1401489 started successfully[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Docker image pulled: app:v1.86[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [auth-service] Login attempt user_2298660 from IP 10.0.90.90[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [shipping-service] Package pkg_2296310 dispatched carrier=ups tracking=2296310[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Audit log: user admin_1008104 performed action DELETE on resource_1008104[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Queue processing: 50 items remaining[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [order-service] Order order_2298661 created status=pending total=3661[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] API endpoint /v1/users/1008105 responded in 105ms[0m
+[92mperf-generator-05-8d45cf54c-6cb7f[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-05-8d45cf54c-6cb7f[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Queue processing: 90 items remaining[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [redis] Cache operation: SET user:2175169 TTL=3600s[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:32] [INFO] [elasticsearch] Index operation: docs_indexed=70 took=20ms[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [mongodb] Collection scan: users scanned=5171 returned=71[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [mysql] Slow query detected: SELECT * FROM orders WHERE created > '2025-06-19T01:57:33'[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [kafka] Message produced: topic=events partition=5 offset=2175173[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [rabbitmq] Queue depth: notifications=174 orders=174[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [nginx] Upstream response: backend=0 status=200 time=75ms[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [kubernetes] Pod scheduled: perf-test-2175176 on node-worker-2[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [docker] Container started: image=app:latest id=cont_2175177 memory_limit=512Mi[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [prometheus] Metrics scraped: targets=28 series=5178[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] SSL certificate will expire in 221 days[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] SSL certificate will expire in 281 days[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [shipping-service] Package pkg_2298662 dispatched carrier=ups tracking=2298662[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Load balancer health check failed for backend-2[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [grafana] Dashboard rendered: users_overview load_time=159ms[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [postgres] Query executed: duration=960ms rows=460[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [redis] Cache operation: SET user:2178961 TTL=3600s[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [elasticsearch] Index operation: docs_indexed=62 took=12ms[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [mongodb] Collection scan: users scanned=8963 returned=63[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [mysql] Slow query detected: SELECT * FROM orders WHERE created > '2025-06-19T01:57:33'[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [kafka] Message produced: topic=events partition=5 offset=2178965[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [rabbitmq] Queue depth: notifications=966 orders=466[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [nginx] Upstream response: backend=2 status=200 time=67ms[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [kubernetes] Pod scheduled: perf-test-2178968 on node-worker-2[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [analytics-service] Event tracked: page_view user=2296311 page=/dashboard[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [grafana] Dashboard rendered: users_overview load_time=179ms[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [analytics-service] Event tracked: page_view user=2298663 page=/dashboard[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Rate limit exceeded for IP 192.168.1.12[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Redis cache hit ratio: 86%[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Prometheus scrape completed: 1024 metrics collected[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [payment-service] Transaction txn_2296312 processed amount=6312[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [docker] Container started: image=app:latest id=cont_2178969 memory_limit=512Mi[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Rate limit exceeded for IP 192.168.1.177[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [postgres] Query executed: duration=180ms rows=180[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] S3 bucket sync started: 9089 objects to process[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Backup operation completed: 32GB transferred[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [payment-service] Transaction txn_2298664 processed amount=8664[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [malware] Scan completed: files=1146 threats=1 clean=99%[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [incident] Security event: severity=HIGH type=brute_force target=user_2071147[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [patch] Security update applied: CVE-2024-2071148 package=openssl status=success[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [session] User session expired: user_2071149 duration=1149s last_activity=2025-06-19T01:57:33[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [crypto] Key rotation completed: service=database new_key_id=key_2071150[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [zero-trust] Network access granted: user_2071151 resource=internal-api score=91[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [security] Failed login attempt: user=admin_2071152 ip=192.168.42.42[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [audit] Privilege escalation: user_2071153 requested sudo access to /etc/passwd[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [firewall] Blocked connection: src=10.0.44.44 dst=internal port=22[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [ids] Suspicious activity detected: user_2071155 multiple failed API calls[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [prometheus] Metrics scraped: targets=20 series=8970[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [ssl] Certificate validation failed: cn=app-2071156.internal expired=2025-06-19T01:57:33[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [redis] Cache operation: SET user:2175181 TTL=3600s[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [user-service] Profile updated for user_2296313: email, preferences[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] gRPC call user.GetProfile(1399090) completed successfully[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Kubernetes pod perf-generator-01 scheduled on node-2[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [user-service] Profile updated for user_2298665: email, preferences[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-05-8d45cf54c-f9qgf[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Elasticsearch index updated with 107 documents[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Backup operation completed: 32GB transferred[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [elasticsearch] Index operation: docs_indexed=82 took=32ms[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [notification-service] Email sent to user_2296314 subject=welcome[0m
+[32mperf-generator-06-6b49f6686b-wq8ll[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-06-6b49f6686b-wq8ll[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [oauth] Token refresh: client_id=app_2071157 user_id=2071157 scope=read,write[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [grafana] Dashboard rendered: users_overview load_time=171ms[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Circuit breaker opened for service payment-gateway[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [notification-service] Email sent to user_2298666 subject=welcome[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [mongodb] Collection scan: users scanned=5183 returned=83[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [postgres] Query executed: duration=972ms rows=472[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Metrics exported: cpu=95% memory=55%[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Kubernetes deployment scaled from 3 to 5 replicas[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [inventory-service] Stock check item_2296315: available=15[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-06-75876d9948-m4nml[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [inventory-service] Stock check item_2298667: available=67[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [redis] Cache operation: SET user:2178973 TTL=3600s[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [rbac] Permission denied: user_2071158 action=DELETE resource=secrets/prod-2071158[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Kubernetes pod perf-generator-01 scheduled on node-2[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] NGINX access log: GET /api/v2/data?id=1399093 200 32ms[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [mysql] Slow query detected: SELECT * FROM orders WHERE created > '2025-06-19T01:57:33'[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-06-75876d9948-pqlxw[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Transaction tx_1401496 rolled back due to constraint violation[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [auth-service] Login attempt user_2296316 from IP 10.0.41.41[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [elasticsearch] Index operation: docs_indexed=74 took=24ms[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] JWT token validation failed for user_1008108: expired[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [auth-service] Login attempt user_2298668 from IP 10.0.98.98[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] File uploaded: document_1401497.pdf size=497KB[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Audit log: user admin_1399094 performed action DELETE on resource_1399094[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [vault] Secret accessed: path=secret/db/password user=service_2071159[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [kafka] Message produced: topic=events partition=1 offset=2175185[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Database query executed: SELECT * FROM users WHERE id=1008109[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [order-service] Order order_2298669 created status=pending total=3669[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [mongodb] Collection scan: users scanned=8975 returned=75[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [drift-detection] Model drift detected: feature=age threshold=0.05 current=0.5[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [ml-service] Model inference: model=recommendation_v6 latency=136ms[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [training] Epoch 37/100 completed: loss=0.2156 accuracy=97%[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [feature-store] Features extracted: user_2191938 features=[age,location,behavior] count=47[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [pipeline] Data preprocessing: batch_2191939 records=1939 cleaned=99%[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [gpu-cluster] GPU utilization: node_4 gpu_0 usage=40%[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [vector-db] Similarity search: query_id=2191941 results=41 threshold=0.81[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [model-registry] Model deployed: recommendation_v2 A/B_test=group_0[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [automl] Hyperparameter tuning: trial_2191943 learning_rate=0.0083 score=0.2162[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [anomaly-detection] Outlier detected: metric=cpu_usage value=94% severity=medium[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [order-service] Order order_2296317 created status=pending total=1317[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Metrics exported: cpu=55% memory=75%[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] API endpoint /v1/users/1399095 responded in 95ms[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] WebSocket connection established from client_1401498[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [encryption] Data encrypted: algorithm=AES256 key_id=key_2071160 size=1160bytes[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [mysql] Slow query detected: SELECT * FROM orders WHERE created > '2025-06-19T01:57:33'[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [kafka] Message produced: topic=events partition=1 offset=2178977[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [rabbitmq] Queue depth: notifications=186 orders=186[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [shipping-service] Package pkg_2296318 dispatched carrier=ups tracking=2296318[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [analytics-service] Event tracked: page_view user=2296319 page=/dashboard[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Message published to topic events.user.actions with key=1008110[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Redis cache hit ratio: 96%[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [nginx] Upstream response: backend=2 status=200 time=87ms[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [shipping-service] Package pkg_2298670 dispatched carrier=ups tracking=2298670[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [session] User session expired: user_1478517 duration=2517s last_activity=2025-06-19T01:57:33[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [crypto] Key rotation completed: service=database new_key_id=key_1478518[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [zero-trust] Network access granted: user_1478519 resource=internal-api score=99[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [security] Failed login attempt: user=admin_1478520 ip=192.168.30.30[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [audit] Privilege escalation: user_1478521 requested sudo access to /etc/passwd[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [firewall] Blocked connection: src=10.0.32.32 dst=internal port=22[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [ids] Suspicious activity detected: user_1478523 multiple failed API calls[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [ssl] Certificate validation failed: cn=app-1478524.internal expired=2025-06-19T01:57:33[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [oauth] Token refresh: client_id=app_1478525 user_id=1478525 scope=read,write[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [rbac] Permission denied: user_1478526 action=DELETE resource=secrets/prod-1478526[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [reinforcement] Agent action: state_2191945 action=1 reward=45 episode=945[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Transaction tx_1393756 rolled back due to constraint violation[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [compliance] PII access logged: user_2071161 accessed customer_data table[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [payment-service] Transaction txn_2296320 processed amount=6320[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [rabbitmq] Queue depth: notifications=978 orders=478[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Scheduled maintenance window starts in 19 minutes[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [kubernetes] Pod scheduled: perf-test-2175188 on node-worker-2[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [analytics-service] Event tracked: page_view user=2298671 page=/dashboard[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [user-service] Profile updated for user_2296321: email, preferences[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] File uploaded: document_1393757.pdf size=757KB[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [vault] Secret accessed: path=secret/db/password user=service_1478527[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [nlp-service] Text processed: doc_2191946 tokens=1946 sentiment=neutral[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [nginx] Upstream response: backend=4 status=200 time=79ms[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [backup] Encrypted backup created: file=backup_2071162.tar.gz size=162MB[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-07-5467fc8b57-7sg4l[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] User authentication successful for user_1401500[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Docker image pulled: app:v1.11[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] WebSocket connection established from client_1393758[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-07-5467fc8b57-xzzj5[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [payment-service] Transaction txn_2298672 processed amount=8672[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [notification-service] Email sent to user_2296322 subject=welcome[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [kubernetes] Pod scheduled: perf-test-2178980 on node-worker-2[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [docker] Container started: image=app:latest id=cont_2175189 memory_limit=512Mi[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Elasticsearch index updated with 97 documents[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [encryption] Data encrypted: algorithm=AES256 key_id=key_1478528 size=8528bytes[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Load balancer health check failed for backend-2[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Scheduled maintenance window starts in 19 minutes[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Processing request req_1401501 with payload size 1024[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [docker] Container started: image=app:latest id=cont_2178981 memory_limit=512Mi[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [prometheus] Metrics scraped: targets=40 series=5190[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [inventory-service] Stock check item_2296323: available=23[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [network] VPN connection established: user_2071163 from 13.vpn.company.com[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [user-service] Profile updated for user_2298673: email, preferences[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] JWT token validation failed for user_1399098: expired[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [computer-vision] Image classified: img_2191947.jpg confidence=87% class=object_7[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] User authentication successful for user_1393760[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [grafana] Dashboard rendered: users_overview load_time=191ms[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [malware] Scan completed: files=1164 threats=4 clean=99%[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [auth-service] Login attempt user_2296324 from IP 10.0.49.49[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [ml-service] Model inference: model=recommendation_v2 latency=72ms[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [training] Epoch 73/100 completed: loss=0.1292 accuracy=93%[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [feature-store] Features extracted: user_2191074 features=[age,location,behavior] count=47[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [pipeline] Data preprocessing: batch_2191075 records=1075 cleaned=95%[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [gpu-cluster] GPU utilization: node_4 gpu_0 usage=76%[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [vector-db] Similarity search: query_id=2191077 results=77 threshold=0.9[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [model-registry] Model deployed: recommendation_v18 A/B_test=group_0[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [automl] Hyperparameter tuning: trial_2191079 learning_rate=0.0011 score=0.1298[0m
+[92mperf-generator-07-5bcc8f59f-z6fcr[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-07-5bcc8f59f-z6fcr[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [anomaly-detection] Outlier detected: metric=cpu_usage value=90% severity=medium[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [reinforcement] Agent action: state_2191081 action=1 reward=81 episode=81[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [data-pipeline] Batch processed: source=kafka topic=iot-events records=6132 errors=2[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [device-registry] Device registered: id=device_133 type=sensor location=floor_3[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [firmware] OTA update: device_134 version=1.34 status=pending[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [network] Connectivity: device_135 signal_strength=85dBm network=5G[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [analytics] Real-time aggregation: window=5m count=136 avg_temp=26C[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [storage] Time-series write: measurement=sensors timestamp=2226137 fields=17 tags=2[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [compression] Data compressed: original=6138KB compressed=138KB ratio=78%[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [geo-location] Position update: device_139 lat=79.6361 lon=79.6361[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [iot-gateway] Sensor data: device_140 temp=40C humidity=40%[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [stream-processor] Event processed: stream=telemetry batch_size=141 latency=41ms[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [compliance] PII access logged: user_1478529 accessed customer_data table[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [prometheus] Metrics scraped: targets=32 series=8982[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [notification-service] Email sent to user_2298674 subject=welcome[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Processing request req_1393761 with payload size 1024[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [postgres] Query executed: duration=192ms rows=192[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [order-service] Order order_2296325 created status=pending total=1325[0m
+[94mperf-generator-08-6bf66cc77c-7ds6g[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-08-6bf66cc77c-7ds6g[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Database query executed: SELECT * FROM users WHERE id=1399099[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Prometheus scrape completed: 1024 metrics collected[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [data-lake] Batch job completed: dataset_2191948 rows=91948 size=948GB[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [inventory-service] Stock check item_2298675: available=75[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [backup] Encrypted backup created: file=backup_1478530.tar.gz size=530MB[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [grafana] Dashboard rendered: users_overview load_time=183ms[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Database connection established to primary DB[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [nlp-service] Text processed: doc_2191082 tokens=1082 sentiment=neutral[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [mqtt-broker] Message published: topic=sensors/temp/142 qos=1 size=990bytes[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Message published to topic events.user.actions with key=1399100[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [redis] Cache operation: SET user:2175193 TTL=3600s[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Database connection established to primary DB[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-08-86694db67f-fpm84[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [computer-vision] Image classified: img_2191083.jpg confidence=83% class=object_3[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [incident] Security event: severity=HIGH type=brute_force target=user_2071165[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] S3 bucket sync started: 8114 objects to process[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [postgres] Query executed: duration=984ms rows=484[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [auth-service] Login attempt user_2298676 from IP 10.0.106.106[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [network] VPN connection established: user_1478531 from 31.vpn.company.com[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [elasticsearch] Index operation: docs_indexed=94 took=44ms[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [experiment] A/B test result: experiment_2191949 variant_A=49% variant_B=49%[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Cache miss for key user:session:1393763[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [shipping-service] Package pkg_2296326 dispatched carrier=ups tracking=2296326[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Docker image pulled: app:v1.1[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [edge-compute] Inference completed: device_143 model=anomaly_detection result=anomaly[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [data-lake] Batch job completed: dataset_2191084 rows=91084 size=84GB[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-08-86694db67f-ppznd[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [redis] Cache operation: SET user:2178985 TTL=3600s[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [time-series] Data ingested: metric=cpu_usage value=44% timestamp=2226144 source=device_144[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [malware] Scan completed: files=8532 threats=2 clean=99%[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [patch] Security update applied: CVE-2024-2071166 package=openssl status=success[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [order-service] Order order_2298677 created status=pending total=3677[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Cache miss for key user:session:1401503[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [serving] Model prediction: user_2191950 prediction=0 confidence=0.90[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [incident] Security event: severity=HIGH type=brute_force target=user_1478533[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [experiment] A/B test result: experiment_2191085 variant_A=45% variant_B=45%[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Memory usage: 54%[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [mongodb] Collection scan: users scanned=5195 returned=95[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] gRPC call user.GetProfile(1008115) completed successfully[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [drift-detection] Model drift detected: feature=age threshold=0.05 current=0.1[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [elasticsearch] Index operation: docs_indexed=86 took=36ms[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [analytics-service] Event tracked: page_view user=2296327 page=/dashboard[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [shipping-service] Package pkg_2298678 dispatched carrier=ups tracking=2298678[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [firmware] OTA update: device_606 version=1.6 status=pending[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [network] Connectivity: device_607 signal_strength=57dBm network=5G[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [analytics] Real-time aggregation: window=5m count=608 avg_temp=38C[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [storage] Time-series write: measurement=sensors timestamp=2222609 fields=9 tags=4[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [compression] Data compressed: original=2610KB compressed=610KB ratio=60%[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [geo-location] Position update: device_611 lat=61.2833 lon=151.2833[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [iot-gateway] Sensor data: device_612 temp=32C humidity=12%[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [stream-processor] Event processed: stream=telemetry batch_size=613 latency=13ms[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [mqtt-broker] Message published: topic=sensors/temp/614 qos=1 size=534bytes[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [edge-compute] Inference completed: device_615 model=anomaly_detection result=anomaly[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Memory usage: 64%[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [time-series] Data ingested: metric=cpu_usage value=16% timestamp=2222616 source=device_616[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [mongodb] Collection scan: users scanned=8987 returned=87[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Load balancer health check failed for backend-2[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [session] User session expired: user_2071167 duration=1167s last_activity=2025-06-19T01:57:33[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [mysql] Slow query detected: SELECT * FROM orders WHERE created > '2025-06-19T01:57:33'[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [alert-manager] Threshold exceeded: device_145 metric=temperature value=45C threshold=50C[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [circuit-breaker] Service unavailable: service=payment-api failures=1 threshold=10[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [rate-limiter] Request rejected: client_id=client_2161002 rate=2/min limit=100/min[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [validation] Input validation failed: field=email value=invalid_2161003 constraint=format[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [memory] OutOfMemoryError: heap_used=364MB heap_max=2048MB gc_time=4ms[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [disk] Disk space critical: mount=/var/lib used=95% available=5MB[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [network] Request timeout: url=https://api.external.com/v1/data timeout=30s attempt=1[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [serialization] JSON parsing error: invalid character at position 7 input=malformed_json_2161007[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [deadlock] Transaction deadlock detected: transaction_id=tx_2161008 table=users lock_wait=1008ms[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [security] Authentication failed: token=jwt_2161009 reason=expired issued=1009s_ago[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [cache] Cache eviction: key=user:session:2161010 reason=memory_pressure size=370KB[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [payment-service] Transaction txn_2296328 processed amount=6328[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [serving] Model prediction: user_2191086 prediction=1 confidence=0.18[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] HTTP request completed in 15ms[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] Circuit breaker opened for service payment-gateway[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [alert-manager] Threshold exceeded: device_617 metric=temperature value=57C threshold=50C[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [version] API version mismatch: client=v1 server=v2 endpoint=/api/users[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [patch] Security update applied: CVE-2024-1478534 package=openssl status=success[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] HTTP request completed in 75ms[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [drift-detection] Model drift detected: feature=age threshold=0.05 current=0.7[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [mysql] Slow query detected: SELECT * FROM orders WHERE created > '2025-06-19T01:57:33'[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-09-79b669cdc5-jgbz9[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [analytics-service] Event tracked: page_view user=2298679 page=/dashboard[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [ml-service] Model inference: model=recommendation_v2 latency=152ms[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Failed to connect to external service timeout after 5s[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [kafka] Message produced: topic=events partition=5 offset=2175197[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [user-service] Profile updated for user_2296329: email, preferences[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [data-pipeline] Batch processed: source=kafka topic=iot-events records=6146 errors=6[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [session] User session expired: user_1478535 duration=2535s last_activity=2025-06-19T01:57:33[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Prometheus scrape completed: 1024 metrics collected[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [crypto] Key rotation completed: service=database new_key_id=key_2071168[0m
+[35mperf-generator-09-79b669cdc5-mcls5[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-09-79b669cdc5-mcls5[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [rabbitmq] Queue depth: notifications=198 orders=198[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Kubernetes deployment scaled from 3 to 8 replicas[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [payment-service] Transaction txn_2298680 processed amount=8680[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [concurrent] Thread pool exhausted: pool=http-workers active=12 max=200 queued=12[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] S3 bucket sync started: 9104 objects to process[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [dependency] Service dependency failed: service=user-service health=down last_success=315s_ago[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [encryption] Decryption failed: key_id=key_2166916 algorithm=AES256 reason=invalid_padding[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [migration] Database migration failed: version=v17 table=user_profiles error=duplicate_column[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [backup] Backup verification failed: file=backup_2166918.tar.gz checksum=invalid expected=sha256_2166918[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [monitoring] Health check failed: endpoint=/health status=503 response_time=6919ms[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [connection-pool] Database connection timeout: pool=primary active=20 max=100 wait_time=1920ms[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [circuit-breaker] Service unavailable: service=payment-api failures=21 threshold=10[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [rate-limiter] Request rejected: client_id=client_2166922 rate=922/min limit=100/min[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [validation] Input validation failed: field=email value=invalid_2166923 constraint=format[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [memory] OutOfMemoryError: heap_used=140MB heap_max=2048MB gc_time=924ms[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [data-pipeline] Batch processed: source=kafka topic=iot-events records=2618 errors=8[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [training] Epoch 53/100 completed: loss=0.2172 accuracy=93%[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [device-registry] Device registered: id=device_147 type=sensor location=floor_7[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [notification-service] Email sent to user_2296330 subject=welcome[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-09-84b69c4b65-4nv9g[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Failed to connect to external service timeout after 5s[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [ml-service] Model inference: model=recommendation_v8 latency=88ms[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [disk] Disk space critical: mount=/var/lib used=95% available=925MB[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [firmware] OTA update: device_148 version=1.48 status=pending[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [nginx] Upstream response: backend=4 status=200 time=99ms[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [feature-store] Features extracted: user_2191954 features=[age,location,behavior] count=47[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [device-registry] Device registered: id=device_619 type=sensor location=floor_9[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [zero-trust] Network access granted: user_2071169 resource=internal-api score=89[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [kafka] Message produced: topic=events partition=5 offset=2178989[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] gRPC call user.GetProfile(1399105) completed successfully[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Configuration loaded from /etc/config/app.yaml[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [network] Request timeout: url=https://api.external.com/v1/data timeout=30s attempt=1[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [parsing] XML validation error: schema=user.xsd line=13 column=13 message=invalid_element[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [security] Failed login attempt: user=admin_2071170 ip=192.168.60.60[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [crypto] Key rotation completed: service=database new_key_id=key_1478536[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [kubernetes] Pod scheduled: perf-test-2175200 on node-worker-2[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [quota] API quota exceeded: user_id=user_2161014 requests=1014/hour limit=1000/hour[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [serialization] JSON parsing error: invalid character at position 927 input=malformed_json_2166927[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Configuration loaded from /etc/config/app.yaml[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [inventory-service] Stock check item_2296331: available=31[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [zero-trust] Network access granted: user_1478537 resource=internal-api score=97[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [user-service] Profile updated for user_2298681: email, preferences[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [training] Epoch 89/100 completed: loss=0.1308 accuracy=89%[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [pipeline] Data preprocessing: batch_2191955 records=1955 cleaned=95%[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [rabbitmq] Queue depth: notifications=990 orders=490[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [firmware] OTA update: device_620 version=1.20 status=pending[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [docker] Container started: image=app:latest id=cont_2175201 memory_limit=512Mi[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [gpu-cluster] GPU utilization: node_4 gpu_0 usage=56%[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [clearing] Trade cleared: trade_id=T1492191 clearinghouse=DTCC fees=191 status=CLEARED[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [algo-trading] Strategy signal: strategy=momentum_2 symbol=MSFT signal=SELL[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [fx-rates] Exchange rate: pair=USD/EUR rate=0.8693 timestamp=2025-06-19T01:57:33 source=ECB[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [derivatives] Option priced: symbol=AMZN_OPT strike=304 expiry=2024-12-20 iv=94% price=44[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [credit-risk] Exposure calculated: counterparty=CP95 exposure=492195 rating=BBB[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [trade-reporting] Regulatory report: trade_id=T1492196 regulator=SEC status=SUBMITTED[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [market-making] Quote update: symbol=BTC bid_qty=197 ask_qty=197 spread=7[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [blockchain] Transaction confirmed: hash=0x1492198 block=492198 gas_used=92198 status=SUCCESS[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [custody] Asset transfer: from=VAULT_A to=VAULT_B symbol=SPY qty=2199 status=PENDING[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [trading-engine] Order executed: symbol=AAPL qty=200 price=300 side=BUY[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [dependency] Service dependency failed: service=user-service health=down last_success=415s_ago[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [network] Connectivity: device_149 signal_strength=99dBm network=5G[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [nginx] Upstream response: backend=1 status=200 time=91ms[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [deadlock] Transaction deadlock detected: transaction_id=tx_2166928 table=users lock_wait=6928ms[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [risk-management] Position check: symbol=GOOGL exposure=492201 limit=500000 utilization=1%[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Health check passed for component-3[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [audit] Privilege escalation: user_2071171 requested sudo access to /etc/passwd[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [kubernetes] Pod scheduled: perf-test-2178992 on node-worker-2[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [vector-db] Similarity search: query_id=2191957 results=57 threshold=0.97[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [feature-store] Features extracted: user_2191090 features=[age,location,behavior] count=47[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Health check passed for component-3[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [notification-service] Email sent to user_2298682 subject=welcome[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Circuit breaker opened for service payment-gateway[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [auth-service] Login attempt user_2296332 from IP 10.0.57.57[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [docker] Container started: image=app:latest id=cont_2178993 memory_limit=512Mi[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [security] Authentication failed: token=jwt_2166929 reason=expired issued=3329s_ago[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [analytics] Real-time aggregation: window=5m count=150 avg_temp=25C[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [network] Connectivity: device_621 signal_strength=71dBm network=5G[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [encryption] Decryption failed: key_id=key_2161016 algorithm=AES256 reason=invalid_padding[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [market-data] Price update: symbol=MSFT bid=302 ask=303 volume=92202[0m
+[92mperf-generator-10-856847c644-xg96f[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-10-856847c644-xg96f[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [model-registry] Model deployed: recommendation_v18 A/B_test=group_0[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] NGINX access log: GET /api/v2/data?id=1008118 200 32ms[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Background job job_1401509 started successfully[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [storage] Time-series write: measurement=sensors timestamp=2226151 fields=11 tags=1[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [prometheus] Metrics scraped: targets=2 series=5202[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [migration] Database migration failed: version=v17 table=user_profiles error=duplicate_column[0m
+[94mperf-generator-05-8d45cf54c-f9qgf[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [security] Failed login attempt: user=admin_1478538 ip=192.168.48.48[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [analytics] Real-time aggregation: window=5m count=622 avg_temp=37C[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [prometheus] Metrics scraped: targets=44 series=8994[0m
+[33mperf-generator-08-86694db67f-ppznd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [cache] Cache eviction: key=user:session:2166930 reason=memory_pressure size=146KB[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [firewall] Blocked connection: src=10.0.62.62 dst=internal port=22[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [order-service] Order order_2296333 created status=pending total=1333[0m
+[32mperf-generator-08-86694db67f-fpm84[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [backup] Backup verification failed: file=backup_2161018.tar.gz checksum=invalid expected=sha256_2161018[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] Queue processing: 10 items remaining[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [automl] Hyperparameter tuning: trial_2191959 learning_rate=0.000 score=0.2178[0m
+[33mperf-generator-01-8fc6b55bd-xzpth[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Background job job_1393769 started successfully[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [inventory-service] Stock check item_2298683: available=83[0m
+[34mperf-generator-06-75876d9948-pqlxw[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [pipeline] Data preprocessing: batch_2191091 records=1091 cleaned=91%[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [storage] Time-series write: measurement=sensors timestamp=2222623 fields=3 tags=3[0m
+[34mperf-generator-09-79b669cdc5-jgbz9[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [settlement] Trade settled: trade_id=T1492203 symbol=TSLA amount=92203 settlement_date=2025-06-19[0m
+[94mperf-generator-10-9f766d578-5skcv[0m/[32msystem[0m [37m🆕 New pod discovered and added to monitoring: perf-test/perf-generator-10-9f766d578-5skcv[0m
+[34mperf-generator-02-758d9c8c87-46wb7[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] Audit log: user admin_1008119 performed action DELETE on resource_1008119[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [shipping-service] Package pkg_2296334 dispatched carrier=ups tracking=2296334[0m
+[35mperf-generator-07-5467fc8b57-7sg4l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [compression] Data compressed: original=6152KB compressed=152KB ratio=2%[0m
+[35mperf-generator-04-84f474cdff-cl9gd[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [grafana] Dashboard rendered: users_overview load_time=3ms[0m
+[36mperf-generator-05-58c78979d9-dtk6x[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [ids] Suspicious activity detected: user_2071173 multiple failed API calls[0m
+[36mperf-generator-07-5467fc8b57-xzzj5[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [compression] Data compressed: original=2624KB compressed=624KB ratio=74%[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [grafana] Dashboard rendered: users_overview load_time=195ms[0m
+[94mperf-generator-03-6d64f694d6-pb78l[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [auth-service] Login attempt user_2298684 from IP 10.0.114.114[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [anomaly-detection] Outlier detected: metric=cpu_usage value=90% severity=medium[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [portfolio] P&L calculation: account=ACC665 unrealized=-21335 realized=-1335[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [liquidity] Order book update: symbol=NVDA levels=6 spread=0.01[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] [matching-engine] Order matched: buy_order=B2103667 sell_order=S2103668 symbol=BTC qty=67[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [margin] Margin call: account=ACC168 required=3668 available=3668 deficit=3668[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [33m[2025-06-19T01:57:33] [WARN] [clearing] Trade cleared: trade_id=T2103669 clearinghouse=DTCC fees=669 status=CLEARED[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [algo-trading] Strategy signal: strategy=momentum_0 symbol=AAPL signal=SELL[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [31m[2025-06-19T01:57:33] [ERROR] [fx-rates] Exchange rate: pair=USD/EUR rate=0.9171 timestamp=2025-06-19T01:57:33 source=ECB[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [derivatives] Option priced: symbol=MSFT_OPT strike=282 expiry=2024-12-20 iv=72% price=22[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [credit-risk] Exposure calculated: counterparty=CP73 exposure=103673 rating=BBB[0m
+[36mperf-generator-09-84b69c4b65-4nv9g[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [trade-reporting] Regulatory report: trade_id=T2103674 regulator=SEC status=SUBMITTED[0m
+[33mperf-generator-06-75876d9948-m4nml[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [reinforcement] Agent action: state_2191961 action=1 reward=61 episode=961[0m
+[32mperf-generator-01-8fc6b55bd-tnsxq[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] SSL certificate will expire in 241 days[0m
+[35mperf-generator-02-758d9c8c87-z6c6w[0m/[33mlog-generator[0m [36m[2025-06-19T01:57:33] [DEBUG] Kubernetes deployment scaled from 3 to 6 replicas[0m
+[34mperf-generator-04-84f474cdff-4xhkn[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [postgres] Query executed: duration=996ms rows=496[0m
+[92mperf-generator-03-6d64f694d6-fwrt8[0m/[33mlog-generator[0m [32m[2025-06-19T01:57:33] [INFO] [analytics-service] Event tracked: page_view user=2296335 page=/dashboard[0m

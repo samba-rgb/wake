@@ -28,12 +28,31 @@ fn is_default_run(args: &Args) -> bool {
     !args.list_containers
 }
 
-pub async fn run(args: Args) -> Result<()> {
+pub async fn run(mut args: Args) -> Result<()> {
     info!("=== CLI MODULE STARTING ===");
     info!("CLI: Received args - namespace: {}, pod_selector: {}, container: {}", 
           args.namespace, args.pod_selector, args.container);
     info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
           args.ui, args.no_ui, args.output_file);
+    
+    // Resolve namespace based on context if specified
+    if let Some(ref context_name) = args.context {
+        info!("CLI: Context specified: {}", context_name);
+        
+        // Get the namespace from the specified context
+        if let Some(context_namespace) = crate::k8s::client::get_context_namespace(Some(context_name)) {
+            info!("CLI: Resolving namespace from context '{}': {} -> {}", 
+                  context_name, args.namespace, context_namespace);
+            args.namespace = context_namespace;
+        } else {
+            info!("CLI: No namespace found in context '{}', keeping current: {}", 
+                  context_name, args.namespace);
+        }
+    } else {
+        info!("CLI: No context specified, using namespace: {}", args.namespace);
+    }
+    
+    info!("CLI: Final namespace resolved: {}", args.namespace);
     
     // Determine UI behavior - CLI is now the default, UI only when explicitly requested
     let should_use_ui = if args.no_ui {
