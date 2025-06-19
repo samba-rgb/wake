@@ -8,26 +8,13 @@ use tracing::{error, info, Level};
 use crate::k8s::logs::LogEntry;
 use crate::output::Formatter;
 use crate::cli::Args;
-use crate::filtering::LogFilter; // Fixed import path
+use crate::filtering::LogFilter;
 
 /// Set up logging based on verbosity level
 #[allow(dead_code)]
 pub fn setup_logger(verbosity: u8) -> Result<()> {
-    #[cfg(test)]
-    {
-        let _ = verbosity; // Use verbosity to avoid the unused variable warning
-        return Ok(());
-    }
-    
-    #[cfg(not(test))]
-    {
-        let log_level = get_log_level(verbosity);
-        tracing_subscriber::fmt()
-            .with_max_level(log_level)
-            .try_init()
-            .map_err(|e| anyhow::anyhow!("Failed to initialize logging: {}", e))?;
-        Ok(())
-    }
+    // This function is kept for compatibility but logging is now handled in main.rs
+    Ok(())
 }
 
 /// Get the appropriate log level based on verbosity

@@ -62,8 +62,15 @@ async fn main() -> Result<()> {
         // In UI mode without dev flag, completely suppress logging to avoid UI interference
         Level::ERROR  // Will be redirected to null writer
     } else if should_use_ui && args.dev {
-        // In UI mode with dev flag, use verbosity-based level but only to file
-        logging::get_log_level(args.verbosity)
+        // In UI mode with dev flag, use verbosity-based level but default to INFO if verbosity is 0
+        if args.verbosity == 0 {
+            Level::INFO  // Default to INFO level in dev mode
+        } else {
+            logging::get_log_level(args.verbosity)
+        }
+    } else if args.dev && args.verbosity == 0 {
+        // In CLI mode with dev flag, default to INFO level if verbosity is 0
+        Level::INFO
     } else {
         // In CLI mode, use verbosity-based level to stdout
         logging::get_log_level(args.verbosity)
