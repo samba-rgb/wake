@@ -41,6 +41,9 @@ impl Formatter {
             _ => OutputFormat::Text,
         };
 
+        // Use atty to detect if we should enable colors
+        let colors_enabled = atty::is(atty::Stream::Stdout);
+
         Self {
             output_format,
             show_timestamps: args.timestamps,
