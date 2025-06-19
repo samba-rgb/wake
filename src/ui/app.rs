@@ -1,7 +1,7 @@
 use anyhow::Result;
 use arboard::Clipboard;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event},
+    event::{self, DisableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -41,7 +41,7 @@ pub async fn run_app(
     info!("UI: Setting up terminal...");
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, crossterm::event::EnableMouseCapture)?;
     // Note: Mouse capture is disabled by default to allow terminal text selection
     // Users can press 'm' to enable application mouse features if needed
     let backend = CrosstermBackend::new(stdout);
@@ -51,9 +51,6 @@ pub async fn run_app(
     info!("UI: Creating display manager and input handler...");
     let mut display_manager = DisplayManager::new(args.buffer_size, args.timestamps, args.dev)?;
     let mut input_handler = InputHandler::new(args.include.clone(), args.exclude.clone());
-    
-    // Track mouse capture state
-    let mut mouse_capture_enabled = false;
     
     // Set up file writer if output file is specified
     let mut file_writer: Option<Box<dyn Write + Send>> = if let Some(ref output_file) = args.output_file {
@@ -71,6 +68,15 @@ pub async fn run_app(
         args.exclude.clone(),
         0, // No buffer for retroactive filtering - only apply to new logs
     )?;
+
+    // Configure file output mode if file writer is present
+    if file_writer.is_some() {
+        display_manager.set_file_output_mode(true);
+        info!("UI: File output mode enabled - logs will be saved to file");
+    }
+
+    // Start with normal buffer size (follow mode uses original buffer)
+    info!("UI: Starting with original buffer size: {} (follow mode)", args.buffer_size);
 
     // Create channels for log processing
     info!("UI: Creating log processing channels...");
@@ -150,26 +156,41 @@ pub async fn run_app(
             match event::read()? {
                 Event::Key(key) => {
                     debug!("UI: Key event received: {:?} in mode {:?}", key, input_handler.mode);
+                    
+                    // If memory warning is active, only dismiss on specific keys (not mouse events)
+                    if display_manager.memory_warning_active {
+                        // Only dismiss memory warning on specific keyboard keys, not mouse events
+                        match key.code {
+                            KeyCode::Esc | KeyCode::Enter | KeyCode::Char(' ') | KeyCode::Char('q') => {
+                                display_manager.dismiss_memory_warning();
+                                // Continue processing this input event after dismissing warning
+                            }
+                            _ => {
+                                // For other keys, dismiss warning but continue processing the key
+                                display_manager.dismiss_memory_warning();
+                            }
+                        }
+                        // Don't skip input processing - let it continue normally
+                    }
+                    
                     if let Some(input_event) = input_handler.handle_key_event(key) {
                         debug!("UI: Input event generated: {:?}", input_event);
                         match input_event {
                             InputEvent::Quit => {
-                                info!("UI: Quit signal received, breaking main loop");
+                                info!("UI: Quit signal received, performing cleanup before exit");
+                                
+                                // Explicit buffer cleanup for better performance
+                                display_manager.clear_all_buffers();
+                                
+                                // Signal cancellation to background tasks
+                                cancellation_token.cancel();
+                                
+                                info!("UI: Buffers cleared and shutdown initiated");
                                 break;
                             }
                             InputEvent::ToggleAutoScroll => {
-                                // Toggle auto-scroll mode
-                                display_manager.auto_scroll = !display_manager.auto_scroll;
-                                let status_message = if display_manager.auto_scroll {
-                                    // Immediately scroll to bottom when auto-scroll is enabled
-                                    let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
-                                    display_manager.scroll_to_bottom(viewport_height);
-                                    "── Auto-scroll enabled: logs will follow new entries ──"
-                                } else {
-                                    "── Auto-scroll disabled: logs will stay at current position ──"
-                                };
-                                display_manager.add_system_log(status_message);
-                                info!("UI: Auto-scroll toggled to: {}", display_manager.auto_scroll);
+                                // Use the new toggle_follow_mode which manages buffer expansion
+                                display_manager.toggle_follow_mode();
                             }
                             InputEvent::Refresh => {
                                 // Only refresh display without changing logs - no retroactive filtering
@@ -273,96 +294,121 @@ pub async fn run_app(
                                 }
                             }
                             InputEvent::CopySelection => {
-                                // Copy selected logs to clipboard
-                                let logs_text = display_manager.get_selected_logs_as_text();
+                                // Smart copy: if there's a selection, copy it; otherwise copy visible logs
+                                let selected_text = display_manager.get_selected_logs_as_text();
                                 
-                                match Clipboard::new() {
-                                    Ok(mut clipboard) => {
-                                        match clipboard.set_text(&logs_text) {
-                                            Ok(()) => {
-                                                let lines_copied = logs_text.lines().count();
-                                                display_manager.add_system_log(&format!(
-                                                    "── Copied {} selected log lines to clipboard ──", 
-                                                    lines_copied
-                                                ));
-                                                info!("Successfully copied {} selected lines to clipboard", lines_copied);
-                                                
-                                                // Auto-return to normal mode and re-enable follow after successful copy
-                                                input_handler.mode = InputMode::Normal;
-                                                display_manager.clear_selection();
-                                                display_manager.auto_scroll = true;
-                                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
-                                                display_manager.scroll_to_bottom(viewport_height);
-                                                display_manager.add_system_log("── Returned to normal mode with follow enabled ──");
-                                            }
-                                            Err(e) => {
-                                                display_manager.add_system_log(&format!(
-                                                    "── Failed to copy selection to clipboard: {} ──", 
-                                                    e
-                                                ));
-                                                error!("Failed to copy selection to clipboard: {}", e);
+                                if selected_text != "No text selected" {
+                                    // Copy the selection
+                                    match Clipboard::new() {
+                                        Ok(mut clipboard) => {
+                                            match clipboard.set_text(&selected_text) {
+                                                Ok(()) => {
+                                                    let lines_copied = selected_text.lines().count();
+                                                    display_manager.add_system_log(&format!(
+                                                        "── Copied {} selected lines to clipboard ──", 
+                                                        lines_copied
+                                                    ));
+                                                    info!("Successfully copied {} selected lines to clipboard", lines_copied);
+                                                    // Clear selection after copying
+                                                    display_manager.clear_selection();
+                                                }
+                                                Err(e) => {
+                                                    display_manager.add_system_log(&format!(
+                                                        "── Failed to copy selection to clipboard: {} ──", 
+                                                        e
+                                                    ));
+                                                    error!("Failed to copy selection to clipboard: {}", e);
+                                                }
                                             }
                                         }
+                                        Err(e) => {
+                                            display_manager.add_system_log(&format!(
+                                                "── Failed to initialize clipboard: {} ──", 
+                                                e
+                                            ));
+                                            error!("Failed to initialize clipboard: {}", e);
+                                        }
                                     }
-                                    Err(e) => {
-                                        display_manager.add_system_log(&format!(
-                                            "── Failed to initialize clipboard: {} ──", 
-                                            e
-                                        ));
-                                        error!("Failed to initialize clipboard: {}", e);
-                                    }
-                                }
-                            }
-                            InputEvent::ToggleSelection => {
-                                display_manager.toggle_selection();
-                                if display_manager.selection.is_some() {
-                                    // When entering selection mode, automatically pause auto-scroll
-                                    display_manager.add_system_log("── Selection started - Auto-scroll paused ──");
                                 } else {
-                                    // When clearing selection, auto-scroll is automatically restored in toggle_selection()
-                                    display_manager.add_system_log("── Selection cleared - Auto-scroll restored ──");
+                                    // No selection - copy visible logs instead
+                                    let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                    let logs_text = display_manager.get_visible_logs_as_text(viewport_height);
+                                    
+                                    match Clipboard::new() {
+                                        Ok(mut clipboard) => {
+                                            match clipboard.set_text(&logs_text) {
+                                                Ok(()) => {
+                                                    let lines_copied = logs_text.lines().count();
+                                                    display_manager.add_system_log(&format!(
+                                                        "── Copied {} visible log lines to clipboard ──", 
+                                                        lines_copied
+                                                    ));
+                                                    info!("Successfully copied {} lines to clipboard", lines_copied);
+                                                }
+                                                Err(e) => {
+                                                    display_manager.add_system_log(&format!(
+                                                        "── Failed to copy to clipboard: {} ──", 
+                                                        e
+                                                    ));
+                                                    error!("Failed to copy to clipboard: {}", e);
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            display_manager.add_system_log(&format!(
+                                                "── Failed to initialize clipboard: {} ──", 
+                                                e
+                                            ));
+                                            error!("Failed to initialize clipboard: {}", e);
+                                        }
+                                    }
                                 }
                             }
                             InputEvent::SelectUp => {
-                                display_manager.select_up();
-                            }
-                            InputEvent::SelectDown => {
-                                let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
-                                display_manager.select_down(viewport_height);
-                            }
-                            InputEvent::EnterSelectionMode => {
-                                // Expand buffer size when entering selection mode
-                                display_manager.enter_selection_mode();
-                                // Start selection at current cursor position
-                                display_manager.toggle_selection();
-                                // Pause auto-scroll to stabilize the view
-                                display_manager.auto_scroll = false;
-                                display_manager.add_system_log("── Selection mode entered - Buffer expanded, Auto-scroll paused ──");
-                            }
-                            InputEvent::ExitSelectionMode => {
-                                // Clear selection and restore buffer size
-                                display_manager.clear_selection();
-                                display_manager.exit_selection_mode();
-                                display_manager.add_system_log("── Selection mode exited - Buffer restored ──");
-                            }
-                            InputEvent::ToggleMouseCapture => {
-                                // Toggle mouse capture mode
-                                if mouse_capture_enabled {
-                                    // Disable mouse capture - allows terminal text selection
-                                    execute!(terminal.backend_mut(), DisableMouseCapture)?;
-                                    mouse_capture_enabled = false;
-                                    display_manager.add_system_log("── Mouse capture disabled - Terminal text selection enabled ──");
+                                // Only allow selection extension in pause mode
+                                if !display_manager.auto_scroll {
+                                    display_manager.select_up();
                                 } else {
-                                    // Enable mouse capture - allows application mouse events
-                                    execute!(terminal.backend_mut(), EnableMouseCapture)?;
-                                    mouse_capture_enabled = true;
-                                    display_manager.add_system_log("── Mouse capture enabled - Application mouse selection enabled ──");
+                                    display_manager.add_system_log("📝 Selection only available in pause mode (press 'f' to pause)");
                                 }
                             }
-                            // Mouse events are handled directly in the Event::Mouse match above
-                            InputEvent::MouseClick(_, _) | InputEvent::MouseDrag(_, _) | InputEvent::MouseRelease(_, _) => {
-                                // These events are handled directly in the mouse event processing
-                                // No additional action needed here
+                            InputEvent::SelectDown => {
+                                // Only allow selection extension in pause mode
+                                if !display_manager.auto_scroll {
+                                    let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
+                                    display_manager.select_down(viewport_height);
+                                } else {
+                                    display_manager.add_system_log("📝 Selection only available in pause mode (press 'f' to pause)");
+                                }
+                            }
+                            InputEvent::ToggleSelection => {
+                                // Only allow selection toggle in pause mode
+                                if !display_manager.auto_scroll {
+                                    if display_manager.selection.is_some() {
+                                        display_manager.clear_selection();
+                                    } else {
+                                        // Start selection at current scroll position
+                                        let current_line = display_manager.scroll_offset;
+                                        if current_line < display_manager.log_entries.len() {
+                                            display_manager.selection = Some(crate::ui::display::Selection::new(current_line));
+                                            display_manager.add_system_log("📝 Text selection started (use Shift+↑↓ to extend, Ctrl+C to copy)");
+                                        }
+                                    }
+                                } else {
+                                    display_manager.add_system_log("📝 Text selection only available in pause mode (press 'f' to pause)");
+                                }
+                            }
+                            InputEvent::SelectAll => {
+                                // Only allow select all in pause mode
+                                if !display_manager.auto_scroll {
+                                    display_manager.toggle_selection_all();
+                                } else {
+                                    display_manager.add_system_log("📝 Select all only available in pause mode (press 'f' to pause)");
+                                }
+                            }
+                            // Remove all other selection-related events
+                            _ => {
+                                // Ignore any remaining unused events
                             }
                         }
                         
@@ -373,9 +419,16 @@ pub async fn run_app(
                 Event::Mouse(mouse_event) => {
                     use crossterm::event::{MouseEventKind, MouseButton};
                     
+                    // If memory warning is active, dismiss it on any mouse event but still process the mouse event
+                    if display_manager.memory_warning_active {
+                        display_manager.dismiss_memory_warning();
+                        display_manager.add_system_log("📊 Memory warning dismissed by mouse event");
+                        // Continue processing the mouse event normally - don't skip it
+                    }
+                    
                     match mouse_event.kind {
                         MouseEventKind::Down(MouseButton::Left) => {
-                            // Handle mouse click for selection
+                            // Handle mouse click for starting selection (only in pause mode)
                             let log_area = Layout::default()
                                 .direction(Direction::Vertical)
                                 .constraints([
@@ -384,16 +437,13 @@ pub async fn run_app(
                                     Constraint::Length(1), // Status bar
                                 ])
                                 .split(terminal.size()?)[1]; // Get log area
-
+                            
                             if display_manager.handle_mouse_click(mouse_event.column, mouse_event.row, log_area) {
-                                // Enter selection mode automatically on mouse click and pause auto-scroll
-                                input_handler.mode = InputMode::Selection;
-                                display_manager.auto_scroll = false;
-                                display_manager.add_system_log("── Mouse selection started - Auto-scroll paused ──");
+                                display_manager.add_system_log("🖱️ Started text selection - drag to extend, use arrow keys to extend further");
                             }
                         }
                         MouseEventKind::Drag(MouseButton::Left) => {
-                            // Handle mouse drag for selection extension
+                            // Handle mouse drag for extending selection with auto-scroll
                             let log_area = Layout::default()
                                 .direction(Direction::Vertical)
                                 .constraints([
@@ -403,20 +453,15 @@ pub async fn run_app(
                                 ])
                                 .split(terminal.size()?)[1]; // Get log area
 
-                            display_manager.handle_mouse_drag(mouse_event.column, mouse_event.row, log_area);
+                            if display_manager.handle_mouse_drag(mouse_event.column, mouse_event.row, log_area) {
+                                // Force immediate render when auto-scroll occurs during drag
+                                last_render = std::time::Instant::now().checked_sub(render_interval).unwrap_or_else(|| std::time::Instant::now());
+                            }
                         }
                         MouseEventKind::Up(MouseButton::Left) => {
-                            // Handle mouse release to end selection
+                            // Handle mouse release to end dragging
                             if display_manager.handle_mouse_release() {
-                                if let Some(ref selection) = display_manager.selection {
-                                    if selection.is_active {
-                                        let lines_selected = selection.end_line - selection.start_line + 1;
-                                        display_manager.add_system_log(&format!(
-                                            "── Selected {} lines (click & drag to extend, Ctrl+C to copy) ──",
-                                            lines_selected
-                                        ));
-                                    }
-                                }
+                                // Selection completed successfully
                             }
                         }
                         MouseEventKind::ScrollDown => {
@@ -454,10 +499,23 @@ pub async fn run_app(
 
         // Add all pending logs to display in one batch
         if !pending_logs.is_empty() {
+            let mut logs_inserted = 0;
+            let mut logs_skipped = 0;
+            
+            // **ENHANCED MEMORY FULL HANDLING**: Track total logs processed vs inserted
+            let total_logs_in_batch = pending_logs.len();
+            
             for entry in pending_logs.drain(..) {
-                display_manager.add_log_entry(&entry);
+                // Try to add to display buffer - returns true if inserted, false if skipped
+                let inserted = display_manager.add_log_entry(&entry);
                 
-                // Write to file if specified
+                if inserted {
+                    logs_inserted += 1;
+                } else {
+                    logs_skipped += 1;
+                }
+                
+                // Always write to file if specified (even if display buffer is full)
                 if let Some(ref mut file_writer) = file_writer {
                     if let Some(ref formatter) = formatter {
                         if let Some(formatted) = formatter.format_without_filtering(&entry) {
@@ -471,13 +529,49 @@ pub async fn run_app(
                 }
             }
             
-            // Check if display manager forced follow mode due to buffer size limit
-            if display_manager.auto_scroll && input_handler.mode == InputMode::Selection {
-                // Buffer size limit was hit, automatically exit selection mode
-                input_handler.mode = InputMode::Normal;
-                display_manager.exit_selection_mode();
-                display_manager.add_system_log("── Automatically exited selection mode due to buffer size limit ──");
-                       }
+            // **CRITICAL FIX**: Enhanced memory full feedback and user guidance
+            if logs_skipped > 0 {
+                // Check if we're at memory capacity
+                let memory_usage = display_manager.get_memory_usage_percent();
+                
+                if memory_usage >= 100.0 {
+                    // At capacity - provide actionable feedback
+                    if logs_skipped % 50 == 0 {  // Reduced frequency for less noise
+                        let guidance_msg = if display_manager.file_output_mode {
+                            format!("🔄 Buffer full: {} logs saved to file, {} display entries skipped. Press 'f' to resume or scroll to bottom", 
+                                   logs_inserted + logs_skipped, logs_skipped)
+                        } else {
+                            format!("⚠️ Buffer full: {} logs LOST! Consider: 1) Press 'f' to resume 2) Use -w flag for file output 3) Increase --buffer-size", 
+                                   logs_skipped)
+                        };
+                        
+                        display_manager.add_system_log(&guidance_msg);
+                        info!("MEMORY_FULL: {} logs processed, {} inserted to display, {} skipped", 
+                              total_logs_in_batch, logs_inserted, logs_skipped);
+                    }
+                } else {
+                    // Not at full capacity but still skipping - this shouldn't happen
+                    display_manager.add_system_log(&format!(
+                        "🔍 Unexpected: {} logs skipped at {}% capacity - this may indicate a logic issue", 
+                        logs_skipped, memory_usage
+                    ));
+                }
+            }
+            
+            // Check memory warning after adding logs (outside of render cycle)
+            display_manager.check_memory_warning();
+            
+            // **IMPROVED LOGGING**: More informative status when skipping logs
+            if logs_skipped > 0 && logs_skipped % 100 == 0 {
+                let status_msg = if display_manager.file_output_mode {
+                    format!("UI: Buffer management active - {} inserted to display, {} saved to file only", 
+                           logs_inserted, logs_skipped)
+                } else {
+                    format!("UI: WARNING - {} logs lost due to full buffer, {} inserted to display", 
+                           logs_skipped, logs_inserted)
+                };
+                info!("{}", status_msg);
+            }
             
             // Auto-scroll if enabled
             if display_manager.auto_scroll {
