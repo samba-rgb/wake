@@ -3,6 +3,17 @@ use regex::Regex;
 use std::path::PathBuf;
 use crate::filtering::FilterPattern; // Add import for FilterPattern
 
+/// Helper function to get default namespace from current context
+fn get_default_namespace() -> String {
+    // Try to get namespace from current context
+    if let Some(namespace) = crate::k8s::client::get_current_context_namespace() {
+        return namespace;
+    }
+    
+    // Fallback to "default" if we can't read the current context
+    "default".to_string()
+}
+
 #[derive(Parser, Debug, Clone)]
 #[command(
     author, 
@@ -38,7 +49,7 @@ pub struct Args {
     pub all_containers: bool,
 
     /// Kubernetes namespace 
-    #[arg(short, long, default_value = "default")]
+    #[arg(short, long, default_value_t = get_default_namespace())]
     pub namespace: String,
 
     /// Show logs from all namespaces
@@ -118,7 +129,7 @@ pub struct Args {
     pub dev: bool,
 
     /// Buffer size for log storage (e.g., 10k, 20k, 30k). Higher values use more memory but allow longer history in selection mode
-    #[arg(long, default_value = "10000", help = "Number of log entries to keep in memory (10k, 20k, 30k, etc.)")]
+    #[arg(long, default_value = "20000", help = "Number of log entries to keep in memory (10k, 20k, 30k, etc.)")]
     pub buffer_size: usize,
 
     /// Verbosity level for debug output
@@ -168,7 +179,7 @@ impl Default for Args {
         Self {
             pod_selector: ".*".to_string(),
             container: ".*".to_string(),
-            namespace: "default".to_string(),
+            namespace: get_default_namespace(), // Use helper function to get default namespace
             all_namespaces: false,
             kubeconfig: None,
             context: None,
@@ -189,7 +200,7 @@ impl Default for Args {
             ui: false, // Default to false, will be determined by logic
             no_ui: false, // Default to false
             dev: false, // Default to false
-            buffer_size: 10000, // Default buffer size
+            buffer_size: 20000, // Default buffer size
         }
     }
 }

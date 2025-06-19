@@ -3,32 +3,28 @@ use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub enum InputEvent {
+    Quit,
+    ToggleAutoScroll,
+    Refresh,
+    ToggleHelp,
     UpdateIncludeFilter(String),
     UpdateExcludeFilter(String),
-    ToggleHelp,
     ScrollUp,
     ScrollDown,
-    ScrollToTop,
-    ScrollToBottom,
     ScrollPageUp,
     ScrollPageDown,
-    ToggleAutoScroll,
-    Quit,
-    Refresh,
+    ScrollToTop,
+    ScrollToBottom,
     CopyLogs,
-    CopySelection,
-    ToggleSelection,
-    SelectUp,
-    SelectDown,
-    EnterSelectionMode,
-    ExitSelectionMode,
+    CopySelection,         // Copy selected text
     ToggleMouseCapture,
-    #[allow(dead_code)]
     MouseClick(u16, u16),
-    #[allow(dead_code)]
     MouseDrag(u16, u16),
-    #[allow(dead_code)]
     MouseRelease(u16, u16),
+    SelectUp,              // Extend selection up with arrow keys
+    SelectDown,            // Extend selection down with arrow keys
+    ToggleSelection,       // Toggle selection at current position
+    SelectAll,             // Select all logs
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,7 +33,6 @@ pub enum InputMode {
     EditingInclude,
     EditingExclude,
     Help,
-    Selection,
 }
 
 pub struct InputHandler {
@@ -67,7 +62,6 @@ impl InputHandler {
             InputMode::EditingInclude => self.handle_editing_mode(key, true),
             InputMode::EditingExclude => self.handle_editing_mode(key, false),
             InputMode::Help => self.handle_help_mode(key),
-            InputMode::Selection => self.handle_selection_mode(key),
         }
     }
 
@@ -75,7 +69,8 @@ impl InputHandler {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => Some(InputEvent::Quit),
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                Some(InputEvent::CopyLogs)
+                // Smart copy: if there's a selection, copy it; otherwise copy visible logs
+                Some(InputEvent::CopySelection)
             }
             KeyCode::Char('i') => {
                 self.mode = InputMode::EditingInclude;
@@ -89,8 +84,21 @@ impl InputHandler {
             }
             KeyCode::Char('h') => Some(InputEvent::ToggleHelp),
             KeyCode::Char('r') => Some(InputEvent::Refresh),
-            KeyCode::Up | KeyCode::Char('k') => Some(InputEvent::ScrollUp),
-            KeyCode::Down | KeyCode::Char('j') => Some(InputEvent::ScrollDown),
+            // Arrow keys for selection extension when Shift is held, otherwise normal scroll
+            KeyCode::Up | KeyCode::Char('k') => {
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    Some(InputEvent::SelectUp) // Selection handled in display manager based on auto_scroll
+                } else {
+                    Some(InputEvent::ScrollUp)
+                }
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    Some(InputEvent::SelectDown) // Selection handled in display manager based on auto_scroll
+                } else {
+                    Some(InputEvent::ScrollDown)
+                }
+            }
             KeyCode::Home | KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 Some(InputEvent::ScrollToTop)
             }
@@ -98,14 +106,15 @@ impl InputHandler {
             KeyCode::PageUp => Some(InputEvent::ScrollPageUp),
             KeyCode::PageDown => Some(InputEvent::ScrollPageDown),
             KeyCode::Char('f') => Some(InputEvent::ToggleAutoScroll), // Add 'f' key to toggle follow/auto-scroll mode
-            KeyCode::Char('s') => {
-                self.mode = InputMode::Selection;
-                // Return event to trigger buffer expansion when entering selection mode
-                Some(InputEvent::EnterSelectionMode)
-            }
             KeyCode::Char('m') => {
                 // Toggle mouse capture mode
                 Some(InputEvent::ToggleMouseCapture)
+            }
+            // Add space key to toggle selection
+            KeyCode::Char(' ') => Some(InputEvent::ToggleSelection), // Will be handled in display manager based on auto_scroll
+            // Selection shortcuts - only work in pause mode
+            KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                Some(InputEvent::SelectAll) // Ctrl+A to select all logs
             }
             _ => None,
         }
@@ -229,24 +238,6 @@ impl InputHandler {
         }
     }
 
-    fn handle_selection_mode(&mut self, key: KeyEvent) -> Option<InputEvent> {
-        match key.code {
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('s') => {
-                self.mode = InputMode::Normal;
-                Some(InputEvent::ExitSelectionMode)
-            }
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                Some(InputEvent::CopySelection)
-            }
-            KeyCode::Up | KeyCode::Char('k') => Some(InputEvent::SelectUp),
-            KeyCode::Down | KeyCode::Char('j') => Some(InputEvent::SelectDown),
-            KeyCode::Char('x') => Some(InputEvent::ToggleSelection),
-            KeyCode::Char('r') => Some(InputEvent::Refresh),
-            KeyCode::Char('f') => Some(InputEvent::ToggleAutoScroll),
-            _ => None,
-        }
-    }
-
     fn add_to_history(&mut self, input: String) {
         if !input.is_empty() && self.input_history.front() != Some(&input) {
             self.input_history.push_front(input);
@@ -316,23 +307,14 @@ impl InputHandler {
             "    i           Edit include pattern         e           Edit exclude pattern",
             "    r           Refresh with current filters",
             "",
-            "  Selection & Copying:",
-            "    s           Enter selection mode         x           Toggle selection at cursor",
-            "    Ctrl+c      Copy visible logs            Ctrl+c      Copy selection (in selection mode)",
-            "",
-            "  In Selection Mode:",
-            "    ↑/k         Move cursor up & extend      ↓/j         Move cursor down & extend",
-            "    x           Toggle selection start/end   Esc/s       Exit selection mode",
-            "    Ctrl+c      Copy selected lines",
-            "",
-            "  While editing filters:",
-            "    Enter       Apply filter                 Esc         Cancel editing",
-            "    ↑/↓         Navigate filter history      Ctrl+u      Clear input",
-            "    ←/→         Move cursor                   Home/End    Start/End of line",
-            "",
             "  General:",
             "    h           Toggle this help             q/Esc       Quit application",
             "    m           Toggle mouse capture mode",
+            "",
+            "  Selection (Pause Mode Only):",
+            "    Space       Start/toggle selection       Shift+↑↓    Extend selection",
+            "    Ctrl+A      Select all logs              Ctrl+C      Copy selection",
+            "    💡 TIP: Press 'f' to pause, then use selection shortcuts to select logs",
             "",
             "  Mouse Modes:",
             "    • Mouse capture OFF (default): Terminal text selection works normally",
@@ -363,11 +345,6 @@ impl InputHandler {
             "  Pattern Examples:",
             "    '(info || debug) && \"32\"'              - Logs with 'info' or 'debug' AND '32'",
             "    '\"INFO\" || \"DEBUG\" && \"32\"'         - Exact text matches with AND logic",
-            "",
-            "  Selection Highlighting:",
-            "    • Selected lines are highlighted with white background",
-            "    • Current cursor position is shown with reversed colors",
-            "    • Yellow border indicates selection mode is active",
             "",
             "  Press any key to close help...",
             "",
