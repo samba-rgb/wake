@@ -12,7 +12,7 @@ use crate::filtering::LogFilter;
 
 /// Set up logging based on verbosity level
 #[allow(dead_code)]
-pub fn setup_logger(verbosity: u8) -> Result<()> {
+pub fn setup_logger(_verbosity: u8) -> Result<()> {
     // This function is kept for compatibility but logging is now handled in main.rs
     Ok(())
 }
