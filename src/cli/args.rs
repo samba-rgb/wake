@@ -129,7 +129,7 @@ pub struct Args {
     pub dev: bool,
 
     /// Buffer size for log storage (e.g., 10k, 20k, 30k). Higher values use more memory but allow longer history in selection mode
-    #[arg(long, default_value = "10000", help = "Number of log entries to keep in memory (10k, 20k, 30k, etc.)")]
+    #[arg(long, default_value = "20000", help = "Number of log entries to keep in memory (10k, 20k, 30k, etc.)")]
     pub buffer_size: usize,
 
     /// Verbosity level for debug output
@@ -200,7 +200,7 @@ impl Default for Args {
             ui: false, // Default to false, will be determined by logic
             no_ui: false, // Default to false
             dev: false, // Default to false
-            buffer_size: 10000, // Default buffer size
+            buffer_size: 20000, // Default buffer size
         }
     }
 }

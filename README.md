@@ -154,11 +154,11 @@ Wake uses an intelligent buffer system to manage log storage in memory, especial
 ### Buffer Configuration
 
 ```bash
-# Default buffer size (10,000 lines)
+# Default buffer size (20,000 lines)
 wake -n apps log-generator --ui
 
-# Larger buffer for longer history (20,000 lines)
-wake -n apps log-generator --ui --buffer-size 20000
+# Larger buffer for longer history (30,000 lines)
+wake -n apps log-generator --ui --buffer-size 30000
 
 # High-capacity buffer for extensive selection (50,000 lines)  
 wake -n apps log-generator --ui --buffer-size 50k
@@ -342,7 +342,7 @@ Options:
       --template <TEMPLATE>       Custom template for log output
       --since <SINCE>             Since time (e.g., 5s, 2m, 3h)
       --threads <THREADS>         Number of threads for log filtering
-      --buffer-size <SIZE>        Number of log entries to keep in memory [default: 10000]
+      --buffer-size <SIZE>        Number of log entries to keep in memory [default: 20000]
       --ui                        Enable interactive UI mode with dynamic filtering
       --dev                       Enable development mode (show internal logs)
   -v, --verbosity <VERBOSITY>     Verbosity level for debug output [default: 0]
