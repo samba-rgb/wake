@@ -37,7 +37,6 @@ pub async fn run(mut args: Args) -> Result<()> {
     
     // Handle configuration commands first
     if let Some(command) = &args.command {
-        use crate::cli::args::Commands;
         return handle_config_command(command).await;
     }
     
@@ -151,6 +150,7 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
         Commands::SetConfig { key, value, path } => {
             let mut config = Config::load().context("Failed to load configuration")?;
             
+            // Handle special cases that need custom logic
             match key.to_lowercase().as_str() {
                 "autosave" => {
                     let enabled = match value.to_lowercase().as_str() {
@@ -176,12 +176,36 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
                     }
                 }
                 _ => {
-                    eprintln!("❌ Unknown configuration key: '{}'", key);
-                    eprintln!("Available keys:");
-                    for available_key in Config::list_keys() {
-                        eprintln!("  - {}", available_key);
+                    // Use the automatic configuration system for all other keys
+                    match config.set_value(key, value) {
+                        Ok(()) => {
+                            config.save().context("Failed to save configuration")?;
+                            println!("✅ Configuration updated: {} = {}", key, value);
+                            
+                            // Provide helpful context for specific settings
+                            match key {
+                                k if k.contains("buffer_expansion") => {
+                                    println!("💡 In pause mode, the buffer will expand to hold {}x more logs for better browsing", value);
+                                }
+                                k if k.contains("theme") => {
+                                    println!("🎨 UI theme set to: {}", value);
+                                }
+                                k if k.contains("show_timestamps") => {
+                                    println!("🕒 Default timestamp display: {}", value);
+                                }
+                                _ => {}
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("❌ Failed to set configuration: {}", e);
+                            eprintln!("\nAvailable keys:");
+                            let all_keys = config.get_all_keys();
+                            for available_key in &all_keys {
+                                eprintln!("  - {}", available_key);
+                            }
+                            std::process::exit(1);
+                        }
                     }
-                    std::process::exit(1);
                 }
             }
         }
@@ -195,7 +219,8 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
                         Err(e) => {
                             eprintln!("❌ {}", e);
                             eprintln!("\nAvailable keys:");
-                            for available_key in Config::list_keys() {
+                            let all_keys = config.get_all_keys();
+                            for available_key in &all_keys {
                                 eprintln!("  - {}", available_key);
                             }
                             std::process::exit(1);
@@ -203,7 +228,7 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
                     }
                 }
                 None => {
-                    // Display all configuration
+                    // Display all configuration in tabular format
                     print!("{}", config.display());
                 }
             }

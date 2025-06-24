@@ -12,6 +12,7 @@ pub struct Formatter {
     show_timestamps: bool,
     pod_colors: Mutex<HashMap<String, Color>>,
     container_colors: Mutex<HashMap<String, Color>>,
+    colors_enabled: bool,
 }
 
 /// Different output formats
@@ -21,15 +22,16 @@ enum OutputFormat {
     Raw,
 }
 
-/// Available colors for pods and containers
-static COLORS: [Color; 7] = [
+/// Available colors for pods and containers - using more compatible colors
+static COLORS: [Color; 8] = [
+    Color::BrightGreen,
+    Color::BrightYellow, 
+    Color::BrightBlue,
+    Color::BrightMagenta,
+    Color::BrightCyan,
     Color::Green,
     Color::Yellow,
     Color::Blue,
-    Color::Magenta,
-    Color::Cyan,
-    Color::BrightGreen,
-    Color::BrightBlue,
 ];
 
 impl Formatter {
@@ -41,14 +43,65 @@ impl Formatter {
             _ => OutputFormat::Text,
         };
 
-        // Use atty to detect if we should enable colors
-        let _colors_enabled = atty::is(atty::Stream::Stdout);
+        // Enhanced color detection
+        let colors_enabled = Self::detect_color_support();
+        
+        if colors_enabled {
+            colored::control::set_override(true);
+        } else {
+            colored::control::set_override(false);
+        }
 
         Self {
             output_format,
             show_timestamps: args.timestamps,
             pod_colors: Mutex::new(HashMap::new()),
             container_colors: Mutex::new(HashMap::new()),
+            colors_enabled,
+        }
+    }
+
+    /// Detect if the terminal supports colors
+    fn detect_color_support() -> bool {
+        // Check for explicit color control
+        if let Ok(no_color) = std::env::var("NO_COLOR") {
+            if !no_color.is_empty() {
+                return false;
+            }
+        }
+
+        // Check for force color
+        if let Ok(force_color) = std::env::var("FORCE_COLOR") {
+            if !force_color.is_empty() && force_color != "0" {
+                return true;
+            }
+        }
+
+        // Check terminal capabilities
+        if let Ok(term) = std::env::var("TERM") {
+            if term.contains("color") || term.contains("256") || term.contains("truecolor") {
+                return true;
+            }
+            if term == "dumb" || term.is_empty() {
+                return false;
+            }
+        }
+
+        // Check if we're in a known good terminal
+        if std::env::var("COLORTERM").is_ok() {
+            return true;
+        }
+
+        // Check if stdout is a terminal
+        #[cfg(unix)]
+        {
+            unsafe {
+                libc::isatty(libc::STDOUT_FILENO) != 0
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            true // Default to true on non-Unix systems
         }
     }
 
@@ -71,15 +124,30 @@ impl Formatter {
 
     /// Formats a log entry as colored text
     fn format_text(&self, entry: &LogEntry) -> String {
+        if !self.colors_enabled {
+            // Plain text format without colors
+            let time_part = if self.show_timestamps {
+                if let Some(ts) = entry.timestamp {
+                    format!("{} ", ts.format("%Y-%m-%d %H:%M:%S%.3f"))
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+            
+            return format!("{}{}/{} {}", time_part, entry.pod_name, entry.container_name, entry.message);
+        }
+
         let pod_color = self.get_color_for_pod(&entry.pod_name);
         let container_color = self.get_color_for_container(&entry.container_name);
 
-        let pod_part = entry.pod_name.color(pod_color).to_string();
+        let pod_part = entry.pod_name.color(pod_color).bold().to_string();
         let container_part = entry.container_name.color(container_color).to_string();
 
         let time_part = if self.show_timestamps {
             if let Some(ts) = entry.timestamp {
-                format!("{} ", ts.format("%Y-%m-%d %H:%M:%S%.3f").to_string().dimmed())
+                format!("{} ", ts.format("%Y-%m-%d %H:%M:%S%.3f").to_string().bright_black())
             } else {
                 String::new()
             }
@@ -87,20 +155,20 @@ impl Formatter {
             String::new()
         };
 
-        // Consistent color coding for log levels
+        // Enhanced color coding for log levels
         let message_with_level_color = if entry.message.contains("FATAL") || entry.message.contains("CRITICAL") {
             entry.message.bright_red().bold().to_string()
         } else if entry.message.contains("ERROR") || entry.message.contains("ERR") {
-            entry.message.red().to_string()
+            entry.message.bright_red().to_string()
         } else if entry.message.contains("WARN") || entry.message.contains("WARNING") {
-            entry.message.yellow().to_string()
+            entry.message.bright_yellow().to_string()
         } else if entry.message.contains("INFO") {
-            entry.message.green().to_string()
+            entry.message.bright_white().to_string()
         } else if entry.message.contains("DEBUG") || entry.message.contains("TRACE") {
-            entry.message.cyan().to_string()
+            entry.message.bright_cyan().to_string()
         } else {
-            // Default color - use white for normal messages
-            entry.message.white().to_string()
+            // Default color - use bright white for better visibility
+            entry.message.bright_white().to_string()
         };
 
         // Format the complete log entry

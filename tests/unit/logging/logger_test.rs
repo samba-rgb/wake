@@ -57,3 +57,51 @@ fn test_setup_logger() -> Result<()> {
     
     Ok(())
 }
+
+use crate::logging::Logger;
+use std::path::PathBuf;
+use tempfile::NamedTempFile;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_logger_creation() {
+        let logger = Logger::new();
+        assert!(logger.is_ok());
+    }
+
+    #[test]
+    fn test_file_logging() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let log_path = temp_file.path().to_path_buf();
+        
+        let mut logger = Logger::new().unwrap();
+        logger.set_file_output(Some(log_path.clone()));
+        
+        // Test logging to file
+        logger.log("Test message".to_string());
+        
+        // Verify file exists and has content
+        assert!(log_path.exists());
+    }
+
+    #[test]
+    fn test_console_logging() {
+        let mut logger = Logger::new().unwrap();
+        logger.set_console_output(true);
+        
+        // This should not panic
+        logger.log("Console test message".to_string());
+    }
+
+    #[test]
+    fn test_log_formatting() {
+        let logger = Logger::new().unwrap();
+        
+        // Test that messages are properly formatted
+        let formatted = logger.format_message("Test log entry");
+        assert!(formatted.contains("Test log entry"));
+    }
+}

@@ -27,6 +27,7 @@ use crate::ui::{
     filter_manager::DynamicFilterManager,
     input::{InputEvent, InputHandler, InputMode},
 };
+use crate::kernel::{KernelOptimizer, prefetch_log_data};
 use futures::Stream;
 
 pub async fn run_app(
@@ -38,6 +39,39 @@ pub async fn run_app(
           args.namespace, args.pod_selector, args.container);
     info!("UI: Follow logs: {}, tail: {}, timestamps: {}", 
           args.follow, args.tail, args.timestamps);
+    
+    // **KERNEL OPTIMIZATIONS**: Initialize and apply cross-platform kernel optimizations
+    info!("🚀 Initializing kernel-level optimizations...");
+    // Initialize kernel optimizations for Linux/macOS performance
+    let mut kernel_optimizer = match KernelOptimizer::new(args.dev) {
+        Ok(mut optimizer) => {
+            if let Err(e) = optimizer.optimize_for_log_streaming() {
+                error!("Failed to apply kernel optimizations: {:?}", e);
+            }
+            Some(optimizer)
+        }
+        Err(e) => {
+            error!("Failed to initialize kernel optimizer: {:?}", e);
+            None
+        }
+    };
+    
+    // Apply log streaming optimizations
+    if let Some(ref mut optimizer) = kernel_optimizer {
+        match optimizer.optimize_for_log_streaming() {
+            Ok(()) => {
+                let stats = optimizer.get_performance_stats();
+                info!("🚀 Kernel optimizations applied:");
+                info!("   - System: {}", stats.system_name);
+                info!("   - Memory efficiency: {:.1}%", stats.memory_efficiency * 100.0);
+                info!("   - Network throughput: {:.1}%", stats.network_throughput * 100.0);
+                info!("   - CPU optimization: {:.1}%", stats.cpu_utilization);
+            }
+            Err(e) => {
+                warn!("⚠️ Some kernel optimizations failed: {}", e);
+            }
+        }
+    }
     
     // Setup terminal
     info!("UI: Setting up terminal...");
@@ -478,14 +512,20 @@ pub async fn run_app(
                             let log_area = Layout::default()
                                 .direction(Direction::Vertical)
                                 .constraints([
-                                    Constraint::Length(3), // Filter input area
+                                    Constraint::Length(4), // Filter input area - FIXED
                                     Constraint::Min(0),    // Log display area
-                                    Constraint::Length(1), // Status bar
+                                    Constraint::Length(2), // Status bar
                                 ])
                                 .split(terminal.size()?)[1]; // Get log area
 
-                            if display_manager.handle_mouse_drag(mouse_event.column, mouse_event.row, log_area) {
-                                // Force immediate render when auto-scroll occurs during drag
+                            let (selection_changed, scrolled) = display_manager.handle_mouse_drag(
+                                mouse_event.column, 
+                                mouse_event.row, 
+                                log_area
+                            );
+                            
+                            if selection_changed || scrolled {
+                                // Force immediate render when selection changes or auto-scroll occurs
                                 last_render = std::time::Instant::now().checked_sub(render_interval).unwrap_or_else(|| std::time::Instant::now());
                             }
                         }
@@ -511,7 +551,7 @@ pub async fn run_app(
             }
         }
 
-        // Process new filtered log entries in batches
+        // Process new filtered log entries in batches with kernel optimizations
         let batch_start = Instant::now();
         const BATCH_TIMEOUT: Duration = Duration::from_millis(10); // Reduced from 20ms
         const MAX_BATCH_SIZE: usize = 50; // Increased from 10
@@ -520,6 +560,12 @@ pub async fn run_app(
         while batch_start.elapsed() < BATCH_TIMEOUT && batch_processed < MAX_BATCH_SIZE {
             match tokio::time::timeout(Duration::from_millis(1), filtered_log_rx.recv()).await {
                 Ok(Some(entry)) => {
+                    // **KERNEL OPTIMIZATION**: Prefetch log data for better cache performance
+                    let message_bytes = entry.message.as_bytes();
+                    if message_bytes.len() > 64 {
+                        prefetch_log_data(message_bytes.as_ptr(), message_bytes.len());
+                    }
+                    
                     pending_logs.push(entry);
                     batch_processed += 1;
                 }

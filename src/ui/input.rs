@@ -15,11 +15,15 @@ pub enum InputEvent {
     ScrollPageDown,
     ScrollToTop,
     ScrollToBottom,
+    #[allow(dead_code)]
     CopyLogs,
     CopySelection,         // Copy selected text
     ToggleMouseCapture,
+    #[allow(dead_code)]
     MouseClick(u16, u16),
+    #[allow(dead_code)]
     MouseDrag(u16, u16),
+    #[allow(dead_code)]
     MouseRelease(u16, u16),
     SelectUp,              // Extend selection up with arrow keys
     SelectDown,            // Extend selection down with arrow keys
@@ -291,6 +295,7 @@ impl InputHandler {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_help_text(&self) -> Vec<&'static str> {
         vec![
             "=== WAKE - Kubernetes Log Viewer Help ===",
