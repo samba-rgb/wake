@@ -17,9 +17,11 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
+use std::fs::OpenOptions;
 
 use crate::cli::Args;
 use crate::k8s::logs::LogEntry;
+use crate::config::Config;
 use crate::ui::{
     display::DisplayManager,
     filter_manager::DynamicFilterManager,
@@ -52,6 +54,11 @@ pub async fn run_app(
     let mut display_manager = DisplayManager::new(args.buffer_size, args.timestamps, args.dev)?;
     let mut input_handler = InputHandler::new(args.include.clone(), args.exclude.clone());
     
+    // Load configuration for autosave functionality
+    let config = Config::load().unwrap_or_default();
+    info!("UI: Loaded autosave config - enabled: {}, path: {:?}", 
+          config.autosave.enabled, config.autosave.path);
+    
     // Set up file writer if output file is specified
     let mut file_writer: Option<Box<dyn Write + Send>> = if let Some(ref output_file) = args.output_file {
         info!("UI mode: Also writing logs to file: {:?}", output_file);
@@ -60,6 +67,33 @@ pub async fn run_app(
         None
     };
     
+    // Set up autosave writer if autosave is enabled and no -w flag
+    let mut autosave_writer: Option<Box<dyn Write + Send>> = if config.autosave.enabled && args.output_file.is_none() {
+        // Get the appropriate autosave path
+        let autosave_path = if let Some(ref configured_path) = config.autosave.path {
+            configured_path.clone()
+        } else {
+            // Generate timestamp-based filename
+            let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+            format!("wake_{}.log", timestamp)
+        };
+        
+        info!("UI mode: Autosave enabled - writing logs to: {}", autosave_path);
+        display_manager.add_system_log(&format!("💾 Autosave enabled: {}", autosave_path));
+        
+        Some(Box::new(OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&autosave_path)?))
+    } else if config.autosave.enabled && args.output_file.is_some() {
+        info!("UI mode: Autosave config enabled but -w flag takes precedence");
+        display_manager.add_system_log("💾 Autosave: Using -w flag file instead of configured path");
+        None
+    } else {
+        info!("UI mode: Autosave disabled in configuration");
+        None
+    };
+
     // Create dynamic filter manager
     info!("UI: Creating dynamic filter manager with include: {:?}, exclude: {:?}", 
           args.include, args.exclude);
@@ -384,15 +418,12 @@ pub async fn run_app(
                             InputEvent::ToggleSelection => {
                                 // Only allow selection toggle in pause mode
                                 if !display_manager.auto_scroll {
-                                    if display_manager.selection.is_some() {
+                                    if display_manager.hash_selection.is_some() {
                                         display_manager.clear_selection();
                                     } else {
-                                        // Start selection at current scroll position
-                                        let current_line = display_manager.scroll_offset;
-                                        if current_line < display_manager.log_entries.len() {
-                                            display_manager.selection = Some(crate::ui::display::Selection::new(current_line));
-                                            display_manager.add_system_log("📝 Text selection started (use Shift+↑↓ to extend, Ctrl+C to copy)");
-                                        }
+                                        // Start selection at current scroll position - this functionality
+                                        // is now handled by mouse clicks or keyboard selection
+                                        display_manager.add_system_log("📝 Use mouse click or Shift+arrows to start selection");
                                     }
                                 } else {
                                     display_manager.add_system_log("📝 Text selection only available in pause mode (press 'f' to pause)");
@@ -523,6 +554,22 @@ pub async fn run_app(
                                 error!("Failed to write to output file: {:?}", e);
                             } else {
                                 let _ = file_writer.flush();
+                            }
+                        }
+                    }
+                }
+                
+                // Always write to autosave file if configured (even if display buffer is full)
+                if let Some(ref mut autosave_writer) = autosave_writer {
+                    let formatter = crate::output::Formatter::new(&args);
+                    if let Some(formatted) = formatter.format_without_filtering(&entry) {
+                        if let Err(e) = writeln!(autosave_writer, "{}", formatted) {
+                            error!("Failed to write to autosave file: {:?}", e);
+                            // Continue processing even if autosave fails
+                        } else {
+                            // Flush autosave writer to ensure data is written
+                            if let Err(e) = autosave_writer.flush() {
+                                error!("Failed to flush autosave file: {:?}", e);
                             }
                         }
                     }

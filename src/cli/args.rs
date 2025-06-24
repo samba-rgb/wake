@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use regex::Regex;
 use std::path::PathBuf;
 use crate::filtering::FilterPattern; // Add import for FilterPattern
@@ -21,7 +21,7 @@ fn get_default_namespace() -> String {
     about = "Advanced Kubernetes log tailing with intelligent filtering and interactive UI",
     long_about = "Wake is a powerful command-line tool for tailing logs from multiple Kubernetes pods and containers.\n\
 Features advanced pattern syntax with logical operators (&&, ||, !), interactive UI mode with dynamic filtering,\n\
-file output support, and development mode for debugging. Supports advanced filtering patterns like:\n\
+file output support, autosave configuration, and development mode for debugging. Supports advanced filtering patterns like:\n\
   • Regex patterns: \"ERROR|WARN\"\n\
   • Logical operations: '\"info\" && \"user\"' or '\"debug\" || \"error\"'\n\
   • Negation: '!\"timeout\"'\n\
@@ -29,9 +29,17 @@ file output support, and development mode for debugging. Supports advanced filte
   • Exact text matching: '\"exact phrase\"'\n\
 \n\
 By default, Wake runs in CLI mode. Use --ui to enable interactive UI mode with real-time filter editing,\n\
-or --dev for detailed debugging information."
+or --dev for detailed debugging information.\n\
+\n\
+Configuration Examples:\n\
+  wake setconfig autosave true path \"/path/to/logs\"  # Enable autosave with custom path\n\
+  wake setconfig autosave true                        # Enable autosave with auto-generated filenames\n\
+  wake setconfig autosave false                       # Disable autosave"
 )]
 pub struct Args {
+    #[command(subcommand)]
+    pub command: Option<Commands>,
+
     /// Pod selector regular expression
     #[arg(default_value = ".*")]
     pub pod_selector: String,
@@ -137,6 +145,27 @@ pub struct Args {
     pub verbosity: u8,
 }
 
+#[derive(Subcommand, Debug, Clone)]
+pub enum Commands {
+    /// Configure Wake settings
+    #[command(name = "setconfig")]
+    SetConfig {
+        /// Configuration key to set
+        key: String,
+        /// Configuration value to set
+        value: String,
+        /// Optional configuration parameter (e.g., path for autosave)
+        #[arg(short, long)]
+        path: Option<String>,
+    },
+    /// Display current Wake configuration
+    #[command(name = "getconfig")]
+    GetConfig {
+        /// Optional specific configuration key to display (e.g., autosave)
+        key: Option<String>,
+    },
+}
+
 pub fn parse_args() -> Args {
     Args::parse()
 }
@@ -177,6 +206,7 @@ impl Args {
 impl Default for Args {
     fn default() -> Self {
         Self {
+            command: None,  // Add the missing command field
             pod_selector: ".*".to_string(),
             container: ".*".to_string(),
             namespace: get_default_namespace(), // Use helper function to get default namespace

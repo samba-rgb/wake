@@ -4,6 +4,7 @@ mod logging;
 mod output;
 mod filtering;
 mod ui; // Add the UI module declaration
+mod config; // Add the config module declaration
 
 use anyhow::Result;
 use tracing_appender;

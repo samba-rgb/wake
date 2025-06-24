@@ -35,6 +35,12 @@ pub async fn run(mut args: Args) -> Result<()> {
     info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
           args.ui, args.no_ui, args.output_file);
     
+    // Handle configuration commands first
+    if let Some(command) = &args.command {
+        use crate::cli::args::Commands;
+        return handle_config_command(command).await;
+    }
+    
     // Resolve namespace based on context if specified
     if let Some(ref context_name) = args.context {
         info!("CLI: Context specified: {}", context_name);
@@ -133,5 +139,76 @@ pub async fn run(mut args: Args) -> Result<()> {
     }
     
     info!("=== CLI MODULE COMPLETED ===");
+    Ok(())
+}
+
+/// Handle configuration commands (setconfig, getconfig)
+async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<()> {
+    use crate::cli::args::Commands;
+    use crate::config::Config;
+    
+    match command {
+        Commands::SetConfig { key, value, path } => {
+            let mut config = Config::load().context("Failed to load configuration")?;
+            
+            match key.to_lowercase().as_str() {
+                "autosave" => {
+                    let enabled = match value.to_lowercase().as_str() {
+                        "true" | "1" | "yes" | "on" | "enable" | "enabled" => true,
+                        "false" | "0" | "no" | "off" | "disable" | "disabled" => false,
+                        _ => {
+                            eprintln!("❌ Invalid value for autosave: '{}'. Use 'true' or 'false'", value);
+                            std::process::exit(1);
+                        }
+                    };
+                    
+                    config.set_autosave(enabled, path.clone());
+                    config.save().context("Failed to save configuration")?;
+                    
+                    if enabled {
+                        if let Some(path_str) = path {
+                            println!("✅ Autosave enabled with custom path: {}", path_str);
+                        } else {
+                            println!("✅ Autosave enabled with auto-generated filenames (wake_TIMESTAMP.log)");
+                        }
+                    } else {
+                        println!("✅ Autosave disabled");
+                    }
+                }
+                _ => {
+                    eprintln!("❌ Unknown configuration key: '{}'", key);
+                    eprintln!("Available keys:");
+                    for available_key in Config::list_keys() {
+                        eprintln!("  - {}", available_key);
+                    }
+                    std::process::exit(1);
+                }
+            }
+        }
+        Commands::GetConfig { key } => {
+            let config = Config::load().context("Failed to load configuration")?;
+            
+            match key {
+                Some(key_name) => {
+                    match config.display_key(key_name) {
+                        Ok(output) => print!("{}", output),
+                        Err(e) => {
+                            eprintln!("❌ {}", e);
+                            eprintln!("\nAvailable keys:");
+                            for available_key in Config::list_keys() {
+                                eprintln!("  - {}", available_key);
+                            }
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                None => {
+                    // Display all configuration
+                    print!("{}", config.display());
+                }
+            }
+        }
+    }
+    
     Ok(())
 }
