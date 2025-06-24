@@ -42,7 +42,7 @@ impl Formatter {
         };
 
         // Use atty to detect if we should enable colors
-        let colors_enabled = atty::is(atty::Stream::Stdout);
+        let _colors_enabled = atty::is(atty::Stream::Stdout);
 
         Self {
             output_format,

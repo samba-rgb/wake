@@ -4,11 +4,13 @@ use std::io::{self, Write};
 use tokio::signal;
 use tokio::sync::mpsc;
 use tracing::{error, info, Level};
+use std::fs::OpenOptions;
 
 use crate::k8s::logs::LogEntry;
 use crate::output::Formatter;
 use crate::cli::Args;
 use crate::filtering::LogFilter;
+use crate::config::Config;
 
 /// Set up logging based on verbosity level
 #[allow(dead_code)]
@@ -36,6 +38,9 @@ pub async fn process_logs(
 ) -> Result<()> {
     info!("Starting to process log stream with threaded filtering");
     
+    // Load configuration for autosave functionality
+    let config = Config::load().unwrap_or_default();
+    
     // Create a channel for the raw logs
     let (raw_tx, raw_rx) = mpsc::channel(1024);
     
@@ -52,13 +57,8 @@ pub async fn process_logs(
     let filter = LogFilter::new(include_pattern, exclude_pattern, num_threads);
     info!("Created log filter with {} worker threads", num_threads);
     
-    // Set up output writer (file or stdout)
-    let mut output_writer: Box<dyn Write + Send> = if let Some(ref output_file) = args.output_file {
-        info!("Writing logs to file: {:?}", output_file);
-        Box::new(std::fs::File::create(output_file)?)
-    } else {
-        Box::new(io::stdout())
-    };
+    // Determine output strategy based on autosave config and CLI args
+    let (primary_writer, autosave_writer) = setup_output_writers(args, &config)?;
     
     // Set up a task to forward incoming logs to the raw channel
     tokio::spawn(async move {
@@ -75,30 +75,7 @@ pub async fn process_logs(
     let mut filtered_rx = filter.start_filtering(raw_rx);
     
     // Process filtered logs
-    while let Some(entry) = filtered_rx.recv().await {
-        // Format the log entry
-        if let Some(formatted) = formatter.format_without_filtering(&entry) {
-            // Write the formatted log entry to the output
-            if let Err(e) = writeln!(output_writer, "{}", formatted) {
-                error!("Failed to write to output: {:?}", e);
-                if e.kind() == io::ErrorKind::BrokenPipe {
-                    // This typically happens when the output is piped to another program
-                    // that terminates (e.g., `wake logs | head`)
-                    info!("Output pipe closed, stopping");
-                    break;
-                }
-                return Err(anyhow::anyhow!("Failed to write to output: {:?}", e));
-            }
-            
-            // Flush immediately for real-time output
-            if let Err(e) = output_writer.flush() {
-                error!("Failed to flush output: {:?}", e);
-            }
-        }
-    }
-    
-    info!("Log stream processing complete");
-    Ok(())
+    process_filtered_logs(filtered_rx, formatter, primary_writer, autosave_writer).await
 }
 
 /// Handles signals like CTRL+C for graceful termination
@@ -115,5 +92,102 @@ pub fn setup_signal_handler() -> Result<()> {
         std::process::exit(0);
     });
     
+    Ok(())
+}
+
+/// Set up output writers based on autosave config and CLI args
+fn setup_output_writers(args: &Args, config: &Config) -> Result<(Box<dyn Write + Send>, Option<Box<dyn Write + Send>>)> {
+    // Determine autosave file path using the priority logic:
+    // 1. If -w flag is provided, that takes precedence
+    // 2. If autosave is enabled and no -w flag, use configured path or auto-generated filename
+    
+    let autosave_writer: Option<Box<dyn Write + Send>> = if config.autosave.enabled {
+        // Get the appropriate autosave path
+        let autosave_path = if let Some(ref output_file) = args.output_file {
+            // If -w flag is provided, logs go to that file (primary), no separate autosave needed
+            None
+        } else {
+            // No -w flag, use autosave configuration
+            if let Some(ref configured_path) = config.autosave.path {
+                Some(configured_path.clone())
+            } else {
+                // Generate timestamp-based filename
+                let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+                Some(format!("wake_{}.log", timestamp))
+            }
+        };
+        
+        if let Some(path) = autosave_path {
+            info!("Autosave enabled: writing logs to {}", path);
+            Some(Box::new(OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)?))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    
+    // Primary output writer (file if -w specified, or stdout)
+    let primary_writer: Box<dyn Write + Send> = if let Some(ref output_file) = args.output_file {
+        info!("Primary output: writing to file {:?}", output_file);
+        Box::new(std::fs::File::create(output_file)?)
+    } else if autosave_writer.is_some() {
+        info!("Primary output: console (with autosave to file)");
+        Box::new(io::stdout())
+    } else {
+        info!("Primary output: console only");
+        Box::new(io::stdout())
+    };
+    
+    Ok((primary_writer, autosave_writer))
+}
+
+/// Processes filtered logs and writes to primary and autosave outputs
+async fn process_filtered_logs(
+    mut filtered_rx: mpsc::Receiver<LogEntry>,
+    formatter: Formatter,
+    mut primary_writer: Box<dyn Write + Send>,
+    mut autosave_writer: Option<Box<dyn Write + Send>>,
+) -> Result<()> {
+    while let Some(entry) = filtered_rx.recv().await {
+        // Format the log entry
+        if let Some(formatted) = formatter.format_without_filtering(&entry) {
+            // Write the formatted log entry to the primary output
+            if let Err(e) = writeln!(primary_writer, "{}", formatted) {
+                error!("Failed to write to primary output: {:?}", e);
+                if e.kind() == io::ErrorKind::BrokenPipe {
+                    // This typically happens when the output is piped to another program
+                    // that terminates (e.g., `wake logs | head`)
+                    info!("Output pipe closed, stopping");
+                    break;
+                }
+                return Err(anyhow::anyhow!("Failed to write to primary output: {:?}", e));
+            }
+            
+            // Flush immediately for real-time output
+            if let Err(e) = primary_writer.flush() {
+                error!("Failed to flush primary output: {:?}", e);
+            }
+            
+            // Write to autosave output if configured
+            if let Some(ref mut autosave_writer) = autosave_writer {
+                if let Err(e) = writeln!(autosave_writer, "{}", formatted) {
+                    error!("Failed to write to autosave output: {:?}", e);
+                    // Continue processing even if autosave fails
+                }
+                
+                // Flush autosave writer to ensure data is written
+                if let Err(e) = autosave_writer.flush() {
+                    error!("Failed to flush autosave output: {:?}", e);
+                    // Continue processing even if autosave flush fails
+                }
+            }
+        }
+    }
+    
+    info!("Log stream processing complete");
     Ok(())
 }

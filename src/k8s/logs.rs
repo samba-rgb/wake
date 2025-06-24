@@ -1,7 +1,8 @@
 use crate::cli::Args;
 use crate::k8s::pod::{select_pods, PodInfo};
 use anyhow::{Result, Context, anyhow};
-use futures::Stream;
+use futures::{Stream, StreamExt, TryStreamExt};
+use kube::runtime::{watcher, WatchStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client};
 use kube::api::LogParams;
@@ -216,12 +217,22 @@ impl LogWatcher {
         let tx_clone = tx.clone();
         
         tokio::spawn(async move {
-            if let Err(e) = Self::dynamic_pod_discovery(
-                client_clone,
-                args_clone,
-                tx_clone,
+            // Use watch-based discovery for real-time pod events
+            if let Err(e) = Self::watch_based_pod_discovery(
+                client_clone.clone(),
+                args_clone.clone(),
+                tx_clone.clone(),
             ).await {
-                error!("Dynamic pod discovery failed: {:?}", e);
+                error!("Watch-based pod discovery failed, falling back to polling: {:?}", e);
+                
+                // Fallback to polling-based discovery if watch fails
+                if let Err(e2) = Self::dynamic_pod_discovery_polling(
+                    client_clone,
+                    args_clone,
+                    tx_clone,
+                ).await {
+                    error!("Both watch and polling discovery failed: {:?}", e2);
+                }
             }
         });
         
@@ -265,6 +276,48 @@ impl LogWatcher {
             pod_tasks.retain(|pod_key, handle| {
                 if handle.is_finished() {
                     info!("DYNAMIC_DISCOVERY: Cleaned up completed task for pod: {}", pod_key);
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+    }
+    
+    /// Fallback polling-based pod discovery (original method)
+    async fn dynamic_pod_discovery_polling(
+        client: Client,
+        args: Arc<Args>,
+        tx: mpsc::Sender<LogEntry>,
+    ) -> Result<()> {
+        use tokio::time::{Duration, interval};
+        
+        let mut known_pods: HashSet<String> = HashSet::new();
+        let mut pod_tasks: HashMap<String, tokio::task::JoinHandle<()>> = HashMap::new();
+        let mut discovery_interval = interval(Duration::from_secs(5)); // Check every 5 seconds
+        
+        info!("POLLING_DISCOVERY: Starting fallback polling-based pod discovery");
+        
+        loop {
+            discovery_interval.tick().await;
+            
+            // Periodic pod discovery
+            match Self::discover_and_start_pods(&client, &args, &tx, &mut known_pods, &mut pod_tasks).await {
+                Ok(new_count) => {
+                    if new_count > 0 {
+                        info!("POLLING_DISCOVERY: Found {} new pods", new_count);
+                    }
+                }
+                Err(e) => {
+                    error!("POLLING_DISCOVERY: Failed to discover pods: {:?}", e);
+                    // Continue despite errors - might be temporary
+                }
+            }
+            
+            // Clean up completed tasks
+            pod_tasks.retain(|pod_key, handle| {
+                if handle.is_finished() {
+                    info!("POLLING_DISCOVERY: Cleaned up completed task for pod: {}", pod_key);
                     false
                 } else {
                     true
@@ -711,6 +764,260 @@ impl LogWatcher {
         }
         
         info!("CONTAINER_LOGS: Log stream ended for {}/{}/{}", namespace, pod_name, container_name);
+        Ok(())
+    }
+    
+    /// Watch-based pod discovery using Kubernetes watch API for real-time updates
+    async fn watch_based_pod_discovery(
+        client: Client,
+        args: Arc<Args>,
+        tx: mpsc::Sender<LogEntry>,
+    ) -> Result<()> {
+        use kube::runtime::watcher::Event;
+        
+        let mut known_pods: HashSet<String> = HashSet::new();
+        let mut pod_tasks: HashMap<String, tokio::task::JoinHandle<()>> = HashMap::new();
+        
+        // Initial pod discovery
+        info!("WATCH_DISCOVERY: Starting initial pod discovery");
+        Self::discover_and_start_pods(&client, &args, &tx, &mut known_pods, &mut pod_tasks).await?;
+        
+        // Set up watch for pod events
+        let namespace = if args.all_namespaces {
+            None // Watch all namespaces
+        } else {
+            Some(args.namespace.clone())
+        };
+        
+        let pods_api: Api<Pod> = if let Some(ns) = &namespace {
+            Api::namespaced(client.clone(), ns)
+        } else {
+            Api::all(client.clone())
+        };
+        
+        // Create watch stream with proper error handling
+        let watch_config = watcher::Config::default()
+            .timeout(290) // 290 seconds (under the 295s limit)
+            .any_semantic();
+            
+        let mut watch_stream = watcher(pods_api, watch_config)
+            .default_backoff()
+            .boxed();
+        
+        info!("WATCH_DISCOVERY: Starting Kubernetes watch for pod events in namespace: {:?}", namespace);
+        
+        // Process watch events
+        while let Some(event) = watch_stream.next().await {
+            match event {
+                Ok(Event::Applied(pod)) => {
+                    if let Err(e) = Self::handle_pod_applied(
+                        &client, 
+                        &args, 
+                        &tx, 
+                        &mut known_pods, 
+                        &mut pod_tasks, 
+                        pod
+                    ).await {
+                        error!("WATCH_DISCOVERY: Failed to handle pod applied event: {:?}", e);
+                    }
+                }
+                Ok(Event::Deleted(pod)) => {
+                    if let Err(e) = Self::handle_pod_deleted(
+                        &mut known_pods, 
+                        &mut pod_tasks, 
+                        &tx, 
+                        pod
+                    ).await {
+                        error!("WATCH_DISCOVERY: Failed to handle pod deleted event: {:?}", e);
+                    }
+                }
+                Ok(Event::Restarted(pods)) => {
+                    info!("WATCH_DISCOVERY: Watch restarted, refreshing pod list ({} pods)", pods.len());
+                    // Clear known pods and restart discovery
+                    known_pods.clear();
+                    for (_, task) in pod_tasks.drain() {
+                        task.abort();
+                    }
+                    
+                    // Rediscover all pods
+                    if let Err(e) = Self::discover_and_start_pods(&client, &args, &tx, &mut known_pods, &mut pod_tasks).await {
+                        error!("WATCH_DISCOVERY: Failed to rediscover pods after restart: {:?}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("WATCH_DISCOVERY: Watch error: {:?}", e);
+                    // Continue watching despite errors
+                }
+            }
+            
+            // Periodic cleanup of finished tasks
+            pod_tasks.retain(|pod_key, handle| {
+                if handle.is_finished() {
+                    info!("WATCH_DISCOVERY: Cleaned up completed task for pod: {}", pod_key);
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+        
+        info!("WATCH_DISCOVERY: Watch stream ended");
+        Ok(())
+    }
+    
+    /// Handle a pod being applied (created or updated)
+    async fn handle_pod_applied(
+        client: &Client,
+        args: &Arc<Args>,
+        tx: &mpsc::Sender<LogEntry>,
+        known_pods: &mut HashSet<String>,
+        pod_tasks: &mut HashMap<String, tokio::task::JoinHandle<()>>,
+        pod: Pod,
+    ) -> Result<()> {
+        let pod_name = pod.metadata.name.as_ref().ok_or_else(|| anyhow!("Pod has no name"))?;
+        let pod_namespace = pod.metadata.namespace.as_ref().unwrap_or(&args.namespace);
+        let pod_key = format!("{}/{}", pod_namespace, pod_name);
+        
+        // Check if pod matches our criteria
+        let pod_regex = args.pod_regex().context("Invalid pod selector regex")?;
+        if !pod_regex.is_match(pod_name) {
+            return Ok(()); // Skip pods that don't match
+        }
+        
+        // Skip if we're already monitoring this pod
+        if known_pods.contains(&pod_key) {
+            return Ok(());
+        }
+        
+        // Check if pod is in running state
+        let is_running = pod.status
+            .as_ref()
+            .and_then(|s| s.phase.as_ref())
+            .map(|p| p == "Running")
+            .unwrap_or(false);
+            
+        if !is_running {
+            debug!("WATCH_DISCOVERY: Skipping non-running pod: {} (phase: {:?})", 
+                   pod_key, pod.status.as_ref().and_then(|s| s.phase.as_ref()));
+            return Ok(());
+        }
+        
+        info!("WATCH_DISCOVERY: New pod detected via watch: {}", pod_key);
+        known_pods.insert(pod_key.clone());
+        
+        // Extract container information
+        let containers: Vec<String> = if let Some(spec) = &pod.spec {
+            spec.containers.iter().map(|c| c.name.clone()).collect()
+        } else {
+            return Ok(()); // Skip pods without spec
+        };
+        
+        if containers.is_empty() {
+            return Ok(()); // Skip pods without containers
+        }
+        
+        let pod_info = PodInfo {
+            namespace: pod_namespace.clone(),
+            name: pod_name.clone(),
+            containers,
+        };
+        
+        // Send notification about new pod
+        let discovery_entry = LogEntry {
+            namespace: pod_info.namespace.clone(),
+            pod_name: pod_info.name.clone(),
+            container_name: "system".to_string(),
+            message: format!("🚀 Pod detected via watch and added to monitoring: {}/{}", 
+                           pod_info.namespace, pod_info.name),
+            timestamp: Some(chrono::Utc::now()),
+        };
+        let _ = tx.send(discovery_entry).await;
+        
+        // Start monitoring containers
+        let container_regex = args.container_regex().context("Invalid container selector regex")?;
+        let use_smart_default = args.container == ".*" && !args.all_containers;
+        
+        if use_smart_default && !pod_info.containers.is_empty() {
+            // Use smart default container selection
+            let default_container = Self::determine_default_container(
+                client,
+                &pod_info.namespace,
+                &pod_info,
+                &[pod_info.clone()],
+            ).await;
+            
+            let task = Self::spawn_container_task(
+                client.clone(),
+                pod_info.clone(),
+                default_container.clone(),
+                args.clone(),
+                tx.clone(),
+            ).await;
+            
+            pod_tasks.insert(format!("{}/{}", pod_key, default_container), task);
+        } else {
+            // Monitor all matching containers
+            for container_name in &pod_info.containers {
+                if !args.all_containers && !container_regex.is_match(container_name) {
+                    continue;
+                }
+                
+                let task = Self::spawn_container_task(
+                    client.clone(),
+                    pod_info.clone(),
+                    container_name.clone(),
+                    args.clone(),
+                    tx.clone(),
+                ).await;
+                
+                pod_tasks.insert(format!("{}/{}", pod_key, container_name), task);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Handle a pod being deleted
+    async fn handle_pod_deleted(
+        known_pods: &mut HashSet<String>,
+        pod_tasks: &mut HashMap<String, tokio::task::JoinHandle<()>>,
+        tx: &mpsc::Sender<LogEntry>,
+        pod: Pod,
+    ) -> Result<()> {
+        let pod_name = pod.metadata.name.as_ref().ok_or_else(|| anyhow!("Pod has no name"))?;
+        let default_namespace = "default".to_string();
+        let pod_namespace = pod.metadata.namespace.as_ref().unwrap_or(&default_namespace);
+        let pod_key = format!("{}/{}", pod_namespace, pod_name);
+        
+        if known_pods.remove(&pod_key) {
+            info!("WATCH_DISCOVERY: Pod deleted: {}", pod_key);
+            
+            // Send notification about pod deletion
+            let deletion_entry = LogEntry {
+                namespace: pod_namespace.clone(),
+                pod_name: pod_name.clone(),
+                container_name: "system".to_string(),
+                message: format!("🗑️ Pod deleted and removed from monitoring: {}/{}", 
+                               pod_namespace, pod_name),
+                timestamp: Some(chrono::Utc::now()),
+            };
+            let _ = tx.send(deletion_entry).await;
+            
+            // Stop all tasks for this pod
+            let mut tasks_to_remove = Vec::new();
+            for (task_key, task) in pod_tasks.iter() {
+                if task_key.starts_with(&format!("{}/", pod_key)) {
+                    task.abort();
+                    tasks_to_remove.push(task_key.clone());
+                }
+            }
+            
+            for task_key in tasks_to_remove {
+                pod_tasks.remove(&task_key);
+                info!("WATCH_DISCOVERY: Stopped task for deleted pod: {}", task_key);
+            }
+        }
+        
         Ok(())
     }
 }
