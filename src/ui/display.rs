@@ -4,8 +4,8 @@ use regex::Regex;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 use std::collections::{HashMap, VecDeque};
@@ -43,6 +43,7 @@ impl LineHash {
 
 /// Visual display line with hash-based tracking
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct VisualDisplayLine {
     pub content: String,
     pub hash: LineHash,
@@ -335,7 +336,7 @@ impl DisplayManager {
             container_color_cache: HashMap::new(),
             dev_mode: dev_mode, // Set dev mode from parameter
             color_scheme,
-            enhanced_buffer_active: false, // Default to 5x buffer expansion inactive
+            enhanced_buffer_active: false, // Default to enhanced buffer expansion inactive
             memory_warning_shown: false,   // Memory warning not shown initially
             memory_warning_active: false,  // Warning popup not active initially
             file_output_mode: false,       // Normal display mode
@@ -351,6 +352,7 @@ impl DisplayManager {
 
 /// Modern color scheme with enhanced visual hierarchy
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub enum ColorScheme {
     Dark,   // For dark terminal backgrounds - Modern dark theme
     Light,  // For light terminal backgrounds - Clean light theme
@@ -360,21 +362,27 @@ pub enum ColorScheme {
 impl ColorScheme {
     /// Enhanced terminal detection with better heuristics
     pub fn detect() -> Self {
-        // Check for common terminal environment indicators
+        // Force color support for known good terminals
         if let Ok(term) = std::env::var("TERM") {
             if term.contains("256color") || term.contains("truecolor") {
-                // Modern terminals with good color support
-                return Self::Auto;
+                // For terminals with good color support, use Dark theme by default
+                // since it has better contrast and visibility
+                return ColorScheme::Dark;
             }
         }
         
-        // Check for VS Code, which often uses light themes
-        if std::env::var("VSCODE_INJECTION").is_ok() || 
-           std::env::var("TERM_PROGRAM").map_or(false, |v| v.contains("vscode")) {
-            return ColorScheme::Light;
+        // Check for colorterm support
+        if std::env::var("COLORTERM").is_ok() {
+            return ColorScheme::Dark;
         }
         
-        // Check background hints
+        // For VS Code terminals, use Dark theme for better visibility
+        if std::env::var("VSCODE_INJECTION").is_ok() || 
+           std::env::var("TERM_PROGRAM").map_or(false, |v| v.contains("vscode")) {
+            return ColorScheme::Dark; // Changed from Light to Dark for better visibility
+        }
+        
+        // Check background hints - but default to Dark for safety
         if let Ok(colorfgbg) = std::env::var("COLORFGBG") {
             if let Some(bg) = colorfgbg.split(';').nth(1) {
                 if let Ok(bg_num) = bg.parse::<i32>() {
@@ -383,7 +391,7 @@ impl ColorScheme {
             }
         }
         
-        // Default to dark theme for maximum compatibility
+        // Default to dark theme for maximum compatibility and visibility
         ColorScheme::Dark
     }
     
@@ -442,6 +450,7 @@ impl ColorScheme {
     }
     
     /// Background color for containers and panels
+    #[allow(dead_code)]
     pub fn panel_bg(self) -> Color {
         match self {
             ColorScheme::Dark => Color::Rgb(20, 20, 20),     // Almost black
@@ -548,7 +557,7 @@ impl ColorScheme {
                 Color::Rgb(0, 120, 120),   // Teal
                 Color::Rgb(120, 60, 60),   // Maroon
                 Color::Rgb(60, 120, 60),   // Olive green
-                Color::Rgb(60, 60, 120),   // Navy
+                Color::Rgb(60, 60, 120),   // Darker navy
             ],
             ColorScheme::Auto => &[
                 Color::Cyan, Color::Green, Color::Yellow, Color::Blue,
@@ -560,7 +569,45 @@ impl ColorScheme {
 }
 
 impl DisplayManager {
-    /// Toggle follow mode - activates/deactivates enhanced buffer (5x expansion)
+    /// Add a debug system message that only appears when dev mode is enabled
+    pub fn add_system_log(&mut self, message: &str) {
+        if self.dev_mode {
+            self.add_system_message(message);
+        }
+    }
+
+    pub fn add_system_message(&mut self, message: &str) {
+        let system_entry = LogEntry {
+            namespace: "system".to_string(),
+            pod_name: "wake".to_string(),
+            container_name: "filter".to_string(),
+            message: format!("🔧 {}", message),
+            timestamp: Some(chrono::Utc::now()),
+        };
+        
+        // Remove oldest entries if we exceed max_lines
+        if self.log_entries.len() >= self.max_lines {
+            self.log_entries.pop_front();
+            if self.hash_selection.is_none() && self.scroll_offset > 0 {
+                self.scroll_offset = self.scroll_offset.saturating_sub(1);
+            }
+        }
+        
+        self.log_entries.push_back(system_entry);
+        
+        // Invalidate cache when system message is added
+        self.cache_generation += 1;
+    }
+
+    /// Enable file output mode - logs always get written to file
+    pub fn set_file_output_mode(&mut self, enabled: bool) {
+        self.file_output_mode = enabled;
+        if enabled {
+            self.add_system_log("📁 File output mode enabled - all logs will be saved to file");
+        }
+    }
+
+    /// Toggle follow mode - activates/deactivates enhanced buffer (configurable expansion)
     pub fn toggle_follow_mode(&mut self) {
         if self.auto_scroll {
             // Currently following -> switch to paused mode
@@ -575,7 +622,14 @@ impl DisplayManager {
             // Make sure we preserve the scroll position after buffer expansion
             self.scroll_offset = current_position;
             
-            self.add_system_log("⏸️ Follow mode disabled - Buffer expanded to 5x size for browsing");
+            // Load config to get expansion multiplier
+            let expansion = if let Ok(config) = crate::config::Config::load() {
+                config.ui.buffer_expansion
+            } else {
+                10.0 // Default fallback
+            };
+            
+            self.add_system_log(&format!("⏸️ Follow mode disabled - Buffer expanded to {}x size for browsing", expansion));
         } else {
             // Currently paused -> switch to follow mode
             
@@ -597,256 +651,26 @@ impl DisplayManager {
             self.add_system_log("▶️ Follow mode enabled - Buffer restored to original size, memory warnings cleared");
         }
     }
-    
-    /// Update terminal width and invalidate hash cache when terminal is resized
-    pub fn update_terminal_width(&mut self, new_width: usize) {
-        if self.terminal_width != new_width {
-            self.terminal_width = new_width;
-            // Invalidate cache to force rebuild with new width
-            self.cache_generation += 1;
-            self.add_system_log(&format!("📐 Terminal width updated: {} -> {}", self.terminal_width, new_width));
-        }
-    }
-    
-    /// Hash-based mouse click handler for perfect selection accuracy
-    pub fn handle_mouse_click(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
-        // Only allow selection in pause mode (not in follow mode)
-        if self.auto_scroll {
-            return false;
-        }
-        
-        // Check if click is within the log area content
-        if x < log_area.x + 1 || x >= log_area.x + log_area.width - 1 ||
-           y < log_area.y + 2 || y >= log_area.y + log_area.height - 1 {
-            return false;
-        }
-        
-        let content_start_y = log_area.y + 2;
-        let relative_y = (y - content_start_y) as usize;
-        let viewport_height = (log_area.height as usize).saturating_sub(3);
-        
-        // Rebuild cache if needed
-        if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
-            self.hash_line_cache.rebuild(
-                &self.log_entries,
-                self.scroll_offset,
-                self.terminal_width,
-                viewport_height,
-                self.show_timestamps
-            );
-        }
-        
-        // Get the hash for the clicked visual line
-        if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(relative_y).cloned() {
-            // Check if we're clicking on existing selection
-            if let Some(ref existing_selection) = self.hash_selection {
-                let start_visual = existing_selection.visual_start_line;
-                let end_visual = existing_selection.visual_end_line;
-                
-                if relative_y >= start_visual && relative_y <= end_visual {
-                    // Clicking inside existing selection - clear it
-                    self.clear_selection();
-                    self.add_system_log("🖱️ Clicked inside selection - cleared selection");
-                    return true;
-                }
-            }
-            
-            // Start new hash-based selection
-            self.hash_selection = Some(HashBasedSelection::new(line_hash.clone(), relative_y));
-            self.selection_cursor = relative_y;
-            
-            self.add_system_log(&format!("🖱️ Hash selection started at visual line {} (log entry {})", 
-                relative_y, line_hash.log_entry_index));
-            return true;
-        }
-        
-        self.add_system_log(&format!("❌ No hash found for visual line {}", relative_y));
-        false
-    }
-    
-    /// Hash-based mouse drag handler for perfect selection extension
-    pub fn handle_mouse_drag(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
-        // Check if we have an active selection to extend
-        let has_selection = self.hash_selection.is_some();
-        if !has_selection {
-            return false;
-        }
-        
-        // Check bounds
-        if x < log_area.x + 1 || x >= log_area.x + log_area.width - 1 {
-            return false;
-        }
-        
-        let content_start_y = log_area.y + 2;
-        let content_end_y = log_area.y + log_area.height - 1;
-        let viewport_height = (log_area.height as usize).saturating_sub(3);
-        
-        // Calculate drag position with edge handling
-        let relative_y = if y < content_start_y {
-            0 // Dragging above viewport
-        } else if y >= content_end_y {
-            viewport_height.saturating_sub(1) // Dragging below viewport
-        } else {
-            (y - content_start_y) as usize // Normal position
-        };
-        
-        // Get hash for drag position
-        if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(relative_y).cloned() {
-            if let Some(ref mut selection) = self.hash_selection {
-                // Start dragging if not already
-                let was_dragging = selection.is_dragging;
-                if !was_dragging {
-                    selection.start_drag();
-                }
-                
-                // Extend selection to new position
-                let old_start = selection.visual_start_line;
-                let old_end = selection.visual_end_line;
-                selection.extend_to(line_hash, relative_y);
-                
-                // Log system messages after selection is updated
-                let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                
-                // Drop the mutable reference before calling add_system_log
-                drop(selection);
-                
-                if !was_dragging {
-                    self.add_system_log("🖱️ Started hash-based dragging");
-                }
-                
-                self.add_system_log(&format!("🖱️ Hash selection extended: {} lines ({}..{})", 
-                    lines_selected, old_start.min(relative_y), old_end.max(relative_y)));
-                return true;
-            }
-        }
-        
-        false
-    }
-    
-    /// Handle mouse release to finalize hash-based selection
-    pub fn handle_mouse_release(&mut self) -> bool {
-        if let Some(ref mut selection) = self.hash_selection {
-            if selection.is_dragging {
-                selection.end_drag();
-                let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                self.add_system_log(&format!("📝 Hash selection complete: {} lines selected - Ctrl+C to copy", lines_selected));
-                return true;
-            }
-        }
-        false
-    }
-    
-    /// Keyboard selection up with hash-based accuracy
-    pub fn select_up(&mut self) {
-        if let Some(ref mut selection) = self.hash_selection {
-            if selection.visual_start_line > 0 {
-                let new_visual_line = selection.visual_start_line - 1;
-                
-                // Get hash for new position
-                if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(new_visual_line).cloned() {
-                    selection.visual_start_line = new_visual_line;
-                    selection.start_hash = Some(line_hash);
-                    
-                    // Move cursor up as well
-                    if self.selection_cursor > 0 {
-                        self.selection_cursor -= 1;
-                    }
-                    
-                    let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                    self.add_system_log(&format!("📝 Hash selection extended up: {} lines", lines_selected));
-                }
-            }
-        }
-    }
-    
-    /// Keyboard selection down with hash-based accuracy
-    pub fn select_down(&mut self, viewport_height: usize) {
-        if let Some(ref mut selection) = self.hash_selection {
-            let max_visual_line = viewport_height.saturating_sub(1);
-            if selection.visual_end_line < max_visual_line {
-                let new_visual_line = selection.visual_end_line + 1;
-                
-                // Get hash for new position
-                if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(new_visual_line).cloned() {
-                    selection.visual_end_line = new_visual_line;
-                    selection.end_hash = Some(line_hash);
-                    
-                    // Move cursor down as well
-                    if self.selection_cursor < max_visual_line {
-                        self.selection_cursor += 1;
-                    }
-                    
-                    let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                    self.add_system_log(&format!("📝 Hash selection extended down: {} lines", lines_selected));
-                }
-            }
-        }
-    }
-    
-    /// Toggle select all with hash-based accuracy
-    pub fn toggle_selection_all(&mut self) {
-        if self.hash_selection.is_some() {
-            // Clear existing selection
-            self.clear_selection();
-        } else if !self.log_entries.is_empty() {
-            // Create selection for all visible lines
-            let viewport_height = 50; // Conservative estimate, will be corrected in render
-            
-            // Ensure cache is built
-            if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
-                self.hash_line_cache.rebuild(
-                    &self.log_entries,
-                    self.scroll_offset,
-                    self.terminal_width,
-                    viewport_height,
-                    self.show_timestamps
-                );
-            }
-            
-            // Get first and last line hashes
-            if let (Some(start_hash), Some(end_hash)) = (
-                self.hash_line_cache.get_hash_for_visual_line(0).cloned(),
-                self.hash_line_cache.get_hash_for_visual_line(viewport_height.saturating_sub(1)).cloned()
-            ) {
-                self.hash_selection = Some(HashBasedSelection {
-                    start_hash: Some(start_hash),
-                    end_hash: Some(end_hash),
-                    visual_start_line: 0,
-                    visual_end_line: viewport_height.saturating_sub(1),
-                    is_active: true,
-                    is_dragging: false,
-                    selection_direction: SelectionDirection::Forward,
-                });
-                
-                self.add_system_log("📝 Selected all visible logs with hash accuracy - Ctrl+C to copy");
-            }
-        }
-    }
-    
-    /// Clear hash-based selection
-    pub fn clear_selection(&mut self) {
-        self.hash_selection = None;
-        self.selection_cursor = 0;
-        self.add_system_log("📝 Hash selection cleared");
-    }
 
-    /// Enable file output mode - logs always get written to file
-    pub fn set_file_output_mode(&mut self, enabled: bool) {
-        self.file_output_mode = enabled;
-        if enabled {
-            self.add_system_log("📁 File output mode enabled - all logs will be saved to file");
-        }
-    }
-
-    /// Activate enhanced buffer mode (5x expansion) for selection/follow modes
+    /// Activate enhanced buffer mode (configurable expansion) for selection/follow modes
     pub fn activate_enhanced_buffer(&mut self) {
         if !self.enhanced_buffer_active {
-            let new_size = self.original_max_lines * 5; // 5x expansion
+            // Load config to get buffer expansion multiplier
+            let expansion_multiplier = if let Ok(config) = crate::config::Config::load() {
+                config.ui.buffer_expansion
+            } else {
+                10.0 // Default to 10x if config can't be loaded
+            };
+            
+            let new_size = (self.original_max_lines as f64 * expansion_multiplier) as usize;
             self.max_lines = new_size;
             self.enhanced_buffer_active = true;
-            self.log_entries.reserve(self.original_max_lines * 4); // Reserve additional space
-            self.add_system_log(&format!("🚀 Enhanced buffer activated: {} → {} lines (5x expansion)", 
-                self.original_max_lines, new_size));
+            
+            let additional_capacity = new_size.saturating_sub(self.original_max_lines);
+            self.log_entries.reserve(additional_capacity);
+            
+            self.add_system_log(&format!("🚀 Enhanced buffer activated: {} → {} lines ({}x expansion)", 
+                self.original_max_lines, new_size, expansion_multiplier));
         }
     }
 
@@ -915,21 +739,33 @@ impl DisplayManager {
 
     /// Get memory usage percentage for status bar indicator
     pub fn get_memory_usage_percent(&self) -> f64 {
-        // Use the actual 5x limit when in pause mode with enhanced buffer
-        let effective_max_buffer = if self.enhanced_buffer_active {
-            // In enhanced mode, use the full 5x limit for accurate percentage
-            self.original_max_lines * 5
+        // Load config to get current buffer expansion multiplier
+        let expansion_multiplier = if let Ok(config) = crate::config::Config::load() {
+            config.ui.buffer_expansion
         } else {
-            self.max_lines
+            10.0 // Default fallback
+        };
+        
+        // FIXED: Always use a consistent calculation to prevent >100% values
+        let effective_max_buffer = if self.enhanced_buffer_active {
+            // In enhanced mode, use the configured expansion multiplier
+            (self.original_max_lines as f64 * expansion_multiplier) as usize
+        } else {
+            // In normal mode, use the original buffer size
+            self.original_max_lines
         };
         
         if effective_max_buffer == 0 {
             return 0.0;
         }
-        (self.log_entries.len() as f64 / effective_max_buffer as f64) * 100.0
+        
+        // FIXED: Ensure we never exceed 100% by capping the result
+        let percentage = (self.log_entries.len() as f64 / effective_max_buffer as f64) * 100.0;
+        percentage.min(100.0) // Cap at 100% to prevent display issues
     }
 
     /// Check if memory is critically high (80%+) - for status bar indicator
+    #[allow(dead_code)]
     pub fn is_memory_critical(&self) -> bool {
         // Only show memory indicator in pause mode when we have selection capability
         if self.auto_scroll {
@@ -1050,33 +886,345 @@ impl DisplayManager {
         true
     }
 
-    /// Get selected logs as text for clipboard copying using hash-based selection
-    pub fn get_selected_logs_as_text(&self) -> String {
-        if let Some(ref selection) = self.hash_selection {
-            if selection.is_active {
-                let mut result = String::new();
+    /// Hash-based mouse click handler for perfect selection accuracy
+    pub fn handle_mouse_click(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
+        // Only allow selection in pause mode (not in follow mode)
+        if self.auto_scroll {
+            return false;
+        }
+        
+        // Check if click is within the log area content
+        if x < log_area.x + 1 || x >= log_area.x + log_area.width - 1 ||
+           y < log_area.y + 2 || y >= log_area.y + log_area.height - 1 {
+            return false;
+        }
+        
+        let content_start_y = log_area.y + 2;
+        let relative_y = (y - content_start_y) as usize;
+        let viewport_height = (log_area.height as usize).saturating_sub(3);
+        
+        // Rebuild cache if needed
+        if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
+            self.hash_line_cache.rebuild(
+                &self.log_entries,
+                self.scroll_offset,
+                self.terminal_width,
+                viewport_height,
+                self.show_timestamps
+            );
+        }
+        
+        // Get the hash for the clicked visual line
+        if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(relative_y).cloned() {
+            // Check if we're clicking on existing selection
+            if let Some(ref existing_selection) = self.hash_selection {
+                let start_visual = existing_selection.visual_start_line;
+                let end_visual = existing_selection.visual_end_line;
                 
-                // Use the hash-based cache to get exact selected lines
-                for visual_line in selection.visual_start_line..=selection.visual_end_line {
-                    if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(visual_line) {
-                        if let Some((_log_entry_index, content)) = self.hash_line_cache.get_log_info_from_hash(line_hash) {
-                            // For hash-based selection, we get the exact visual content
-                            result.push_str(content);
-                            result.push('\n');
-                        }
-                    }
+                if relative_y >= start_visual && relative_y <= end_visual {
+                    // Clicking inside existing selection - clear it
+                    self.clear_selection();
+                    self.add_system_log("🖱️ Clicked inside selection - cleared selection");
+                    return true;
                 }
-                
-                // Remove the last newline to avoid extra blank line
-                if result.ends_with('\n') {
-                    result.pop();
+            }
+            
+            // Start new hash-based selection
+            self.hash_selection = Some(HashBasedSelection::new(line_hash.clone(), relative_y));
+            self.selection_cursor = relative_y;
+            
+            self.add_system_log(&format!("🖱️ Hash selection started at visual line {} (log entry {})", 
+                relative_y, line_hash.log_entry_index));
+            return true;
+        }
+        
+        self.add_system_log(&format!("❌ No hash found for visual line {}", relative_y));
+        false
+    }
+    
+    /// Enhanced mouse drag handler with optimized performance for Linux/Unix systems
+    pub fn handle_mouse_drag(&mut self, _x: u16, y: u16, log_area: Rect) -> (bool, bool) {
+        // Returns (selection_changed, should_scroll)
+        
+        // Check if we have an active selection to extend
+        let has_selection = self.hash_selection.is_some();
+        if !has_selection {
+            return (false, false);
+        }
+        
+        // Only allow in pause mode
+        if self.auto_scroll {
+            return (false, false);
+        }
+        
+        let content_start_y = log_area.y + 2;
+        let content_end_y = log_area.y + log_area.height - 1;
+        let viewport_height = (log_area.height as usize).saturating_sub(3);
+        
+        // Enhanced edge detection for auto-scroll during drag
+        const SCROLL_EDGE_THRESHOLD: u16 = 2; // Lines from edge to trigger scroll
+        let mut scroll_direction = None;
+        let mut relative_y;
+        
+        // Detect edge scrolling zones
+        if y < content_start_y + SCROLL_EDGE_THRESHOLD {
+            // Dragging near top edge - scroll up
+            scroll_direction = Some(-1);
+            relative_y = 0;
+        } else if y >= content_end_y - SCROLL_EDGE_THRESHOLD {
+            // Dragging near bottom edge - scroll down  
+            scroll_direction = Some(1);
+            relative_y = viewport_height.saturating_sub(1);
+        } else if y >= content_start_y && y < content_end_y {
+            // Normal drag within viewport
+            relative_y = (y - content_start_y) as usize;
+            if relative_y >= viewport_height {
+                relative_y = viewport_height.saturating_sub(1);
+            }
+        } else {
+            // Outside viewport entirely
+            return (false, false);
+        }
+        
+        // PERFORMANCE FIX: Throttle scroll updates to reduce CPU usage
+        let mut scrolled = false;
+        if let Some(direction) = scroll_direction {
+            let scroll_speed = 1; // Reduced from variable speed for consistency
+            if direction < 0 {
+                // Scroll up
+                if self.scroll_offset > 0 {
+                    let scroll_amount = scroll_speed.min(self.scroll_offset);
+                    self.scroll_offset -= scroll_amount;
+                    scrolled = true;
                 }
-                
-                return result;
+            } else {
+                // Scroll down
+                let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
+                if self.scroll_offset < max_scroll {
+                    let scroll_amount = scroll_speed.min(max_scroll - self.scroll_offset);
+                    self.scroll_offset += scroll_amount;
+                    scrolled = true;
+                }
+            }
+            
+            if scrolled {
+                // Invalidate cache after scrolling
+                self.cache_generation += 1;
+                self.validate_scroll_bounds(viewport_height);
+                self.update_display_window(viewport_height);
             }
         }
         
-        "No text selected".to_string()
+        // PERFORMANCE FIX: Only rebuild cache if scrolled or if really needed
+        let need_cache_rebuild = scrolled || 
+            !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation);
+        
+        if need_cache_rebuild {
+            self.hash_line_cache.rebuild(
+                &self.log_entries,
+                self.scroll_offset,
+                self.terminal_width,
+                viewport_height,
+                self.show_timestamps
+            );
+        }
+        
+        // Update selection with hash-based accuracy - PERFORMANCE OPTIMIZED
+        let selection_changed = if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(relative_y).cloned() {
+            // Get current selection state before borrowing mutably
+            let (old_start, old_end, was_dragging) = if let Some(ref selection) = self.hash_selection {
+                (selection.visual_start_line, selection.visual_end_line, selection.is_dragging)
+            } else {
+                return (false, scrolled);
+            };
+            
+            // Now safely borrow mutably for updates
+            if let Some(ref mut selection) = self.hash_selection {
+                // Start dragging if not already
+                if !was_dragging {
+                    selection.start_drag();
+                }
+                
+                // Extend selection to new position
+                selection.extend_to(line_hash, relative_y);
+                
+                // Check if selection actually changed
+                let changed = old_start != selection.visual_start_line || old_end != selection.visual_end_line;
+                
+                // PERFORMANCE FIX: Reduce logging frequency for micro-adjustments
+                if changed && !scrolled {
+                    let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
+                    // Only log every 10 lines or for small selections to reduce spam
+                    if lines_selected % 10 == 0 || lines_selected <= 3 {
+                        self.add_system_log(&format!("🖱️ Selection: {} lines", lines_selected));
+                    }
+                }
+                
+                changed
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        
+        // PERFORMANCE FIX: Only update selection after scroll if really necessary
+        if scrolled && self.hash_selection.is_some() && need_cache_rebuild {
+            self.update_selection_after_scroll(viewport_height);
+        }
+        
+        (selection_changed || scrolled, scrolled)
+    }
+
+    /// Handle mouse release to finalize hash-based selection
+    pub fn handle_mouse_release(&mut self) -> bool {
+        if let Some(ref mut selection) = self.hash_selection {
+            if selection.is_dragging {
+                selection.end_drag();
+                let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
+                self.add_system_log(&format!("📝 Hash selection complete: {} lines selected - Ctrl+C to copy", lines_selected));
+                return true;
+            }
+        }
+        false
+    }
+    
+    /// Keyboard selection up with hash-based accuracy
+    pub fn select_up(&mut self) {
+        if let Some(ref mut selection) = self.hash_selection {
+            if selection.visual_start_line > 0 {
+                let new_visual_line = selection.visual_start_line - 1;
+                
+                // Get hash for new position
+                if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(new_visual_line).cloned() {
+                    selection.visual_start_line = new_visual_line;
+                    selection.start_hash = Some(line_hash);
+                    
+                    // Move cursor up as well
+                    if self.selection_cursor > 0 {
+                        self.selection_cursor -= 1;
+                    }
+                    
+                    let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
+                    self.add_system_log(&format!("📝 Hash selection extended up: {} lines", lines_selected));
+                }
+            }
+        }
+    }
+    
+    /// Keyboard selection down with hash-based accuracy
+    pub fn select_down(&mut self, viewport_height: usize) {
+        if let Some(ref mut selection) = self.hash_selection {
+            let max_visual_line = viewport_height.saturating_sub(1);
+            if selection.visual_end_line < max_visual_line {
+                let new_visual_line = selection.visual_end_line + 1;
+                
+                // Get hash for new position
+                if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(new_visual_line).cloned() {
+                    selection.visual_end_line = new_visual_line;
+                    selection.end_hash = Some(line_hash);
+                    
+                    // Move cursor down as well
+                    if self.selection_cursor < max_visual_line {
+                        self.selection_cursor += 1;
+                    }
+                    
+                    let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
+                    self.add_system_log(&format!("📝 Hash selection extended down: {} lines", lines_selected));
+                }
+            }
+        }
+    }
+    
+    /// Toggle select all with hash-based accuracy
+    pub fn toggle_selection_all(&mut self) {
+        if self.hash_selection.is_some() {
+            // Clear existing selection
+            self.clear_selection();
+        } else if !self.log_entries.is_empty() {
+            // Create selection for all visible lines
+            let viewport_height = 50; // Conservative estimate, will be corrected in render
+            
+            // Ensure cache is built
+            if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
+                self.hash_line_cache.rebuild(
+                    &self.log_entries,
+                    self.scroll_offset,
+                    self.terminal_width,
+                    viewport_height,
+                    self.show_timestamps
+                );
+            }
+            
+            // Get first and last line hashes
+            if let (Some(start_hash), Some(end_hash)) = (
+                self.hash_line_cache.get_hash_for_visual_line(0).cloned(),
+                self.hash_line_cache.get_hash_for_visual_line(viewport_height.saturating_sub(1)).cloned()
+            ) {
+                self.hash_selection = Some(HashBasedSelection {
+                    start_hash: Some(start_hash),
+                    end_hash: Some(end_hash),
+                    visual_start_line: 0,
+                    visual_end_line: viewport_height.saturating_sub(1),
+                    is_active: true,
+                    is_dragging: false,
+                    selection_direction: SelectionDirection::Forward,
+                });
+                
+                self.add_system_log("📝 Selected all visible logs with hash accuracy - Ctrl+C to copy");
+            }
+        }
+    }
+    
+    /// Clear hash-based selection
+    pub fn clear_selection(&mut self) {
+        self.hash_selection = None;
+        self.selection_cursor = 0;
+        self.add_system_log("📝 Hash selection cleared");
+    }
+
+    /// Get selected logs as text for clipboard copying using hash-based selection
+    pub fn get_selected_logs_as_text(&self) -> String {
+        if let Some(ref selection) = self.hash_selection {
+            let mut result = String::new();
+            
+            // Get the log entries that correspond to the selected visual lines
+            for visual_index in selection.visual_start_line..=selection.visual_end_line {
+                if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(visual_index) {
+                    if let Some((_log_entry_index, line_content)) = self.hash_line_cache.get_log_info_from_hash(line_hash) {
+                        result.push_str(line_content);
+                        result.push('\n');
+                    }
+                }
+            }
+            
+            if result.is_empty() {
+                "No text selected".to_string()
+            } else {
+                result.trim_end().to_string()
+            }
+        } else {
+            "No text selected".to_string()
+        }
+    }
+
+    /// Get visible logs as text (for copy all functionality)
+    pub fn get_visible_logs_as_text(&self, viewport_height: usize) -> String {
+        let mut result = String::new();
+        
+        let visible_entries: Vec<&LogEntry> = self.log_entries
+            .iter()
+            .skip(self.scroll_offset)
+            .take(viewport_height)
+            .collect();
+
+        for entry in visible_entries {
+            let formatted_line = HashLineCache::format_log_for_display(entry, self.show_timestamps);
+            result.push_str(&formatted_line);
+            result.push('\n');
+        }
+
+        result
     }
 
     pub fn scroll_up(&mut self, lines: usize) {
@@ -1158,341 +1306,21 @@ impl DisplayManager {
             }
         }
     }
-    
-    /// Get a color for a pod name based on its hash
-    fn get_pod_color(&mut self, pod_name: &str) -> Color {
-        // Check cache first
-        if let Some(&color) = self.pod_color_cache.get(pod_name) {
-            return color;
-        }
 
-        let colors = self.color_scheme.pod_colors();
-        let hash = pod_name.chars().map(|c| c as usize).sum::<usize>();
-        let color = colors[hash % colors.len()];
-
-        // Cache the computed color
-        self.pod_color_cache.insert(pod_name.to_string(), color);
-
-        color
-    }
-
-    /// Get a color for a container name based on its hash
-    fn get_container_color(&mut self, container_name: &str) -> Color {
-        // Check cache first
-        if let Some(&color) = self.container_color_cache.get(container_name) {
-            return color;
-        }
-
-        let colors = self.color_scheme.container_colors();
-        let hash = container_name.chars().map(|c| c as usize).sum::<usize>();
-        let color = colors[hash % colors.len()];
-
-        // Cache the computed color
-        self.container_color_cache.insert(container_name.to_string(), color);
-
-        color
-    }
-
-    /// Create a colored line from a log entry with hash-based selection highlighting
-    fn create_colored_log_line(&mut self, entry: &LogEntry, visual_line_index: usize) -> Line<'static> {
-        let mut spans = Vec::new();
-
-        // System messages (filter notifications) get special treatment
-        if entry.message.starts_with("🔧") {
-            let line = Line::from(Span::styled(
-                entry.message.clone(),
-                Style::default()
-                    .fg(Color::Magenta)
-                    .add_modifier(Modifier::ITALIC)
-            ));
-            
-            // Apply selection highlighting if this line is selected
-            return if self.is_line_selected_hash(visual_line_index) {
-                self.apply_selection_highlight(line)
-            } else {
-                line
-            };
-        }
-
-        // Clean fields of ANSI codes
-        let clean_message = HashLineCache::strip_ansi_codes(&entry.message);
-        let clean_pod_name = HashLineCache::strip_ansi_codes(&entry.pod_name);
-        let clean_container_name = HashLineCache::strip_ansi_codes(&entry.container_name);
-
-        // Add timestamp if enabled
-        if self.show_timestamps {
-            if let Some(ts) = entry.timestamp {
-                spans.push(Span::styled(
-                    format!("{} ", ts.format("%H:%M:%S")),
-                    Style::default().fg(self.color_scheme.dim_text_color())
-                ));
-            }
-        }
-
-        // Add pod name with color based on hash
-        let pod_color = self.get_pod_color(&clean_pod_name);
-        spans.push(Span::styled(
-            clean_pod_name.clone(),
-            Style::default().fg(pod_color).add_modifier(Modifier::BOLD)
-        ));
-
-        // Add separator
-        spans.push(Span::styled("/".to_string(), Style::default().fg(self.color_scheme.dim_text_color())));
-
-        // Add container name with different color
-        let container_color = self.get_container_color(&clean_container_name);
-        spans.push(Span::styled(
-            clean_container_name.clone(),
-            Style::default().fg(container_color)
-        ));
-
-        // Add separator
-        spans.push(Span::styled(" ".to_string(), Style::default()));
-
-        // Parse and color the log message based on log level
-        let colored_message_spans = self.parse_log_message(&clean_message);
-        spans.extend(colored_message_spans);
-
-        let line = Line::from(spans);
-        
-        // Apply selection highlighting if this line is selected
-        if self.is_line_selected_hash(visual_line_index) {
-            self.apply_selection_highlight(line)
-        } else {
-            line
-        }
-    }
-
-    /// Parse log message and apply colors based on log level and content
-    fn parse_log_message(&self, message: &str) -> Vec<Span<'static>> {
-        let mut spans = Vec::new();
-        
-        // Fast log level detection using string search instead of regex
-        let level_start = message.find('[');
-        let level_end = message.find(']');
-        
-        if let (Some(start), Some(end)) = (level_start, level_end) {
-            if start < end && end < message.len() {
-                let level = &message[start+1..end];
-                let before = &message[..start];
-                let after = &message[end+1..];
-                
-                // Only parse common log levels for performance
-                if matches!(level, "TRACE" | "DEBUG" | "INFO" | "WARN" | "WARNING" | "ERROR" | "FATAL") {
-                    // Add text before log level
-                    if !before.is_empty() {
-                        spans.push(Span::raw(before.to_string()));
-                    }
-                    
-                    // Add colored log level
-                    let level_color = match level {
-                        "TRACE" => self.color_scheme.dim_text_color(),
-                        "DEBUG" => Color::Blue,
-                        "INFO" => Color::Green,
-                        "WARN" | "WARNING" => Color::Yellow,
-                        "ERROR" => Color::Red,
-                        "FATAL" => Color::LightRed,
-                        _ => self.color_scheme.text_color(),
-                    };
-                    
-                    spans.push(Span::styled(
-                        format!("[{}]", level),
-                        Style::default()
-                            .fg(level_color)
-                            .add_modifier(Modifier::BOLD)
-                    ));
-                    
-                    // Add text after log level with appropriate coloring
-                    if !after.is_empty() {
-                        let after_spans = self.color_message_content_fast(after, level);
-                        spans.extend(after_spans);
-                    }
-                    return spans;
-                }
-            }
-        }
-        
-        // No log level detected, apply general coloring
-        let content_spans = self.color_message_content_fast(message, "INFO");
-        spans.extend(content_spans);
-        spans
-    }
-
-    /// Fast message content coloring with reduced allocations
-    fn color_message_content_fast(&self, content: &str, log_level: &str) -> Vec<Span<'static>> {
-        // Base color depends on log level and adapts to background
-        let base_color = match log_level {
-            "ERROR" | "FATAL" => Color::LightRed,
-            "WARN" | "WARNING" => Color::LightYellow,
-            "DEBUG" => Color::LightBlue,
-            "TRACE" => self.color_scheme.dim_text_color(),
-            _ => self.color_scheme.default_message_color(),
-        };
-        
-        // For performance, only do basic coloring on scrolling
-        // Check for common error/success patterns quickly
-        if content.contains("error") || content.contains("Error") || content.contains("fail") {
-            vec![Span::styled(content.to_string(), Style::default().fg(Color::Red))]
-        } else if content.contains("success") || content.contains("Success") || content.contains("ok") {
-            vec![Span::styled(content.to_string(), Style::default().fg(Color::Green))]
-        } else if content.contains("warn") || content.contains("Warn") {
-            vec![Span::styled(content.to_string(), Style::default().fg(Color::Yellow))]
-        } else {
-            vec![Span::styled(content.to_string(), Style::default().fg(base_color))]
-        }
-    }
-
-    /// Check if a visual line is selected using hash-based selection
-    fn is_line_selected_hash(&self, visual_line_index: usize) -> bool {
-        if let Some(ref selection) = self.hash_selection {
-            if selection.is_active {
-                return visual_line_index >= selection.visual_start_line && 
-                       visual_line_index <= selection.visual_end_line;
-            }
-        }
-        false
-    }
-
-    /// Apply selection highlighting to a line
-    fn apply_selection_highlight(&self, line: Line<'static>) -> Line<'static> {
-        let highlighted_spans: Vec<Span> = line.spans.into_iter().map(|span| {
-            Span::styled(
-                span.content,
-                span.style.bg(Color::Blue).fg(Color::White).add_modifier(Modifier::BOLD)
-            )
-        }).collect();
-        
-        Line::from(highlighted_spans)
-    }
-
-    pub fn add_system_message(&mut self, message: &str) {
-        let system_entry = LogEntry {
-            namespace: "system".to_string(),
-            pod_name: "wake".to_string(),
-            container_name: "filter".to_string(),
-            message: format!("🔧 {}", message),
-            timestamp: Some(chrono::Utc::now()),
-        };
-        
-        // Remove oldest entries if we exceed max_lines
-        if self.log_entries.len() >= self.max_lines {
-            self.log_entries.pop_front();
-            if self.hash_selection.is_none() && self.scroll_offset > 0 {
-                self.scroll_offset = self.scroll_offset.saturating_sub(1);
-            }
-        }
-        
-        self.log_entries.push_back(system_entry);
-        
-        // Invalidate cache when system message is added
-        self.cache_generation += 1;
-    }
-
-    /// Add a debug system message that only appears when dev mode is enabled
-    pub fn add_system_log(&mut self, message: &str) {
-        if self.dev_mode {
-            self.add_system_message(message);
-        }
-    }
-
-    /// Format a log entry specifically for UI display (used for wrapping calculations)
-    fn format_log_for_ui(&self, entry: &LogEntry) -> String {
-        let time_part = if self.show_timestamps {
-            if let Some(ts) = entry.timestamp {
-                format!("{} ", ts.format("%H:%M:%S"))
-            } else {
-                String::new()
-            }
-        } else {
-            String::new()
-        };
-
-        let clean_message = HashLineCache::strip_ansi_codes(&entry.message);
-        let clean_pod_name = HashLineCache::strip_ansi_codes(&entry.pod_name);
-        let clean_container_name = HashLineCache::strip_ansi_codes(&entry.container_name);
-
-        format!("{}{}/{} {}", 
-            time_part,
-            clean_pod_name,
-            clean_container_name,
-            clean_message
-        )
-    }
-
-    /// Get the currently visible logs as plain text for clipboard copying
-    pub fn get_visible_logs_as_text(&self, viewport_height: usize) -> String {
-        let visible_entries: Vec<&LogEntry> = self.log_entries
-            .iter()
-            .skip(self.scroll_offset)
-            .take(viewport_height)
-            .collect();
-
-        if visible_entries.is_empty() {
-            return "No logs to copy".to_string();
-        }
-
-        let mut result = String::new();
-        for entry in visible_entries {
-            let formatted_line = self.format_log_for_ui(entry);
-            result.push_str(&formatted_line);
-            result.push('\n');
-        }
-
-        // Remove the last newline to avoid extra blank line
-        if result.ends_with('\n') {
-            result.pop();
-        }
-
-        result
-    }
-
-    /// Get all logs as plain text for clipboard copying
-    #[allow(dead_code)]
-    pub fn get_all_logs_as_text(&self) -> String {
-        if self.log_entries.is_empty() {
-            return "No logs to copy".to_string();
-        }
-
-        let mut result = String::new();
-        for entry in &self.log_entries {
-            let formatted_line = self.format_log_for_ui(entry);
-            result.push_str(&formatted_line);
-            result.push('\n');
-        }
-
-        // Remove the last newline to avoid extra blank line
-        if result.ends_with('\n') {
-            result.pop();
-        }
-
-        result
-    }
-
-    /// Clear all buffers for performance optimization during shutdown
+    /// Clear all buffers (for clear screen functionality)
     pub fn clear_all_buffers(&mut self) {
-        let buffer_size_before = self.log_entries.len();
-        let cache_entries_before = self.pod_color_cache.len() + self.container_color_cache.len();
-        
-        // Clear main log buffer
         self.log_entries.clear();
-        self.log_entries.shrink_to_fit();
+        self.filtered_logs = 0;
+        self.scroll_offset = 0;
+        self.hash_selection = None;
+        self.selection_cursor = 0;
+        self.cache_generation += 1;
         
         // Clear color caches
         self.pod_color_cache.clear();
         self.container_color_cache.clear();
         
-        // Clear hash-based caches
-        self.hash_line_cache = HashLineCache::new();
-        self.hash_selection = None;
-        
-        // Reset counters
-        self.filtered_logs = 0;
-        self.scroll_offset = 0;
-        self.cache_generation = 0;
-        
-        // Log cleanup for performance monitoring
-        tracing::info!("Buffer cleanup completed: {} log entries cleared, {} cache entries cleared", 
-                      buffer_size_before, cache_entries_before);
+        self.add_system_log("🧹 All buffers cleared");
     }
 
     /// Update display window indices based on current scroll position and viewport
@@ -1505,7 +1333,7 @@ impl DisplayManager {
                 self.display_start_index, self.display_end_index));
         }
     }
-
+    
     /// Update selection visual line indices after scrolling
     fn update_selection_after_scroll(&mut self, viewport_height: usize) {
         if let Some(ref mut selection) = self.hash_selection {
@@ -1568,318 +1396,276 @@ impl DisplayManager {
         }
     }
 
-    /// Render the display manager UI
-    pub fn render(&mut self, f: &mut Frame, input_handler: &InputHandler) {
-        use ratatui::{
-            layout::{Constraint, Direction, Layout, Rect},
-            style::{Color, Modifier, Style},
-            text::{Line, Span, Text},
-            widgets::{Block, Borders, Clear, Paragraph, Wrap},
-        };
+    /// Check if a visual line is selected using hash-based selection
+    fn is_line_selected_hash(&self, visual_line_index: usize) -> bool {
+        if let Some(ref selection) = self.hash_selection {
+            if selection.is_active {
+                return visual_line_index >= selection.visual_start_line && 
+                       visual_line_index <= selection.visual_end_line;
+            }
+        }
+        false
+    }
 
+    /// Apply selection highlighting to a line
+    fn apply_selection_highlight(&self, line: Line<'static>) -> Line<'static> {
+        let highlighted_spans: Vec<Span> = line.spans.into_iter().map(|span| {
+            Span::styled(
+                span.content,
+                span.style
+                    .bg(self.color_scheme.selection_bg())
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD)
+            )
+        }).collect();
+        
+        Line::from(highlighted_spans)
+    }
+
+    /// High-performance auto-scroll during drag with Linux kernel optimizations
+    #[allow(dead_code)]
+    pub fn auto_scroll_during_drag(&mut self, direction: i8, viewport_height: usize) -> bool {
+        // Optimized for Linux/Unix systems with faster scroll rates
+        let scroll_speed = match direction.abs() {
+            1 => 1,  // Slow scroll near edge
+            2 => 3,  // Medium scroll  
+            _ => 5,  // Fast scroll when dragging far outside
+        };
+        
+        let mut scrolled = false;
+        
+        if direction < 0 {
+            // Scroll up
+            if self.scroll_offset > 0 {
+                let scroll_amount = scroll_speed.min(self.scroll_offset);
+                self.scroll_offset -= scroll_amount;
+                scrolled = true;
+            }
+        } else if direction > 0 {
+            // Scroll down
+            let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
+            if self.scroll_offset < max_scroll {
+                let scroll_amount = scroll_speed.min(max_scroll - self.scroll_offset);
+                self.scroll_offset += scroll_amount;
+                scrolled = true;
+            }
+        }
+        
+        if scrolled {
+            // Use Linux-optimized cache invalidation
+            self.cache_generation += 1;
+            self.validate_scroll_bounds(viewport_height);
+            self.update_display_window(viewport_height);
+            
+            // Update any active selection to follow the scroll
+            if self.hash_selection.is_some() {
+                self.update_selection_after_scroll(viewport_height);
+            }
+        }
+        
+        scrolled
+    }
+
+    /// Render the display manager UI with include/exclude filter boxes
+    pub fn render(&mut self, f: &mut Frame, input_handler: &InputHandler) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(4), // Filter input area (now 4 lines: header + filters)
-                Constraint::Min(0),    // Log display area
-                Constraint::Length(1), // Status bar
+                Constraint::Length(4), // Filter input area
+                Constraint::Min(0),    // Log display area - takes remaining space
+                Constraint::Length(3), // Status bar - FIXED: increased from 2 to 3 for better visibility
             ])
             .split(f.size());
 
         // Update terminal width for hash cache
         let new_width = f.size().width as usize;
-        self.update_terminal_width(new_width);
+        if self.terminal_width != new_width {
+            self.terminal_width = new_width;
+            self.cache_generation += 1;
+        }
 
-        // Filter input area
-        self.render_filter_input(f, input_handler, chunks[0]);
+        // Render the filter input area at the top
+        self.render_filter_input_area(f, chunks[0], input_handler);
 
-        // Log display area
+        // Render log display area in the middle
         self.render_logs(f, chunks[1]);
 
-        // Status bar
-        self.render_status_bar(f, chunks[2]);
-
-        // Memory warning popup (if active)
-        if self.memory_warning_active {
-            self.render_memory_warning(f);
-        }
-
-        // Help overlay (if active)
-        if input_handler.mode == InputMode::Help {
-            self.render_help_overlay(f, input_handler);
-        }
+        // FIXED: Always render the status bar at the bottom with proper content
+        self.render_enhanced_status_bar(f, chunks[2], input_handler);
     }
 
-    /// Render the filter input area with modern styling and improved design
-    fn render_filter_input(&self, f: &mut Frame, input_handler: &InputHandler, area: Rect) {
-        // Create a more sophisticated layout with better proportions
-        let main_layout = Layout::default()
-            .direction(Direction::Vertical)
+    /// FIXED: Renamed and enhanced status bar rendering function 
+    fn render_enhanced_status_bar(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
+        use ratatui::widgets::{Block, Borders, Paragraph};
+        use ratatui::style::{Color, Modifier, Style};
+        use ratatui::text::{Line, Span};
+
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(1), // Header line
-                Constraint::Length(3), // Filter inputs
+                Constraint::Percentage(60), // Main status
+                Constraint::Percentage(40), // Memory and filter status
             ])
             .split(area);
 
-        // Render header with visual connection indicator
-        self.render_filter_header(f, input_handler, main_layout[0]);
+        // ENHANCED: Main status information with MAXIMUM VISIBILITY
+        let mode_text = if self.auto_scroll { "▶️ FOLLOW" } else { "⏸️ PAUSE" };
+        let mode_color = if self.auto_scroll { 
+            Color::Rgb(0, 255, 0) // Bright green for FOLLOW
+        } else { 
+            Color::Rgb(255, 255, 0) // Bright yellow for PAUSE
+        };
 
-        // Split filter area with better proportions and visual separation
-        let filter_chunks = Layout::default()
+        let scroll_info = format!("Line {}/{}", 
+            self.scroll_offset + 1, 
+            self.log_entries.len().max(1)
+        );
+
+        let selection_text = if let Some(ref selection) = self.hash_selection {
+            let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
+            format!(" │ 📝 {} selected", lines_selected)
+        } else {
+            String::new()
+        };
+
+        // ENHANCED status line with maximum visibility
+        let main_status_spans = vec![
+            Span::styled("📊 ", Style::default().fg(Color::White)),
+            Span::styled(mode_text, Style::default().fg(mode_color).add_modifier(Modifier::BOLD)),
+            Span::styled(" │ ", Style::default().fg(Color::White)),
+            Span::styled(scroll_info, Style::default().fg(Color::White)),
+            Span::styled(selection_text, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ];
+
+        let main_status = Paragraph::new(Line::from(main_status_spans))
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::White))
+                .title(Span::styled(" Status ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)))
+            )
+            .style(Style::default().fg(Color::White).bg(Color::Black));
+
+        f.render_widget(main_status, chunks[0]);
+
+        // ENHANCED memory and filter status with maximum visibility
+        let memory_percent = self.get_memory_usage_percent();
+        let memory_color = if memory_percent >= 80.0 {
+            Color::Rgb(255, 0, 0) // Bright red for critical
+        } else if memory_percent >= 60.0 {
+            Color::Rgb(255, 255, 0) // Bright yellow for warning
+        } else {
+            Color::Rgb(0, 255, 0) // Bright green for OK
+        };
+
+        let memory_icon = if memory_percent >= 80.0 { "⚠️" } else { "💾" };
+
+        // Enhanced filter status with clear indicators
+        let filter_status = if !input_handler.include_input.is_empty() || !input_handler.exclude_input.is_empty() {
+            let include_active = !input_handler.include_input.is_empty();
+            let exclude_active = !input_handler.exclude_input.is_empty();
+            format!(" │ Filters: {}{}",
+                if include_active { "✅INC" } else { "" },
+                if exclude_active { "🚫EXC" } else { "" }
+            )
+        } else {
+            " │ Filters: None".to_string()
+        };
+
+        let memory_status_spans = vec![
+            Span::styled(format!("{} ", memory_icon), Style::default().fg(memory_color)),
+            Span::styled(
+                format!("Mem: {:.1}%", memory_percent), 
+                Style::default().fg(memory_color).add_modifier(Modifier::BOLD)
+            ),
+            Span::styled(filter_status, Style::default().fg(Color::Cyan)),
+        ];
+
+        let memory_status = Paragraph::new(Line::from(memory_status_spans))
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::White))
+                .title(Span::styled(" Memory & Filters ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)))
+            )
+            .style(Style::default().fg(Color::White).bg(Color::Black));
+
+        f.render_widget(memory_status, chunks[1]);
+    }
+
+    /// Render the filter input area at the top of the screen
+    fn render_filter_input_area(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
+        let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(48), // Include filter
-                Constraint::Length(4),      // Visual separator
-                Constraint::Percentage(48), // Exclude filter
+                Constraint::Percentage(50), // Include filter
+                Constraint::Percentage(50), // Exclude filter
             ])
-            .split(main_layout[1]);
+            .split(area);
 
-        // Render include filter with enhanced design
-        self.render_include_filter(f, input_handler, filter_chunks[0]);
-
-        // Render visual connector between filters
-        self.render_filter_connector(f, input_handler, filter_chunks[1]);
-
-        // Render exclude filter with enhanced design
-        self.render_exclude_filter(f, input_handler, filter_chunks[2]);
-    }
-
-    /// Render the filter header showing the logical relationship
-    fn render_filter_header(&self, f: &mut Frame, input_handler: &InputHandler, area: Rect) {
-        let active_filters = (!input_handler.include_input.is_empty()) as u8 + 
-                           (!input_handler.exclude_input.is_empty()) as u8;
-        
-        let header_text = match active_filters {
-            0 => "📋 Log Filters: All logs shown (no filters active)",
-            1 => "📋 Log Filters: One filter active",
-            2 => "📋 Log Filters: Include AND NOT Exclude logic active",
-            _ => "📋 Log Filters",
+        // Include filter input box
+        let include_title = if input_handler.mode == InputMode::EditingInclude {
+            " Include Filter (Active) "
+        } else {
+            " Include Filter "
         };
 
-        let header_style = Style::default()
-            .fg(match active_filters {
-                0 => self.color_scheme.secondary_text(),
-                1 => self.color_scheme.accent_color(),
-                2 => self.color_scheme.success_color(),
-                _ => self.color_scheme.primary_text(),
-            })
-            .add_modifier(if active_filters > 0 { Modifier::BOLD } else { Modifier::empty() });
-
-        let header = Paragraph::new(header_text)
-            .style(header_style)
-            .alignment(ratatui::layout::Alignment::Center);
-
-        f.render_widget(header, area);
-    }
-
-    /// Render the include filter with enhanced visual design
-    fn render_include_filter(&self, f: &mut Frame, input_handler: &InputHandler, area: Rect) {
-        let is_active = input_handler.mode == InputMode::EditingInclude;
-        let has_content = !input_handler.include_input.is_empty();
-
-        // Dynamic title with status indicators
-        let title = match (is_active, has_content) {
-            (true, _) => "🔍 INCLUDE (editing) ✏️",
-            (false, true) => "🔍 INCLUDE ✅",
-            (false, false) => "🔍 INCLUDE",
-        };
-
-        // Enhanced styling based on state
-        let border_style = if is_active {
-            Style::default()
-                .fg(self.color_scheme.accent_color())
-                .add_modifier(Modifier::BOLD)
-        } else if has_content {
-            Style::default()
-                .fg(self.color_scheme.success_color())
+        let include_border_style = if input_handler.mode == InputMode::EditingInclude {
+            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(self.color_scheme.border_color())
         };
 
-        let text_style = if is_active {
-            Style::default()
-                .fg(self.color_scheme.accent_color())
-                .add_modifier(Modifier::BOLD)
-        } else if has_content {
-            Style::default()
-                .fg(self.color_scheme.primary_text())
-                .add_modifier(Modifier::BOLD)
+        let include_input = Paragraph::new(input_handler.include_input.as_str())
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(include_border_style)
+                .title(Span::styled(include_title, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)))
+            )
+            .style(Style::default().fg(self.color_scheme.text_color()));
+
+        f.render_widget(include_input, chunks[0]);
+
+        // Exclude filter input box
+        let exclude_title = if input_handler.mode == InputMode::EditingExclude {
+            " Exclude Filter (Active) "
         } else {
-            Style::default().fg(self.color_scheme.secondary_text())
+            " Exclude Filter "
         };
 
-        // Create block with enhanced visual hierarchy
-        let include_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(border_style)
-            .title(Span::styled(
-                title,
-                Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD)
-            ));
-
-        // Show placeholder text when empty
-        let display_text = if input_handler.include_input.is_empty() {
-            if is_active {
-                "Type to show only matching logs..."
-            } else {
-                "Press 'i' to add include filter"
-            }
-        } else {
-            &input_handler.include_input
-        };
-
-        let include_input = Paragraph::new(display_text)
-            .block(include_block)
-            .style(if input_handler.include_input.is_empty() && !is_active {
-                Style::default().fg(self.color_scheme.secondary_text()).add_modifier(Modifier::ITALIC)
-            } else {
-                text_style
-            });
-
-        f.render_widget(include_input, area);
-
-        // Render cursor for active editing
-        if is_active {
-            let cursor_x = area.x + 1 + input_handler.cursor_position as u16;
-            let cursor_y = area.y + 1;
-            f.set_cursor(cursor_x, cursor_y);
-        }
-    }
-
-    /// Render visual connector showing the logical relationship with Wake branding
-    fn render_filter_connector(&self, f: &mut Frame, input_handler: &InputHandler, area: Rect) {
-        let has_include = !input_handler.include_input.is_empty();
-        let has_exclude = !input_handler.exclude_input.is_empty();
-
-        let connector_text = match (has_include, has_exclude) {
-            (true, true) => vec![
-                Line::from(Span::styled("WAKE", Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD))),
-                Line::from(Span::styled(" AND", Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD))),
-                Line::from(Span::styled(" NOT", Style::default()
-                    .fg(self.color_scheme.warning_color())
-                    .add_modifier(Modifier::BOLD))),
-            ],
-            (true, false) => vec![
-                Line::from(Span::styled("WAKE", Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD))),
-                Line::from(Span::styled(" →  ", Style::default()
-                    .fg(self.color_scheme.secondary_text()))),
-                Line::from(Span::styled("    ", Style::default())),
-            ],
-            (false, true) => vec![
-                Line::from(Span::styled("WAKE", Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD))),
-                Line::from(Span::styled(" NOT", Style::default()
-                    .fg(self.color_scheme.warning_color())
-                    .add_modifier(Modifier::BOLD))),
-                Line::from(Span::styled("    ", Style::default())),
-            ],
-            (false, false) => vec![
-                Line::from(Span::styled("WAKE", Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD))),
-                Line::from(Span::styled("════", Style::default()
-                    .fg(self.color_scheme.secondary_text()))),
-                Line::from(Span::styled("LOGS", Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD))),
-            ],
-        };
-
-        let connector = Paragraph::new(connector_text)
-            .alignment(ratatui::layout::Alignment::Center);
-
-        f.render_widget(connector, area);
-    }
-
-    /// Render the exclude filter with enhanced visual design
-    fn render_exclude_filter(&self, f: &mut Frame, input_handler: &InputHandler, area: Rect) {
-        let is_active = input_handler.mode == InputMode::EditingExclude;
-        let has_content = !input_handler.exclude_input.is_empty();
-
-        // Dynamic title with status indicators
-        let title = match (is_active, has_content) {
-            (true, _) => "🚫 EXCLUDE (editing) ✏️",
-            (false, true) => "🚫 EXCLUDE ✅",
-            (false, false) => "🚫 EXCLUDE",
-        };
-
-        // Enhanced styling based on state
-        let border_style = if is_active {
-            Style::default()
-                .fg(self.color_scheme.warning_color())
-                .add_modifier(Modifier::BOLD)
-        } else if has_content {
-            Style::default()
-                .fg(self.color_scheme.error_color())
+        let exclude_border_style = if input_handler.mode == InputMode::EditingExclude {
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(self.color_scheme.border_color())
         };
 
-        let text_style = if is_active {
-            Style::default()
-                .fg(self.color_scheme.warning_color())
-                .add_modifier(Modifier::BOLD)
-        } else if has_content {
-            Style::default()
-                .fg(self.color_scheme.primary_text())
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(self.color_scheme.secondary_text())
-        };
+        let exclude_input = Paragraph::new(input_handler.exclude_input.as_str())
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(exclude_border_style)
+                .title(Span::styled(exclude_title, Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)))
+            )
+            .style(Style::default().fg(self.color_scheme.text_color()));
 
-        // Create block with enhanced visual hierarchy
-        let exclude_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(border_style)
-            .title(Span::styled(
-                title,
-                Style::default()
-                    .fg(self.color_scheme.warning_color())
-                    .add_modifier(Modifier::BOLD)
-            ));
+        f.render_widget(exclude_input, chunks[1]);
 
-        // Show placeholder text when empty
-        let display_text = if input_handler.exclude_input.is_empty() {
-            if is_active {
-                "Type to hide matching logs..."
-            } else {
-                "Press 'e' to add exclude filter"
-            }
-        } else {
-            &input_handler.exclude_input
-        };
-
-        let exclude_input = Paragraph::new(display_text)
-            .block(exclude_block)
-            .style(if input_handler.exclude_input.is_empty() && !is_active {
-                Style::default().fg(self.color_scheme.secondary_text()).add_modifier(Modifier::ITALIC)
-            } else {
-                text_style
-            });
-
-        f.render_widget(exclude_input, area);
-
-        // Render cursor for active editing
-        if is_active {
-            let cursor_x = area.x + 1 + input_handler.cursor_position as u16;
-            let cursor_y = area.y + 1;
+        // Render cursor in active input field
+        if input_handler.mode == InputMode::EditingInclude {
+            let cursor_x = chunks[0].x + 1 + input_handler.include_input.len() as u16;
+            let cursor_y = chunks[0].y + 1;
+            f.set_cursor(cursor_x, cursor_y);
+        } else if input_handler.mode == InputMode::EditingExclude {
+            let cursor_x = chunks[1].x + 1 + input_handler.exclude_input.len() as u16;
+            let cursor_y = chunks[1].y + 1;
             f.set_cursor(cursor_x, cursor_y);
         }
     }
 
-    /// Render the main log display area with modern styling
+    /// Render the main log display area with hash-based selection
     fn render_logs(&mut self, f: &mut Frame, area: Rect) {
         let viewport_height = (area.height as usize).saturating_sub(3);
         
+        // Update viewport tracking
+        self.update_display_window(viewport_height);
+
         // Rebuild hash cache if needed
         if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
             self.hash_line_cache.rebuild(
@@ -1891,347 +1677,175 @@ impl DisplayManager {
             );
         }
 
-        // Create log lines with hash-based selection highlighting
-        let mut log_lines = Vec::new();
-        let visible_entries: Vec<(usize, LogEntry)> = self.log_entries
+        // Collect visible entries first to avoid borrowing conflicts
+        let visible_entries: Vec<LogEntry> = self.log_entries
             .iter()
-            .enumerate()
             .skip(self.scroll_offset)
             .take(viewport_height)
-            .map(|(i, entry)| (i, entry.clone()))
+            .cloned()
             .collect();
 
-        for (visual_line_index, (_, entry)) in visible_entries.iter().enumerate() {
-            let colored_line = self.create_colored_log_line(entry, visual_line_index);
-            log_lines.push(colored_line);
+        // Pre-compute colors for all visible entries
+        let mut pod_colors = Vec::new();
+        let mut container_colors = Vec::new();
+        
+        for entry in &visible_entries {
+            let pod_color = self.get_pod_color(&entry.pod_name);
+            let container_color = self.get_container_color(&entry.container_name);
+            pod_colors.push(pod_color);
+            container_colors.push(container_color);
         }
 
-        // Enhanced title with modern icons and status indicators
-        let mode_indicator = if self.auto_scroll { 
-            "▶️ FOLLOW" 
-        } else { 
-            "⏸️ PAUSE" 
-        };
+        let mut lines = Vec::new();
         
-        let selection_info = if let Some(ref selection) = self.hash_selection {
-            let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-            format!(" │ 📝 {} selected", lines_selected)
-        } else {
-            String::new()
-        };
+        // Create lines with proper color handling
+        for (visual_index, (entry, (pod_color, container_color))) in visible_entries.iter()
+            .zip(pod_colors.iter().zip(container_colors.iter()))
+            .enumerate() {
+            
+            // Create the colored line
+            let time_part = if self.show_timestamps {
+                if let Some(ts) = entry.timestamp {
+                    format!("{} ", ts.format("%H:%M:%S"))
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
 
-        let memory_indicator = if !self.auto_scroll && self.is_memory_critical() {
-            " │ ⚠️ Memory High"
-        } else {
-            ""
-        };
+            // Create spans with proper colors
+            let mut spans = Vec::new();
 
-        let title = format!("📋 Kubernetes Logs [{}{}{}] ({}/{})", 
-            mode_indicator, 
-            selection_info,
-            memory_indicator,
-            self.filtered_logs, 
-            self.log_entries.len()
-        );
+            // Timestamp span
+            if !time_part.is_empty() {
+                spans.push(Span::styled(
+                    time_part,
+                    Style::default().fg(self.color_scheme.dim_text_color())
+                ));
+            }
 
-        // Enhanced block styling with modern borders
-        let logs_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(self.color_scheme.border_color()))
-            .title(Span::styled(
-                title, 
-                Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD)
+            // Pod name span
+            spans.push(Span::styled(
+                entry.pod_name.clone(),
+                Style::default().fg(*pod_color).add_modifier(Modifier::BOLD)
             ));
 
-        let logs_paragraph = Paragraph::new(log_lines)
-            .block(logs_block)
-            .style(Style::default().fg(self.color_scheme.primary_text()))
-            .wrap(Wrap { trim: false });
+            // Separator
+            spans.push(Span::styled(
+                "/",
+                Style::default().fg(self.color_scheme.secondary_text())
+            ));
+
+            // Container name span
+            spans.push(Span::styled(
+                entry.container_name.clone(),
+                Style::default().fg(*container_color).add_modifier(Modifier::BOLD)
+            ));
+
+            // Space separator
+            spans.push(Span::styled(
+                " ",
+                Style::default().fg(self.color_scheme.text_color())
+            ));
+
+            // Message span with log level detection
+            let message_color = self.detect_log_level_color(&entry.message);
+            spans.push(Span::styled(
+                self.strip_ansi_codes(&entry.message),
+                Style::default().fg(message_color)
+            ));
+
+            let line = Line::from(spans);
+            
+            // Apply selection highlighting if this line is selected
+            let final_line = if self.is_line_selected_hash(visual_index) {
+                self.apply_selection_highlight(line)
+            } else {
+                line
+            };
+            
+            lines.push(final_line);
+        }
+
+        // Create the log display widget
+        let logs_paragraph = Paragraph::new(lines)
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(self.color_scheme.border_color()))
+                .title(Span::styled(
+                    format!(" Logs ({} entries) ", self.log_entries.len()),
+                    Style::default().fg(self.color_scheme.accent_color()).add_modifier(Modifier::BOLD)
+                ))
+            )
+            .wrap(Wrap { trim: false })
+            .style(Style::default().fg(self.color_scheme.text_color()));
 
         f.render_widget(logs_paragraph, area);
     }
 
-    /// Render the status bar with modern design
-    fn render_status_bar(&self, f: &mut Frame, area: Rect) {
-        // Modern gradient-like status bar styling
-        let status_style = Style::default()
-            .bg(self.color_scheme.panel_bg())
-            .fg(self.color_scheme.primary_text());
-        
-        // Build status message with modern separators
-        let mut status_spans = Vec::new();
-        
-        // Mode indicator with icon
-        let mode_icon = if self.auto_scroll { "▶️" } else { "⏸️" };
-        let mode_color = if self.auto_scroll { 
-            self.color_scheme.success_color() 
-        } else { 
-            self.color_scheme.warning_color() 
-        };
-        
-        status_spans.push(Span::styled(
-            format!("{} {}", mode_icon, if self.auto_scroll { "FOLLOW" } else { "PAUSE" }),
-            Style::default().fg(mode_color).add_modifier(Modifier::BOLD)
-        ));
-        
-        // Modern separator
-        status_spans.push(Span::styled(" │ ", Style::default().fg(self.color_scheme.secondary_text())));
-        
-        // Memory usage indicator (only in pause mode)
-        if !self.auto_scroll {
-            let memory_percent = self.get_memory_usage_percent();
-            let memory_color = if self.is_memory_critical() {
-                self.color_scheme.error_color()
-            } else if memory_percent > 60.0 {
-                self.color_scheme.warning_color()
-            } else {
-                self.color_scheme.success_color()
-            };
-            
-            let memory_icon = if self.is_memory_critical() { "⚠️" } else { "💾" };
-            status_spans.push(Span::styled(
-                format!("{} {:.0}%", memory_icon, memory_percent),
-                Style::default().fg(memory_color).add_modifier(Modifier::BOLD)
-            ));
-            
-            status_spans.push(Span::styled(" │ ", Style::default().fg(self.color_scheme.secondary_text())));
+    /// Get or generate a color for a pod name
+    fn get_pod_color(&mut self, pod_name: &str) -> Color {
+        if let Some(&color) = self.pod_color_cache.get(pod_name) {
+            return color;
         }
+
+        let colors = self.color_scheme.pod_colors();
+        let color_index = self.calculate_color_hash(pod_name) % colors.len();
+        let color = colors[color_index];
         
-        // Selection indicator with icon
-        if let Some(ref selection) = self.hash_selection {
-            let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-            status_spans.push(Span::styled(
-                format!("📝 {} lines", lines_selected),
-                Style::default().fg(self.color_scheme.accent_color()).add_modifier(Modifier::BOLD)
-            ));
-            
-            status_spans.push(Span::styled(" │ ", Style::default().fg(self.color_scheme.secondary_text())));
+        self.pod_color_cache.insert(pod_name.to_string(), color);
+        color
+    }
+
+    /// Get or generate a color for a container name
+    fn get_container_color(&mut self, container_name: &str) -> Color {
+        if let Some(&color) = self.container_color_cache.get(container_name) {
+            return color;
         }
+
+        let colors = self.color_scheme.container_colors();
+        let color_index = self.calculate_color_hash(container_name) % colors.len();
+        let color = colors[color_index];
         
-        // Buffer size with icon
-        let buffer_percent = (self.log_entries.len() as f64 / self.max_lines as f64) * 100.0;
-        let buffer_color = if buffer_percent > 80.0 {
+        self.container_color_cache.insert(container_name.to_string(), color);
+        color
+    }
+
+    /// Calculate a consistent hash for color assignment
+    fn calculate_color_hash(&self, text: &str) -> usize {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        hasher.finish() as usize
+    }
+
+    /// Detect log level from message and return appropriate color
+    fn detect_log_level_color(&self, message: &str) -> Color {
+        let message_lower = message.to_lowercase();
+        
+        if message_lower.contains("error") || message_lower.contains("err") || 
+           message_lower.contains("fatal") || message_lower.contains("panic") {
+            self.color_scheme.error_color()
+        } else if message_lower.contains("warn") || message_lower.contains("warning") {
             self.color_scheme.warning_color()
+        } else if message_lower.contains("info") || message_lower.contains("information") {
+            self.color_scheme.accent_color()
+        } else if message_lower.contains("debug") || message_lower.contains("trace") {
+            self.color_scheme.dim_text_color()
+        } else if message_lower.contains("success") || message_lower.contains("ok") || 
+                  message_lower.contains("complete") {
+            self.color_scheme.success_color()
         } else {
-            self.color_scheme.secondary_text()
-        };
-        
-        status_spans.push(Span::styled(
-            format!("📊 {}/{}", self.log_entries.len(), self.max_lines),
-            Style::default().fg(buffer_color)
-        ));
-        
-        status_spans.push(Span::styled(" │ ", Style::default().fg(self.color_scheme.secondary_text())));
-        
-        // Scroll position with dynamic icon
-        if !self.log_entries.is_empty() {
-            let scroll_percent = if self.auto_scroll {
-                100.0
-            } else {
-                (self.scroll_offset as f64 / self.log_entries.len().max(1) as f64) * 100.0
-            };
-            
-            let scroll_icon = if scroll_percent >= 100.0 {
-                "⬇️"
-            } else if scroll_percent <= 0.0 {
-                "⬆️"
-            } else {
-                "📜"
-            };
-            
-            status_spans.push(Span::styled(
-                format!("{} {:.0}%", scroll_icon, scroll_percent),
-                Style::default().fg(self.color_scheme.secondary_text())
-            ));
-            
-            status_spans.push(Span::styled(" │ ", Style::default().fg(self.color_scheme.secondary_text())));
+            self.color_scheme.default_message_color()
         }
-        
-        // Help hint with icon
-        status_spans.push(Span::styled(
-            "❓ Press 'h' for help",
-            Style::default().fg(self.color_scheme.secondary_text()).add_modifier(Modifier::ITALIC)
-        ));
-        
-        let status_line = Line::from(status_spans);
-        let status_paragraph = Paragraph::new(vec![status_line])
-            .style(status_style)
-            .alignment(ratatui::layout::Alignment::Left);
-        
-        f.render_widget(status_paragraph, area);
     }
 
-    /// Render modern memory warning popup with enhanced styling
-    fn render_memory_warning(&self, f: &mut Frame) {
-        let area = f.size();
-        
-        // Calculate popup size based on terminal size
-        let popup_width = (area.width as f32 * 0.6).max(50.0) as u16;
-        let popup_height = 12;
-        
-        let popup_area = Rect {
-            x: (area.width.saturating_sub(popup_width)) / 2,
-            y: (area.height.saturating_sub(popup_height)) / 2,
-            width: popup_width,
-            height: popup_height,
-        };
-
-        // Clear the background with shadow effect
-        f.render_widget(Clear, popup_area);
-
-        let memory_percent = self.get_memory_usage_percent();
-        
-        // Create warning content with modern formatting
-        let warning_text = vec![
-            Line::from(vec![
-                Span::styled("⚠️  ", Style::default().fg(self.color_scheme.warning_color())),
-                Span::styled("MEMORY WARNING", Style::default()
-                    .fg(self.color_scheme.warning_color())
-                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)),
-                Span::styled("  ⚠️", Style::default().fg(self.color_scheme.warning_color())),
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("📊 Buffer usage: ", Style::default().fg(self.color_scheme.secondary_text())),
-                Span::styled(format!("{:.1}%", memory_percent), Style::default()
-                    .fg(self.color_scheme.error_color())
-                    .add_modifier(Modifier::BOLD)),
-            ]),
-            Line::from(vec![
-                Span::styled("📈 Current entries: ", Style::default().fg(self.color_scheme.secondary_text())),
-                Span::styled(format!("{}", self.log_entries.len()), Style::default()
-                    .fg(self.color_scheme.primary_text())
-                    .add_modifier(Modifier::BOLD)),
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("🔧 Available Actions:", Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD)),
-            ]),
-            Line::from(vec![
-                Span::styled("  ▶️  Press ", Style::default().fg(self.color_scheme.secondary_text())),
-                Span::styled("'f'", Style::default()
-                    .fg(self.color_scheme.success_color())
-                    .add_modifier(Modifier::BOLD)),
-                Span::styled(" to enable follow mode", Style::default().fg(self.color_scheme.secondary_text())),
-            ]),
-            Line::from(vec![
-                Span::styled("  🔄 Press ", Style::default().fg(self.color_scheme.secondary_text())),
-                Span::styled("any key", Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD)),
-                Span::styled(" to dismiss this warning", Style::default().fg(self.color_scheme.secondary_text())),
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("💡 Tip: Follow mode automatically manages memory", Style::default()
-                    .fg(self.color_scheme.secondary_text())
-                    .add_modifier(Modifier::ITALIC)),
-            ]),
-        ];
-
-        // Enhanced warning block with modern styling
-        let warning_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default()
-                .fg(self.color_scheme.warning_color())
-                .add_modifier(Modifier::BOLD))
-            .title(Span::styled(
-                " ⚠️ System Alert ⚠️ ", 
-                Style::default()
-                    .fg(self.color_scheme.warning_color())
-                    .add_modifier(Modifier::BOLD | Modifier::REVERSED)
-            ));
-
-        let warning_paragraph = Paragraph::new(warning_text)
-            .block(warning_block)
-            .style(Style::default()
-                .bg(self.color_scheme.panel_bg())
-                .fg(self.color_scheme.primary_text()))
-            .wrap(Wrap { trim: false })
-            .alignment(ratatui::layout::Alignment::Left);
-
-        f.render_widget(warning_paragraph, popup_area);
-    }
-
-    /// Render modern help overlay with enhanced navigation
-    fn render_help_overlay(&self, f: &mut Frame, input_handler: &InputHandler) {
-        let area = f.size();
-        
-        // Calculate help area size
-        let help_width = (area.width as f32 * 0.9).max(80.0) as u16;
-        let help_height = area.height.saturating_sub(6);
-        
-        let help_area = Rect {
-            x: (area.width.saturating_sub(help_width)) / 2,
-            y: 3,
-            width: help_width,
-            height: help_height,
-        };
-
-        // Clear the background
-        f.render_widget(Clear, help_area);
-
-        // Create enhanced help content with modern formatting
-        let help_lines: Vec<Line> = input_handler.get_help_text()
-            .iter()
-            .map(|&line| {
-                if line.starts_with("=") {
-                    // Section headers
-                    Line::from(Span::styled(
-                        line.replace("=", ""),
-                        Style::default()
-                            .fg(self.color_scheme.accent_color())
-                            .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
-                    ))
-                } else if line.contains(":") && !line.starts_with(" ") {
-                    // Key bindings
-                    let parts: Vec<&str> = line.splitn(2, ':').collect();
-                    if parts.len() == 2 {
-                        Line::from(vec![
-                            Span::styled(format!("  {} ", parts[0]), Style::default()
-                                .fg(self.color_scheme.success_color())
-                                .add_modifier(Modifier::BOLD)),
-                            Span::styled(parts[1], Style::default()
-                                .fg(self.color_scheme.secondary_text())),
-                        ])
-                    } else {
-                        Line::from(Span::styled(line, Style::default().fg(self.color_scheme.primary_text())))
-                    }
-                } else if line.trim().is_empty() {
-                    Line::from("")
-                } else {
-                    // Regular text
-                    Line::from(Span::styled(
-                        line,
-                        Style::default().fg(self.color_scheme.secondary_text())
-                    ))
-                }
-            })
-            .collect();
-
-        // Enhanced help block with modern styling
-        let help_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default()
-                .fg(self.color_scheme.accent_color())
-                .add_modifier(Modifier::BOLD))
-            .title(Span::styled(
-                " 📖 Wake - Kubernetes Log Viewer Help ", 
-                Style::default()
-                    .fg(self.color_scheme.accent_color())
-                    .add_modifier(Modifier::BOLD | Modifier::REVERSED)
-            ));
-
-        let help_paragraph = Paragraph::new(help_lines)
-            .block(help_block)
-            .style(Style::default().fg(self.color_scheme.primary_text()))
-            .wrap(Wrap { trim: false })
-            .alignment(ratatui::layout::Alignment::Left);
-
-        f.render_widget(help_paragraph, help_area);
+    /// Strip ANSI codes from text
+    fn strip_ansi_codes(&self, text: &str) -> String {
+        let ansi_regex = ANSI_REGEX.get_or_init(|| Regex::new(r"(\x1b\[[0-9;]*[a-zA-Z]|\x1b\[[0-9;]*m|\[[0-9;]*m)").unwrap());
+        ansi_regex.replace_all(text, "").to_string()
     }
 }

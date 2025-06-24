@@ -1,7 +1,5 @@
-mod logs_test;
-mod pod_test;
-mod resource_test;
-mod selector_test;
 mod client_test;
+mod logs_test;
+mod selector_test;
 
-// Add future k8s test modules here
+// Add future K8s test modules here
