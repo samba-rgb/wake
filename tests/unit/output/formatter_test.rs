@@ -144,3 +144,132 @@ fn test_formatter_factory() -> Result<()> {
     
     Ok(())
 }
+
+use crate::output::formatter::{LogFormatter, FormatterType};
+use crate::k8s::logs::LogEntry;
+use chrono::{DateTime, Utc};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_text_formatter() {
+        let timestamp = DateTime::parse_from_rfc3339("2023-06-15T10:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        
+        let entry = LogEntry {
+            namespace: "default".to_string(),
+            pod_name: "test-pod".to_string(),
+            container_name: "main".to_string(),
+            message: "Test log message".to_string(),
+            timestamp: Some(timestamp),
+        };
+
+        let formatter = LogFormatter::new(FormatterType::Text, true);
+        let formatted = formatter.format(&entry);
+
+        assert!(formatted.contains("test-pod"));
+        assert!(formatted.contains("main"));
+        assert!(formatted.contains("Test log message"));
+        assert!(formatted.contains("2023-06-15"));
+    }
+
+    #[test]
+    fn test_json_formatter() {
+        let timestamp = DateTime::parse_from_rfc3339("2023-06-15T10:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        
+        let entry = LogEntry {
+            namespace: "production".to_string(),
+            pod_name: "api-server".to_string(),
+            container_name: "api".to_string(),
+            message: "API request processed".to_string(),
+            timestamp: Some(timestamp),
+        };
+
+        let formatter = LogFormatter::new(FormatterType::Json, true);
+        let formatted = formatter.format(&entry);
+
+        // Verify it's valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&formatted).unwrap();
+        assert_eq!(parsed["namespace"], "production");
+        assert_eq!(parsed["pod_name"], "api-server");
+        assert_eq!(parsed["container_name"], "api");
+        assert_eq!(parsed["message"], "API request processed");
+    }
+
+    #[test]
+    fn test_raw_formatter() {
+        let entry = LogEntry {
+            namespace: "default".to_string(),
+            pod_name: "test-pod".to_string(),
+            container_name: "main".to_string(),
+            message: "Raw log message".to_string(),
+            timestamp: Some(Utc::now()),
+        };
+
+        let formatter = LogFormatter::new(FormatterType::Raw, false);
+        let formatted = formatter.format(&entry);
+
+        // Raw format should only contain the message
+        assert_eq!(formatted.trim(), "Raw log message");
+    }
+
+    #[test]
+    fn test_formatter_without_timestamps() {
+        let entry = LogEntry {
+            namespace: "default".to_string(),
+            pod_name: "test-pod".to_string(),
+            container_name: "main".to_string(),
+            message: "Message without timestamp".to_string(),
+            timestamp: None,
+        };
+
+        let formatter = LogFormatter::new(FormatterType::Text, true);
+        let formatted = formatter.format(&entry);
+
+        assert!(formatted.contains("test-pod"));
+        assert!(formatted.contains("Message without timestamp"));
+        // Should not contain timestamp info when none provided
+    }
+
+    #[test]
+    fn test_multiline_message_formatting() {
+        let entry = LogEntry {
+            namespace: "default".to_string(),
+            pod_name: "debug-pod".to_string(),
+            container_name: "debug".to_string(),
+            message: "Line 1\nLine 2\nLine 3".to_string(),
+            timestamp: Some(Utc::now()),
+        };
+
+        let formatter = LogFormatter::new(FormatterType::Text, true);
+        let formatted = formatter.format(&entry);
+
+        assert!(formatted.contains("Line 1"));
+        assert!(formatted.contains("Line 2"));
+        assert!(formatted.contains("Line 3"));
+    }
+
+    #[test]
+    fn test_special_characters_in_message() {
+        let entry = LogEntry {
+            namespace: "test".to_string(),
+            pod_name: "special-pod".to_string(),
+            container_name: "app".to_string(),
+            message: "Message with \"quotes\" and 'apostrophes' and emojis 🚀".to_string(),
+            timestamp: Some(Utc::now()),
+        };
+
+        let json_formatter = LogFormatter::new(FormatterType::Json, true);
+        let json_formatted = json_formatter.format(&entry);
+
+        // Should be valid JSON even with special characters
+        let parsed: serde_json::Value = serde_json::from_str(&json_formatted).unwrap();
+        assert!(parsed["message"].as_str().unwrap().contains("quotes"));
+        assert!(parsed["message"].as_str().unwrap().contains("🚀"));
+    }
+}

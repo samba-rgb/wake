@@ -72,8 +72,8 @@ pub async fn process_logs(
     });
     
     // Start the filtering process
-    let mut filtered_rx = filter.start_filtering(raw_rx);
-    
+    let filtered_rx = filter.start_filtering(raw_rx);
+
     // Process filtered logs
     process_filtered_logs(filtered_rx, formatter, primary_writer, autosave_writer).await
 }
@@ -103,7 +103,7 @@ fn setup_output_writers(args: &Args, config: &Config) -> Result<(Box<dyn Write +
     
     let autosave_writer: Option<Box<dyn Write + Send>> = if config.autosave.enabled {
         // Get the appropriate autosave path
-        let autosave_path = if let Some(ref output_file) = args.output_file {
+        let autosave_path = if let Some(ref _output_file) = args.output_file {
             // If -w flag is provided, logs go to that file (primary), no separate autosave needed
             None
         } else {

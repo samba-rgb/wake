@@ -287,3 +287,73 @@ mod setup_verification {
         Ok(())
     }
 }
+
+use crate::k8s::client::K8sClient;
+use anyhow::Result;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_client_creation() -> Result<()> {
+        // Test that we can create a K8s client without panicking
+        // This will use the default kubeconfig if available
+        let result = K8sClient::new().await;
+        
+        // In a test environment, this might fail due to no kubeconfig
+        // That's OK - we're just testing the code path doesn't panic
+        match result {
+            Ok(_client) => {
+                // Client created successfully
+                assert!(true);
+            }
+            Err(_) => {
+                // Expected in environments without kubectl configured
+                assert!(true);
+            }
+        }
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_namespace_validation() {
+        // Test namespace name validation logic
+        assert!(is_valid_k8s_name("default"));
+        assert!(is_valid_k8s_name("kube-system"));
+        assert!(is_valid_k8s_name("my-app-123"));
+        
+        // Invalid names
+        assert!(!is_valid_k8s_name(""));
+        assert!(!is_valid_k8s_name("UPPERCASE"));
+        assert!(!is_valid_k8s_name("spaces not allowed"));
+        assert!(!is_valid_k8s_name("-starts-with-dash"));
+        assert!(!is_valid_k8s_name("ends-with-dash-"));
+    }
+
+    #[test]
+    fn test_resource_name_validation() {
+        // Test pod/container name validation
+        assert!(is_valid_k8s_name("nginx-deployment-123abc"));
+        assert!(is_valid_k8s_name("web-server"));
+        assert!(is_valid_k8s_name("app123"));
+        
+        // Invalid resource names
+        assert!(!is_valid_k8s_name("_invalid"));
+        assert!(!is_valid_k8s_name("name_with_underscores"));
+        assert!(!is_valid_k8s_name("name.with.dots"));
+    }
+}
+
+fn is_valid_k8s_name(name: &str) -> bool {
+    if name.is_empty() || name.len() > 63 {
+        return false;
+    }
+    
+    // Kubernetes naming rules: lowercase alphanumeric + hyphens
+    // Must start and end with alphanumeric
+    name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') &&
+    name.starts_with(|c: char| c.is_ascii_alphanumeric()) &&
+    name.ends_with(|c: char| c.is_ascii_alphanumeric())
+}

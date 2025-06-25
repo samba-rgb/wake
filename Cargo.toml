@@ -68,6 +68,17 @@ num_cpus = "1.16.0"
 dirs = "5.0.1"
 fastrand = "2.0.1"
 
+# Kernel-level optimizations
+libc = "0.2.155"
+
+# Optional io_uring support for Linux (kernel 5.1+)
+[target.'cfg(target_os = "linux")'.dependencies]
+io-uring = { version = "0.6.4", optional = true }
+
+[features]
+default = []
+io_uring = ["io-uring"]
+
 [dev-dependencies]
 mockall = "0.12.1"
 async-trait = "0.1.77"
