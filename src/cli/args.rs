@@ -32,9 +32,14 @@ By default, Wake runs in CLI mode. Use --ui to enable interactive UI mode with r
 or --dev for detailed debugging information.\n\
 \n\
 Configuration Examples:\n\
-  wake setconfig autosave true path \"/path/to/logs\"  # Enable autosave with custom path\n\
-  wake setconfig autosave true                        # Enable autosave with auto-generated filenames\n\
-  wake setconfig autosave false                       # Disable autosave"
+  wake setconfig autosave true                            # Enable autosave with auto-generated filenames\n\
+  wake setconfig autosave true --path \"/path/to/logs\"    # Enable autosave with custom path\n\
+  wake setconfig autosave false                           # Disable autosave\n\
+  wake setconfig ui-buffer-expansion 10                   # Set UI buffer expansion to 10x in pause mode\n\
+  wake setconfig ui-buffer-expansion 5                    # Set UI buffer expansion to 5x in pause mode\n\
+  wake getconfig                                          # Show all current configuration\n\
+  wake getconfig autosave                                 # Show only autosave configuration\n\
+  wake getconfig ui-buffer-expansion                      # Show only buffer expansion setting"
 )]
 pub struct Args {
     #[command(subcommand)]
@@ -82,17 +87,23 @@ pub struct Args {
 
     /// Filter logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
     /// Examples: 
-    ///   - Regex patterns: "ERROR|WARN"
-    ///   - Logical AND: "\"info\" && \"user\""
-    ///   - Logical OR: "\"debug\" || \"error\""
-    ///   - Negation: "!\"timeout\""
-    ///   - Complex: "(info || debug) && !\"noise\""
-    #[arg(short, long)]
+    ///   - Simple regex: "ERROR|WARN"
+    ///   - Logical AND: "error && user"
+    ///   - Logical OR: "debug || trace"
+    ///   - Negation: "!timeout"
+    ///   - Exact text: "\"exact phrase\""
+    ///   - Complex: "(info || debug) && !noise"
+    /// This filter INCLUDES logs that match the pattern
+    #[arg(short = 'i', long = "include", help = "Include logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex)")]
     pub include: Option<String>,
 
     /// Exclude logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
-    /// Same syntax as --include but for exclusion
-    #[arg(short = 'E', long)]
+    /// Same syntax as --include but for exclusion. This filter EXCLUDES logs that match the pattern
+    /// Examples:
+    ///   - Exclude debug: "debug"
+    ///   - Exclude multiple: "debug || trace"
+    ///   - Exclude errors from specific pod: "error && pod-name"
+    #[arg(short = 'e', long = "exclude", help = "Exclude logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex)")]
     pub exclude: Option<String>,
 
     /// Show timestamps in logs

@@ -1,7 +1,7 @@
 use crate::cli::Args;
 use crate::k8s::pod::{select_pods, PodInfo};
 use anyhow::{Result, Context, anyhow};
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{Stream, StreamExt};
 use kube::runtime::{watcher, WatchStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client};

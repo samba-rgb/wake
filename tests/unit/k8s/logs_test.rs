@@ -1,4 +1,4 @@
-use chrono::{Utc};
+use chrono::{DateTime, Utc};
 use wake::k8s::logs::{LogEntry, LogWatcher};
 use wake::k8s::pod::PodInfo;
 use wake::cli::Args;
@@ -6,29 +6,104 @@ use crate::common::mocks::{MockPodApi, PodApiTrait};
 use anyhow::Result;
 use kube::Client;
 
-#[test]
-fn test_log_entry_creation() {
-    // Purpose: Verify LogEntry struct creation and field storage
-    // Tests:
-    // - Basic log entry creation
-    // - Field value storage and retrieval
-    // - Timestamp handling
-    // Validates:
-    // - All fields are stored correctly
-    // - Field accessibility
-    // - Field types are correct
-    let entry = LogEntry {
-        namespace: "test-namespace".to_string(),
-        pod_name: "test-pod".to_string(),
-        container_name: "test-container".to_string(),
-        message: "test log line".to_string(),
-        timestamp: Some(Utc::now()),
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    assert_eq!(entry.pod_name, "test-pod");
-    assert_eq!(entry.container_name, "test-container");
-    assert_eq!(entry.message, "test log line");
-    assert_eq!(entry.namespace, "test-namespace");
+    #[test]
+    fn test_log_entry_creation() {
+        let entry = LogEntry {
+            namespace: "default".to_string(),
+            pod_name: "test-pod".to_string(),
+            container_name: "main".to_string(),
+            message: "Test log message".to_string(),
+            timestamp: Some(Utc::now()),
+        };
+
+        assert_eq!(entry.namespace, "default");
+        assert_eq!(entry.pod_name, "test-pod");
+        assert_eq!(entry.container_name, "main");
+        assert_eq!(entry.message, "Test log message");
+        assert!(entry.timestamp.is_some());
+    }
+
+    #[test]
+    fn test_log_entry_without_timestamp() {
+        let entry = LogEntry {
+            namespace: "kube-system".to_string(),
+            pod_name: "coredns".to_string(),
+            container_name: "coredns".to_string(),
+            message: "DNS query processed".to_string(),
+            timestamp: None,
+        };
+
+        assert!(entry.timestamp.is_none());
+    }
+
+    #[test]
+    fn test_log_entry_formatting() {
+        let timestamp = DateTime::parse_from_rfc3339("2023-06-15T10:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        
+        let entry = LogEntry {
+            namespace: "production".to_string(),
+            pod_name: "api-server-123".to_string(),
+            container_name: "api".to_string(),
+            message: "Request processed successfully".to_string(),
+            timestamp: Some(timestamp),
+        };
+
+        // Test that we can format the entry for display
+        let formatted = format!("{}/{} {}", entry.pod_name, entry.container_name, entry.message);
+        assert_eq!(formatted, "api-server-123/api Request processed successfully");
+    }
+
+    #[test]
+    fn test_log_entry_with_multiline_message() {
+        let entry = LogEntry {
+            namespace: "default".to_string(),
+            pod_name: "debug-pod".to_string(),
+            container_name: "debug".to_string(),
+            message: "Line 1\nLine 2\nLine 3".to_string(),
+            timestamp: Some(Utc::now()),
+        };
+
+        assert!(entry.message.contains('\n'));
+        assert_eq!(entry.message.lines().count(), 3);
+    }
+
+    #[test]
+    fn test_log_entry_with_special_characters() {
+        let entry = LogEntry {
+            namespace: "test".to_string(),
+            pod_name: "special-pod".to_string(),
+            container_name: "app".to_string(),
+            message: "Message with émojis 🚀 and unicode: café".to_string(),
+            timestamp: Some(Utc::now()),
+        };
+
+        assert!(entry.message.contains("🚀"));
+        assert!(entry.message.contains("café"));
+    }
+
+    #[test]
+    fn test_log_entry_clone() {
+        let original = LogEntry {
+            namespace: "default".to_string(),
+            pod_name: "test-pod".to_string(),
+            container_name: "main".to_string(),
+            message: "Original message".to_string(),
+            timestamp: Some(Utc::now()),
+        };
+
+        let cloned = original.clone();
+        assert_eq!(original.namespace, cloned.namespace);
+        assert_eq!(original.pod_name, cloned.pod_name);
+        assert_eq!(original.container_name, cloned.container_name);
+        assert_eq!(original.message, cloned.message);
+        assert_eq!(original.timestamp, cloned.timestamp);
+    }
 }
 
 #[tokio::test]

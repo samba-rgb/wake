@@ -1,6 +1,7 @@
 // use wake::k8s::selector::{LabelSelector, FieldSelector};
 use std::collections::HashMap;
 use anyhow::Result;
+use regex::Regex;
 
 // The following tests are commented out because LabelSelector and FieldSelector are not implemented in the codebase.
 // Uncomment and implement them if/when these features are added.
@@ -164,3 +165,99 @@ use anyhow::Result;
     
 //     Ok(())
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_pod_selector_regex() {
+        // Test valid pod selector patterns
+        let selector = "nginx-.*";
+        let regex = Regex::new(selector).unwrap();
+        
+        assert!(regex.is_match("nginx-deployment-123"));
+        assert!(regex.is_match("nginx-web"));
+        assert!(!regex.is_match("apache-server"));
+    }
+
+    #[test]
+    fn test_container_selector_regex() {
+        // Test container name patterns
+        let selector = "web|api|db";
+        let regex = Regex::new(selector).unwrap();
+        
+        assert!(regex.is_match("web"));
+        assert!(regex.is_match("api"));
+        assert!(regex.is_match("db"));
+        assert!(!regex.is_match("sidecar"));
+    }
+
+    #[test]
+    fn test_namespace_selector() {
+        // Test namespace matching patterns
+        let selector = "prod-.*";
+        let regex = Regex::new(selector).unwrap();
+        
+        assert!(regex.is_match("prod-frontend"));
+        assert!(regex.is_match("prod-backend"));
+        assert!(!regex.is_match("dev-frontend"));
+        assert!(!regex.is_match("staging-api"));
+    }
+
+    #[test]
+    fn test_complex_selector_patterns() {
+        // Test more complex regex patterns
+        let selector = r"^(web|api)-\d+$";
+        let regex = Regex::new(selector).unwrap();
+        
+        assert!(regex.is_match("web-123"));
+        assert!(regex.is_match("api-456"));
+        assert!(!regex.is_match("web-abc"));
+        assert!(!regex.is_match("db-123"));
+    }
+
+    #[test]
+    fn test_case_insensitive_selector() {
+        // Test case-insensitive matching
+        let selector = "(?i)nginx";
+        let regex = Regex::new(selector).unwrap();
+        
+        assert!(regex.is_match("nginx"));
+        assert!(regex.is_match("NGINX"));
+        assert!(regex.is_match("Nginx"));
+        assert!(regex.is_match("nginx-deployment"));
+    }
+
+    #[test]
+    fn test_invalid_regex_pattern() {
+        // Test handling of invalid regex patterns
+        let invalid_selector = "[invalid-regex";
+        let result = Regex::new(invalid_selector);
+        
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_empty_selector() {
+        // Test empty selector pattern
+        let selector = "";
+        let regex = Regex::new(selector).unwrap();
+        
+        // Empty regex matches everything
+        assert!(regex.is_match("any-string"));
+        assert!(regex.is_match(""));
+    }
+
+    #[test]
+    fn test_wildcard_selector() {
+        // Test wildcard patterns
+        let selector = ".*";
+        let regex = Regex::new(selector).unwrap();
+        
+        assert!(regex.is_match("anything"));
+        assert!(regex.is_match("web-server"));
+        assert!(regex.is_match("123"));
+        assert!(regex.is_match(""));
+    }
+}

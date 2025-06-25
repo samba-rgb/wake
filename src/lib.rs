@@ -6,3 +6,4 @@ pub mod output;
 pub mod filtering;
 pub mod ui;
 pub mod config;
+pub mod kernel;
