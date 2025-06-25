@@ -16,7 +16,7 @@ pub struct MacOSEventSystem {
 
 fn log_data(dev_mode: bool, message: &str) {
     if dev_mode {
-        log_data("🚀 macOS: {}", message);
+        eprintln!("🚀 macOS: {}", message);
     }
 }
 
@@ -29,6 +29,7 @@ impl MacOSEventSystem {
 
         // Initialize Grand Central Dispatch integration
         let gcd_enabled = Self::init_gcd_integration();
+        log_data(dev_mode, "🚀 macOS: Grand Central Dispatch integration enabled");
 
         Ok(MacOSEventSystem {
             kqueue_fd,
@@ -41,7 +42,6 @@ impl MacOSEventSystem {
     fn init_gcd_integration() -> bool {
         // macOS Grand Central Dispatch provides excellent concurrency
         
-            log_data("🚀 macOS: Grand Central Dispatch integration enabled");
         log_data(dev_mode, "🚀 macOS: Grand Central Dispatch integration enabled")
         
         true
@@ -248,7 +248,7 @@ pub fn set_platform_numa_policy(dev_mode: bool) -> Result<()> {
 
 pub fn configure_platform_prefetching(distance: usize, dev_mode: bool,) -> Result<()> {
     // Configure CPU prefetching distance
-    log_data(dev_mode, "🚀 macOS: CPU prefetching configured (distance: {})", distance);
+    log_data(dev_mode, format!("🚀 macOS: CPU prefetching configured (distance: {})", distance));
     Ok(())
 }
 
@@ -265,14 +265,14 @@ pub fn get_platform_performance_cores(dev_mode: bool) -> Result<u64> {
             for i in 0..perf_cores.min(64) {
                 performance_mask |= 1u64 << i;
             }
-            log_data(dev_mode, format!("🚀 macOS: Apple Silicon performance cores identified: {} cores", perf_cores));
+            log_data(dev_mode, &format!("🚀 macOS: Apple Silicon performance cores identified: {} cores", perf_cores));
         }
     } else {
         // Intel Mac - use all cores
         for i in 0..cpu_count.min(64) {
             performance_mask |= 1u64 << i;
         }
-        log_data(dev_mode, format!("🚀 macOS: Intel performance cores identified: {} cores", cpu_count));
+        log_data(dev_mode, &format!("🚀 macOS: Intel performance cores identified: {} cores", cpu_count));
     }
     
     Ok(performance_mask)
@@ -287,7 +287,7 @@ pub fn set_platform_cpu_affinity(mask: u64, dev_mode: bool) -> Result<()> {
 pub fn set_platform_priority(nice: i8, dev_mode: bool) -> Result<()> {
     let result = unsafe { libc::setpriority(libc::PRIO_PROCESS, 0, nice as c_int) };
     if result == 0 {
-        log_data(dev_mode, "🚀 macOS: Process priority increased (nice: {})", nice);
+        log_data(dev_mode, &format!("🚀 macOS: Process priority increased (nice: {})", nice));
         Ok(())
     } else {
         Err(io::Error::last_os_error())
@@ -312,14 +312,14 @@ pub fn enable_platform_tcp_optimizations(dev_mode: bool) -> Result<()> {
 
     for (param, value) in &optimizations {
         // On macOS, we'd use sysctlbyname to set these
-        log_data(dev_mode, format!("🚀 macOS: TCP optimization applied: {} = {}", param, value));
+        log_data(dev_mode, &format!("🚀 macOS: TCP optimization applied: {} = {}", param, value));
     }
     
     Ok(())
 }
 
 pub fn set_platform_socket_buffers(size: usize, dev_mode: bool) -> Result<()> {
-    log_data(dev_mode, "🚀 macOS: Socket buffers optimized to {} bytes", size);
+    log_data(dev_mode, &format!("🚀 macOS: Socket buffers optimized to {} bytes", size));
     Ok(())
 }
 
