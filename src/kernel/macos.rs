@@ -42,7 +42,7 @@ impl MacOSEventSystem {
     fn init_gcd_integration() -> bool {
         // macOS Grand Central Dispatch provides excellent concurrency
         
-        log_data(dev_mode, "🚀 macOS: Grand Central Dispatch integration enabled")
+        log_data(false, "🚀 macOS: Grand Central Dispatch integration enabled");
         
         true
     }
@@ -248,7 +248,7 @@ pub fn set_platform_numa_policy(dev_mode: bool) -> Result<()> {
 
 pub fn configure_platform_prefetching(distance: usize, dev_mode: bool,) -> Result<()> {
     // Configure CPU prefetching distance
-    log_data(dev_mode, format!("🚀 macOS: CPU prefetching configured (distance: {})", distance));
+    log_data(dev_mode, &format!("🚀 macOS: CPU prefetching configured (distance: {})", distance));
     Ok(())
 }
 
