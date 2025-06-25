@@ -75,6 +75,9 @@ libc = "0.2.155"
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { version = "0.6.4", optional = true }
 
+# Archiving output files
+tar = "0.4"
+
 [features]
 default = []
 io_uring = ["io-uring"]

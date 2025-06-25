@@ -27,6 +27,7 @@ See the [Building from Source](#building-from-source) section below for detailed
 - Multiple output formats (text, json, raw)
 - Timestamp support
 - **Smart Filter Management** - old logs preserved when changing filters
+- **Run Script in Pods** - execute scripts in pods and collect output
 
 ## Interactive UI Mode
 
@@ -188,6 +189,47 @@ Wake intelligently handles filter changes:
 - **Clear boundaries** - Visual markers show when filters were applied
 - **New logs only** - Filter changes only affect incoming logs
 - **Filter history** - Navigate through previously used patterns with arrow keys
+
+## Running Scripts in Pods
+
+Wake can run scripts in Kubernetes pods and collect the output. This feature is useful for debugging, maintenance, or any task that requires executing commands in the pod's environment.
+
+### Script Execution Syntax
+
+```bash
+wake --script-in <path-to-script.sh> [--namespace <ns>] [--pod-selector <regex>] [--script-outdir <dir>]
+```
+
+- `--script-in <path-to-script.sh>`: Path to the script file to be executed in the pods.
+- `--namespace <ns>`: (Optional) Kubernetes namespace. Default is `default`.
+- `--pod-selector <regex>`: (Optional) Regex to select pods. Default is all pods.
+- `--script-outdir <dir>`: (Optional) Directory to save script output. Default is a timestamped directory in the current location.
+
+### Output Files
+
+For each pod, the output will be saved as:
+- `<namespace>_<pod>.stdout.txt`: Standard output of the script.
+- `<namespace>_<pod>.stderr.txt`: Standard error of the script.
+
+These files are saved in a directory named like `wake_output_YYYYMMDD_HHMMSS/` by default.
+
+### Setting Default Output Directory
+
+You can set a default output directory for script results with:
+
+```bash
+wake setconfig script_outdir /path/to/dir
+```
+
+This directory will be used for all future script executions unless overridden by `--script-outdir`.
+
+### Example
+
+```bash
+wake --script-in ./dummy_script.sh --namespace apps --pod-selector 'nginx.*' --script-outdir ./results
+```
+
+This command runs `dummy_script.sh` in all pods in the `apps` namespace that match the `nginx.*` regex, and saves the output in the `./results` directory.
 
 ## Next Steps
 
