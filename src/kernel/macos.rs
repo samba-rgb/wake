@@ -14,8 +14,14 @@ pub struct MacOSEventSystem {
     gcd_enabled: bool,
 }
 
+fn log_data(dev_mode: bool, message: &str) {
+    if dev_mode {
+        log_data("🚀 macOS: {}", message);
+    }
+}
+
 impl MacOSEventSystem {
-    pub fn new() -> Result<Self> {
+    pub fn new(dev_mode: bool) -> Result<Self> {
         let kqueue_fd = unsafe { libc::kqueue() };
         if kqueue_fd == -1 {
             return Err(io::Error::last_os_error());
@@ -34,7 +40,10 @@ impl MacOSEventSystem {
 
     fn init_gcd_integration() -> bool {
         // macOS Grand Central Dispatch provides excellent concurrency
-        eprintln!("🚀 macOS: Grand Central Dispatch integration enabled");
+        
+            log_data("🚀 macOS: Grand Central Dispatch integration enabled");
+        log_data(dev_mode, "🚀 macOS: Grand Central Dispatch integration enabled")
+        
         true
     }
 }
@@ -216,8 +225,8 @@ impl Drop for MacOSEventSystem {
 }
 
 // macOS-specific optimizations
-pub fn create_platform_event_system() -> Result<Box<dyn EventSystem>> {
-    Ok(Box::new(MacOSEventSystem::new()?))
+pub fn create_platform_event_system(dev_mode: bool) -> Result<Box<dyn EventSystem>> {
+    Ok(Box::new(MacOSEventSystem::new(dev_mode)?))
 }
 
 pub fn get_platform_event_count() -> u64 {
@@ -225,25 +234,25 @@ pub fn get_platform_event_count() -> u64 {
     0
 }
 
-pub fn enable_platform_huge_pages() -> Result<()> {
+pub fn enable_platform_huge_pages(dev_mode: bool) -> Result<()> {
     // macOS uses superpages automatically, but we can hint for large allocations
-    eprintln!("🚀 macOS: Superpage optimization enabled (automatic)");
+    log_data(dev_mode, "🚀 macOS: Superpage optimization enabled (automatic)");
     Ok(())
 }
 
-pub fn set_platform_numa_policy() -> Result<()> {
+pub fn set_platform_numa_policy(dev_mode: bool) -> Result<()> {
     // macOS handles memory locality automatically with its memory manager
-    eprintln!("🚀 macOS: Memory locality optimized (automatic)");
+    log_data(dev_mode, "🚀 macOS: Memory locality optimized (automatic)");
     Ok(())
 }
 
-pub fn configure_platform_prefetching(distance: usize) -> Result<()> {
+pub fn configure_platform_prefetching(distance: usize, dev_mode: bool,) -> Result<()> {
     // Configure CPU prefetching distance
-    eprintln!("🚀 macOS: CPU prefetching configured (distance: {})", distance);
+    log_data(dev_mode, "🚀 macOS: CPU prefetching configured (distance: {})", distance);
     Ok(())
 }
 
-pub fn get_platform_performance_cores() -> Result<u64> {
+pub fn get_platform_performance_cores(dev_mode: bool) -> Result<u64> {
     // On Apple Silicon, identify performance cores using sysctl
     let cpu_count = num_cpus::get();
     let mut performance_mask = 0u64;
@@ -256,29 +265,29 @@ pub fn get_platform_performance_cores() -> Result<u64> {
             for i in 0..perf_cores.min(64) {
                 performance_mask |= 1u64 << i;
             }
-            eprintln!("🚀 macOS: Apple Silicon performance cores identified: {} cores", perf_cores);
+            log_data(dev_mode, format!("🚀 macOS: Apple Silicon performance cores identified: {} cores", perf_cores));
         }
     } else {
         // Intel Mac - use all cores
         for i in 0..cpu_count.min(64) {
             performance_mask |= 1u64 << i;
         }
-        eprintln!("🚀 macOS: Intel performance cores identified: {} cores", cpu_count);
+        log_data(dev_mode, format!("🚀 macOS: Intel performance cores identified: {} cores", cpu_count));
     }
     
     Ok(performance_mask)
 }
 
-pub fn set_platform_cpu_affinity(mask: u64) -> Result<()> {
+pub fn set_platform_cpu_affinity(mask: u64, dev_mode: bool) -> Result<()> {
     // macOS doesn't support CPU affinity like Linux, but we can use thread affinity hints
-    eprintln!("🚀 macOS: Thread affinity hints applied (macOS manages scheduling)");
+    log_data(dev_mode, "🚀 macOS: Thread affinity hints applied (macOS manages scheduling)");
     Ok(())
 }
 
-pub fn set_platform_priority(nice: i8) -> Result<()> {
+pub fn set_platform_priority(nice: i8, dev_mode: bool) -> Result<()> {
     let result = unsafe { libc::setpriority(libc::PRIO_PROCESS, 0, nice as c_int) };
     if result == 0 {
-        eprintln!("🚀 macOS: Process priority increased (nice: {})", nice);
+        log_data(dev_mode, "🚀 macOS: Process priority increased (nice: {})", nice);
         Ok(())
     } else {
         Err(io::Error::last_os_error())
@@ -291,7 +300,7 @@ pub fn get_platform_cpu_utilization() -> f64 {
     50.0 // Placeholder - would use actual sysctl calls
 }
 
-pub fn enable_platform_tcp_optimizations() -> Result<()> {
+pub fn enable_platform_tcp_optimizations(dev_mode: bool) -> Result<()> {
     // macOS-specific TCP optimizations using sysctl
     let optimizations = [
         ("net.inet.tcp.sendspace", "131072"),
@@ -303,14 +312,14 @@ pub fn enable_platform_tcp_optimizations() -> Result<()> {
 
     for (param, value) in &optimizations {
         // On macOS, we'd use sysctlbyname to set these
-        eprintln!("🚀 macOS: TCP optimization applied: {} = {}", param, value);
+        log_data(dev_mode, format!("🚀 macOS: TCP optimization applied: {} = {}", param, value));
     }
     
     Ok(())
 }
 
-pub fn set_platform_socket_buffers(size: usize) -> Result<()> {
-    eprintln!("🚀 macOS: Socket buffers optimized to {} bytes", size);
+pub fn set_platform_socket_buffers(size: usize, dev_mode: bool) -> Result<()> {
+    log_data(dev_mode, "🚀 macOS: Socket buffers optimized to {} bytes", size);
     Ok(())
 }
 
@@ -324,7 +333,8 @@ pub fn macos_prefetch_cache_line(addr: *const u8) {
     #[cfg(target_arch = "aarch64")]
     unsafe {
         // Apple Silicon prefetch
-        std::arch::aarch64::_prefetch(addr, std::arch::aarch64::_PREFETCH_READ, std::arch::aarch64::_PREFETCH_LOCALITY3);
+       // std::arch::aarch64::_prefetch(addr, std::arch::aarch64::_PREFETCH_READ, std::arch::aarch64::_PREFETCH_LOCALITY3);
+       let _ = addr;
     }
 }
 
@@ -341,7 +351,7 @@ impl MacOSMachPorts {
 
     pub fn send_optimized_message(&self, data: &[u8]) -> Result<()> {
         // Would use mach_msg for zero-copy IPC
-        eprintln!("🚀 macOS: Mach port message sent ({} bytes)", data.len());
+        //log_data("🚀 macOS: Mach port message sent ({} bytes)", data.len());
         Ok(())
     }
 }
@@ -363,12 +373,12 @@ impl MacOSGCDOptimizer {
         F: FnOnce() + Send + 'static 
     {
         // Would use dispatch_async with high priority queue
-        eprintln!("🚀 macOS: GCD high-priority task dispatched");
+        //log_data("🚀 macOS: GCD high-priority task dispatched");
         work();
     }
 
     pub fn create_concurrent_queue(&self, label: &str) -> Result<()> {
-        eprintln!("🚀 macOS: GCD concurrent queue created: {}", label);
+        //log_data("🚀 macOS: GCD concurrent queue created: {}", label);
         Ok(())
     }
 }

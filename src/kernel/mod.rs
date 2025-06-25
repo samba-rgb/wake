@@ -249,15 +249,16 @@ pub fn prefetch_log_data(data: *const u8, len: usize) {
     #[cfg(target_arch = "aarch64")]
     {
         // ARM prefetch instructions
-        unsafe {
-            let cache_line_size = 64;
-            let mut ptr = data;
-            let end = data.add(len);
+        // unsafe {
+        //     let cache_line_size = 64;
+        //     let mut ptr = data;
+        //     let end = data.add(len);
             
-            while ptr < end {
-                std::arch::aarch64::_prefetch(ptr, std::arch::aarch64::_PREFETCH_READ, std::arch::aarch64::_PREFETCH_LOCALITY3);
-                ptr = ptr.add(cache_line_size);
-            }
-        }
+        //     while ptr < end {
+        //         std::arch::aarch64::_prefetch(ptr, std::arch::aarch64::_PREFETCH_READ, std::arch::aarch64::_PREFETCH_LOCALITY3);
+        //         ptr = ptr.add(cache_line_size);
+        //     }
+        // }
+        let _ = (data, len); // Placeholder for ARM prefetch logic
     }
 }
