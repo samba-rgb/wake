@@ -1,8 +1,19 @@
-mod args;
+pub mod args;
 
 pub use args::{Args, parse_args};
 use anyhow::{Result, Context};
 use tracing::info;
+use std::fs;
+use regex::Regex;
+use std::io::Write;
+use std::fs::File;
+use std::collections::HashMap;
+use std::path::Path;
+use crate::k8s::pod::select_pods;
+use kube::Api;
+use k8s_openapi::api::core::v1::Pod;
+use chrono::Local;
+use comfy_table::Table;
 
 /// Prints WAKE in big text with dots
 fn print_wake_big_text() {
@@ -28,18 +39,105 @@ fn is_default_run(args: &Args) -> bool {
     !args.list_containers
 }
 
+/// Run a script in all selected pods and collect outputs as a zip file
+async fn run_script_in_pods(args: &Args) -> Result<()> {
+    println!("[wake] Starting script-in workflow");
+    let client = crate::k8s::create_client(args).await?;
+    let pod_regex = args.pod_regex()?;
+    let container_regex = args.container_regex()?;
+    let pods = select_pods(
+        &client,
+        &args.namespace,
+        &pod_regex,
+        &container_regex,
+        args.all_namespaces,
+        args.resource.as_deref(),
+    ).await?;
+
+    let script_path = args.script_in.as_ref().expect("script_in should be Some");
+    let script_data = std::fs::read(script_path)?;
+    let outdir = if let Some(ref cli_dir) = args.script_outdir {
+        cli_dir.clone()
+    } else {
+        let config = crate::config::Config::load().unwrap_or_default();
+        if let Ok(dir) = config.get_value("script_outdir") {
+            Path::new(&dir).to_path_buf()
+        } else {
+            std::env::current_dir()?
+        }
+    };
+    std::fs::create_dir_all(&outdir)?;
+    let timestamp = Local::now().format("%Y%m%d_%H%M%S");
+    let output_dir = outdir.join(format!("wake_output_{}", timestamp));
+    std::fs::create_dir_all(&output_dir)?;
+
+    for pod in pods {
+        let pod_name = &pod.name;
+        let ns = &pod.namespace;
+        let containers = &pod.containers;
+        let container = containers.get(0).cloned().unwrap_or_else(|| "default".to_string());
+        let pods_api: Api<Pod> = Api::namespaced(client.clone(), ns);
+
+        let script_str = String::from_utf8_lossy(&script_data);
+        let copy_cmd = format!("echo '{}' > /tmp/wake-script.sh && chmod +x /tmp/wake-script.sh", script_str.replace("'", "'\\''"));
+        let mut copy_out = pods_api.exec(
+            pod_name,
+            ["sh", "-c", &copy_cmd],
+            &kube::api::AttachParams::default().container(&container),
+        ).await?;
+        let mut _dummy = Vec::new();
+        if let Some(mut s) = copy_out.stdout().take() {
+            tokio::io::copy(&mut s, &mut _dummy).await?;
+        }
+        if let Some(mut s) = copy_out.stderr().take() {
+            tokio::io::copy(&mut s, &mut _dummy).await?;
+        }
+
+        let mut exec_out = pods_api.exec(
+            pod_name,
+            ["sh", "/tmp/wake-script.sh"],
+            &kube::api::AttachParams::default().container(&container),
+        ).await?;
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        if let Some(mut s) = exec_out.stdout().take() {
+            tokio::io::copy(&mut s, &mut stdout).await?;
+        }
+        if let Some(mut s) = exec_out.stderr().take() {
+            tokio::io::copy(&mut s, &mut stderr).await?;
+        }
+        let out_file = output_dir.join(format!("{}_{}.stdout.txt", ns, pod_name));
+        let err_file = output_dir.join(format!("{}_{}.stderr.txt", ns, pod_name));
+        std::fs::write(&out_file, &stdout)?;
+        std::fs::write(&err_file, &stderr)?;
+    }
+    println!("All pod outputs saved in {}", output_dir.display());
+    Ok(())
+}
+
 pub async fn run(mut args: Args) -> Result<()> {
+    if args.author {
+        let author_path = std::path::Path::new("author.txt");
+        if let Ok(content) = std::fs::read_to_string(author_path) {
+            println!("{}", content);
+        } else {
+            println!("samba\nGitHub: https://github.com/samba-rgb\n");
+        }
+        return Ok(());
+    }
     info!("=== CLI MODULE STARTING ===");
     info!("CLI: Received args - namespace: {}, pod_selector: {}, container: {}", 
           args.namespace, args.pod_selector, args.container);
     info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
           args.ui, args.no_ui, args.output_file);
-    
     // Handle configuration commands first
     if let Some(command) = &args.command {
         return handle_config_command(command).await;
     }
-    
+    // EARLY RETURN for --script-in
+    if args.script_in.is_some() {
+        return run_script_in_pods(&args).await;
+    }
     // Resolve namespace based on context if specified
     if let Some(ref context_name) = args.context {
         info!("CLI: Context specified: {}", context_name);
@@ -211,7 +309,6 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
         }
         Commands::GetConfig { key } => {
             let config = Config::load().context("Failed to load configuration")?;
-            
             match key {
                 Some(key_name) => {
                     match config.display_key(key_name) {
@@ -228,8 +325,15 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
                     }
                 }
                 None => {
-                    // Display all configuration in tabular format
-                    print!("{}", config.display());
+                    // Display all configuration in a pretty table using comfy-table
+                    let mut table = Table::new();
+                    table.set_header(["Key", "Value"]);
+                    for key in config.get_all_keys() {
+                        if let Ok(val) = config.display_key(&key) {
+                            table.add_row([key, val.trim().to_string()]);
+                        }
+                    }
+                    println!("{}", table);
                 }
             }
         }

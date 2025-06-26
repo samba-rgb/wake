@@ -20,17 +20,23 @@ fn get_default_namespace() -> String {
     version, 
     about = "Advanced Kubernetes log tailing with intelligent filtering and interactive UI",
     long_about = "Wake is a powerful command-line tool for tailing logs from multiple Kubernetes pods and containers.\n\
-Features advanced pattern syntax with logical operators (&&, ||, !), interactive UI mode with dynamic filtering,\n\
+Features advanced pattern syntax with logical operators (&&, ||, !), interactive UI mode with dynamic filtering,\
 file output support, autosave configuration, and development mode for debugging. Supports advanced filtering patterns like:\n\
   • Regex patterns: \"ERROR|WARN\"\n\
   • Logical operations: '\"info\" && \"user\"' or '\"debug\" || \"error\"'\n\
   • Negation: '!\"timeout\"'\n\
   • Complex combinations: '(info || debug) && !\"noise\"'\n\
   • Exact text matching: '\"exact phrase\"'\n\
-\n\
-By default, Wake runs in CLI mode. Use --ui to enable interactive UI mode with real-time filter editing,\n\
+By default, Wake runs in CLI mode. Use --ui to enable interactive UI mode with real-time filter editing,\
 or --dev for detailed debugging information.\n\
-\n\
+---\n\
+NEW: Run scripts in pods and collect output!\n\
+  --script-in <path>         Run a script in all selected pods and collect output.\n\
+  --script-outdir <dir>      Directory to save script output (default: timestamped dir in current location).\n\
+  Output for each pod is saved as <namespace>_<pod>.stdout.txt and <namespace>_<pod>.stderr.txt.\n\
+  You can set a default output directory with:\n\
+    wake setconfig script_outdir /path/to/dir\n\
+---\n\
 Configuration Examples:\n\
   wake setconfig autosave true                            # Enable autosave with auto-generated filenames\n\
   wake setconfig autosave true --path \"/path/to/logs\"    # Enable autosave with custom path\n\
@@ -154,6 +160,18 @@ pub struct Args {
     /// Verbosity level for debug output
     #[arg(short, long, default_value = "0")]
     pub verbosity: u8,
+
+    /// Path to a script to run in each selected pod
+    #[arg(long = "script-in", value_name = "PATH", help = "Path to a script to run in each selected pod (copied and executed as /tmp/wake-script.sh)")]
+    pub script_in: Option<PathBuf>,
+
+    /// Output directory for script results (overrides config)
+    #[arg(long = "script-outdir", value_name = "DIR", help = "Directory to save script output tar (overrides config)")]
+    pub script_outdir: Option<PathBuf>,
+
+    /// Hidden author flag (not shown in --help)
+    #[arg(long, hide = true, default_value_t = false)]
+    pub author: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -242,6 +260,9 @@ impl Default for Args {
             no_ui: false, // Default to false
             dev: false, // Default to false
             buffer_size: 20000, // Default buffer size
+            script_in: None, // Default to None
+            script_outdir: None, // Default to None
+            author: false, // Default to false
         }
     }
 }
