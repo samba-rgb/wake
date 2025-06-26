@@ -13,6 +13,7 @@ use crate::k8s::pod::select_pods;
 use kube::Api;
 use k8s_openapi::api::core::v1::Pod;
 use chrono::Local;
+use comfy_table::Table;
 
 /// Prints WAKE in big text with dots
 fn print_wake_big_text() {
@@ -308,7 +309,6 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
         }
         Commands::GetConfig { key } => {
             let config = Config::load().context("Failed to load configuration")?;
-            
             match key {
                 Some(key_name) => {
                     match config.display_key(key_name) {
@@ -325,8 +325,15 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
                     }
                 }
                 None => {
-                    // Display all configuration in tabular format
-                    print!("{}", config.display());
+                    // Display all configuration in a pretty table using comfy-table
+                    let mut table = Table::new();
+                    table.set_header(["Key", "Value"]);
+                    for key in config.get_all_keys() {
+                        if let Ok(val) = config.display_key(&key) {
+                            table.add_row([key, val.trim().to_string()]);
+                        }
+                    }
+                    println!("{}", table);
                 }
             }
         }
