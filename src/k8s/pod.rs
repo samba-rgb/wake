@@ -5,6 +5,7 @@ use kube::api::{ListParams, ResourceExt};
 use regex::Regex;
 use tracing::{info, debug};
 use crate::k8s::selector::create_selector_for_resource;
+use comfy_table::{Table, presets::UTF8_FULL, ContentArrangement, Cell};
 
 /// Represents pod information relevant to log watching
 #[derive(Debug, Clone)]
@@ -130,67 +131,56 @@ pub async fn list_container_names(
     resource_query: Option<&str>,
 ) -> Result<()> {
     let pods_api: Api<Pod>;
-    
     if all_namespaces {
         pods_api = Api::all(client.clone());
     } else {
         pods_api = Api::namespaced(client.clone(), namespace);
     }
-    
-    // Determine how to list pods based on whether we have a resource query
     let params = if let Some(query) = resource_query {
         println!("Using resource selector: {}", query);
         let ns = if all_namespaces { "default" } else { namespace };
         create_selector_for_resource(client, ns, query).await?
     } else {
-        // If no resource selector, use default selection
         ListParams::default()
     };
-    
     let pods = pods_api.list(&params).await?;
-    
-    let mut found_pods = false;
+    // Collect all rows for table
+    let mut rows = Vec::new();
     for pod in pods.items {
         let pod_name = pod.metadata.name.as_deref().unwrap_or("");
-        
-        // Skip regex check if we're using resource selectors
         if resource_query.is_none() && !pod_regex.is_match(pod_name) {
             continue;
         }
-        
-        found_pods = true;
         let pod_namespace = pod.metadata.namespace.as_deref().unwrap_or("default");
-        
-        println!("Pod: {}/{}", pod_namespace, pod_name);
-        
         if let Some(spec) = pod.spec {
-            println!("  Containers:");
             for container in spec.containers {
-                println!("  - {}", container.name);
+                rows.push((pod_namespace.to_string(), pod_name.to_string(), container.name, "normal".to_string()));
             }
-            
             if let Some(init_containers) = spec.init_containers {
-                println!("  Init Containers:");
                 for container in init_containers {
-                    println!("  - {} (init)", container.name);
+                    rows.push((pod_namespace.to_string(), pod_name.to_string(), container.name, "init".to_string()));
                 }
             }
-            
             if let Some(ephemeral_containers) = spec.ephemeral_containers {
-                println!("  Ephemeral Containers:");
                 for container in ephemeral_containers {
-                    println!("  - {} (ephemeral)", container.name);
+                    rows.push((pod_namespace.to_string(), pod_name.to_string(), container.name, "ephemeral".to_string()));
                 }
             }
-            
-            println!("");
         }
     }
-    
-    if !found_pods {
-        println!("No pods found matching the pattern \"{}\" in namespace \"{}\"", 
-                 pod_regex, if all_namespaces { "all namespaces" } else { namespace });
+    if rows.is_empty() {
+        println!("No pods found matching the pattern \"{}\" in namespace \"{}\"", pod_regex, if all_namespaces { "all namespaces" } else { namespace });
+        return Ok(());
     }
-    
+    // Use comfy-table for output
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec!["Namespace", "Pod", "Container", "Type"]);
+    for (ns, pod, cont, typ) in rows {
+        table.add_row(vec![Cell::new(ns), Cell::new(pod), Cell::new(cont), Cell::new(typ)]);
+    }
+    println!("{}", table);
     Ok(())
 }

@@ -1,7 +1,6 @@
-use wake::k8s::logs::LogEntry;
 use wake::output::formatter::{OutputFormatter, TextFormatter, JsonFormatter, RawFormatter};
+use wake::k8s::logs::LogEntry;
 use chrono::{DateTime, Utc, TimeZone};
-use std::sync::Arc;
 use anyhow::Result;
 
 // Helper function to create a test log entry

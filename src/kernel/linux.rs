@@ -12,6 +12,7 @@ pub struct LinuxEventSystem {
     event_count: Arc<Mutex<u64>>,
     callbacks: Arc<Mutex<HashMap<RawFd, Box<dyn Fn() + Send + Sync>>>>,
     io_uring_enabled: bool,
+    #[allow(dead_code)]
     dev_mode: bool,
 }
 

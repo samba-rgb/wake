@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+
 mod cli;
 mod k8s;
 mod logging;
@@ -16,8 +20,45 @@ use tracing_subscriber::Layer; // Add missing Layer trait import
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Parse command line arguments first to determine if we're using UI mode
-    let args = cli::parse_args();
+    // Parse command line arguments first
+    let mut args = cli::parse_args();
+    let config = config::Config::load().unwrap_or_default();
+
+    // --- Merge logic for namespace, pod_selector, container ---
+    // 1. Command-line arg (already in args)
+    // 2. Kube context (namespace only)
+    // 3. Config file
+    // 4. Default (already in args::default)
+
+    // Namespace
+    if args.namespace == "default" || args.namespace.is_empty() {
+        // Try kube context
+        let kube_ns = if let Some(ref ctx) = args.context {
+            k8s::client::get_context_namespace(Some(ctx))
+        } else {
+            k8s::client::get_current_context_namespace()
+        };
+        if let Some(ns) = kube_ns {
+            args.namespace = ns;
+        } else if let Some(cfg_ns) = config.namespace.clone() {
+            args.namespace = cfg_ns;
+        }
+        // else keep as default
+    }
+    // Pod selector
+    if args.pod_selector == ".*" || args.pod_selector.is_empty() {
+        if let Some(cfg_pod) = config.pod_selector.clone() {
+            args.pod_selector = cfg_pod;
+        }
+        // else keep as default
+    }
+    // Container
+    if args.container == ".*" || args.container.is_empty() {
+        if let Some(cfg_container) = config.container.clone() {
+            args.container = cfg_container;
+        }
+        // else keep as default
+    }
     
     // Determine if UI will be used - UI should only be enabled when explicitly requested
     let should_use_ui = args.ui && !args.no_ui;

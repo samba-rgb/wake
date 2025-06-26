@@ -8,6 +8,15 @@ use directories::ProjectDirs;
 pub struct Config {
     pub autosave: AutosaveConfig,
     pub ui: UiConfig,
+    // Args defaultable fields
+    pub pod_selector: Option<String>,
+    pub container: Option<String>,
+    pub namespace: Option<String>,
+    pub tail: Option<i64>,
+    pub follow: Option<bool>,
+    pub output: Option<String>,
+    pub buffer_size: Option<usize>,
+    // Add more as needed
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,10 +75,13 @@ impl Config {
         let content = fs::read_to_string(&config_path)
             .context("Failed to read config file")?;
         
-        let config: Config = toml::from_str(&content)
-            .context("Failed to parse config file")?;
-        
-        Ok(config)
+        match toml::from_str::<Config>(&content) {
+            Ok(config) => Ok(config),
+            Err(e) => {
+                eprintln!("⚠️  Warning: Failed to parse config file ({}). Using defaults.", e);
+                Ok(Self::default())
+            }
+        }
     }
     
     /// Save configuration to file
@@ -157,6 +169,31 @@ impl Config {
                     _ => return Err(anyhow!("Invalid boolean value: '{}'. Use 'true' or 'false'", value)),
                 };
             }
+            "pod_selector" => {
+                self.pod_selector = Some(value.to_string());
+            }
+            "container" => {
+                self.container = Some(value.to_string());
+            }
+            "namespace" => {
+                self.namespace = Some(value.to_string());
+            }
+            "tail" => {
+                self.tail = Some(value.parse::<i64>().map_err(|_| anyhow!("Invalid tail value: '{}'. Must be an integer.", value))?);
+            }
+            "follow" => {
+                self.follow = Some(match value.to_lowercase().as_str() {
+                    "true" | "1" | "yes" | "on" | "enable" | "enabled" => true,
+                    "false" | "0" | "no" | "off" | "disable" | "disabled" => false,
+                    _ => return Err(anyhow!("Invalid boolean value: '{}'. Use 'true' or 'false'", value)),
+                });
+            }
+            "output" => {
+                self.output = Some(value.to_string());
+            }
+            "buffer_size" => {
+                self.buffer_size = Some(value.parse::<usize>().map_err(|_| anyhow!("Invalid buffer_size value: '{}'. Must be an integer.", value))?);
+            }
             _ => return Err(anyhow!("Unknown configuration key: '{}'. Available keys: autosave.enabled, autosave.path, ui.buffer_expansion, ui.theme, ui.show_timestamps", key))
         }
         
@@ -165,23 +202,22 @@ impl Config {
     
     /// Get all available configuration keys automatically
     pub fn get_all_keys(&self) -> Vec<String> {
-        let mut keys = Vec::new();
-        
-        // Manually extract keys based on the known structure
-        // This is more reliable than trying to parse TOML recursively
-        
-        // Autosave keys
-        keys.push("autosave.enabled".to_string());
-        if self.autosave.path.is_some() {
-            keys.push("autosave.path".to_string());
-        }
-        
-        // UI keys
-        keys.push("ui.buffer_expansion".to_string());
-        keys.push("ui.theme".to_string());
-        keys.push("ui.show_timestamps".to_string());
-        
-        keys
+        // Always include all possible keys, regardless of whether they are set
+        vec![
+            "autosave.enabled".to_string(),
+            "autosave.path".to_string(),
+            "ui.buffer_expansion".to_string(),
+            "ui.theme".to_string(),
+            "ui.show_timestamps".to_string(),
+            "pod_selector".to_string(),
+            "container".to_string(),
+            "namespace".to_string(),
+            "tail".to_string(),
+            "follow".to_string(),
+            "output".to_string(),
+            "buffer_size".to_string(),
+            // Add new config keys here as needed
+        ]
     }
     
     /// Get any configuration value using dot notation
@@ -198,6 +234,36 @@ impl Config {
             "ui.buffer_expansion" => Ok(self.ui.buffer_expansion.to_string()),
             "ui.theme" => Ok(self.ui.theme.clone()),
             "ui.show_timestamps" => Ok(self.ui.show_timestamps.to_string()),
+            "pod_selector" => {
+                if let Some(pod) = self.pod_selector.clone() {
+                    Ok(pod)
+                } else {
+                    Ok(".*".to_string())
+                }
+            }
+            "container" => {
+                if let Some(container) = self.container.clone() {
+                    Ok(container)
+                } else {
+                    Ok(".*".to_string())
+                }
+            }
+            "namespace" => {
+                if let Some(ns) = self.namespace.clone() {
+                    Ok(ns)
+                } else {
+                    // Try kube context
+                    if let Some(ctx_ns) = crate::k8s::client::get_current_context_namespace() {
+                        Ok(ctx_ns)
+                    } else {
+                        Ok("default".to_string())
+                    }
+                }
+            }
+            "tail" => Ok(self.tail.unwrap_or(10).to_string()),
+            "follow" => Ok(self.follow.unwrap_or(true).to_string()),
+            "output" => Ok(self.output.clone().unwrap_or_else(|| "text".to_string())),
+            "buffer_size" => Ok(self.buffer_size.unwrap_or(20000).to_string()),
             _ => Err(anyhow!("Configuration key not found: {}", key))
         }
     }
@@ -208,7 +274,7 @@ impl Config {
         
         // Header
         output.push_str("┌─────────────────────────────────────────────────────────────────────┐\n");
-        output.push_str("│                           Wake Configuration                           │\n");
+        output.push_str("│                           Wake Configuration                        │\n");
         output.push_str("├─────────────────────────┬───────────────────────────────────────────┤\n");
         output.push_str("│ Setting                 │ Value                                     │\n");
         output.push_str("├─────────────────────────┼───────────────────────────────────────────┤\n");
