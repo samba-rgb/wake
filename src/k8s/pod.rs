@@ -1,11 +1,13 @@
 use anyhow::{Result, Context};
+use colored::*;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client};
 use kube::api::{ListParams, ResourceExt};
 use regex::Regex;
 use tracing::{info, debug};
 use crate::k8s::selector::create_selector_for_resource;
-use comfy_table::{Table, presets::UTF8_FULL, ContentArrangement, Cell};
+use comfy_table::{Table, presets::UTF8_FULL, ContentArrangement, Cell, CellAlignment};
+use chrono::{Utc, DateTime};
 
 /// Represents pod information relevant to log watching
 #[derive(Debug, Clone)]
@@ -65,29 +67,48 @@ pub async fn select_pods(
                 // Add running containers
                 if let Some(container_statuses) = &status.container_statuses {
                     for cs in container_statuses {
-                        if container_re.is_match(&cs.name) {
-                            containers.push(cs.name.clone());
+                        if is_plain_name(container_re) {
+                            if &cs.name != container_re.as_str() {
+                                continue;
+                            }
+                        } else {
+                            if !container_re.is_match(&cs.name) {
+                                continue;
+                            }
                         }
+                        containers.push(cs.name.clone());
                     }
                 }
-                
                 // Also check init containers
                 if let Some(init_containers) = &status.init_container_statuses {
                     for cs in init_containers {
-                        if container_re.is_match(&cs.name) {
-                            containers.push(cs.name.clone());
+                        if is_plain_name(container_re) {
+                            if &cs.name != container_re.as_str() {
+                                continue;
+                            }
+                        } else {
+                            if !container_re.is_match(&cs.name) {
+                                continue;
+                            }
                         }
+                        containers.push(cs.name.clone());
                     }
                 }
             }
-            
             // If no containers found via status, try spec
             if containers.is_empty() {
                 if let Some(spec) = &pod.spec {
                     for c in &spec.containers {
-                        if container_re.is_match(&c.name) {
-                            containers.push(c.name.clone());
+                        if is_plain_name(container_re) {
+                            if &c.name != container_re.as_str() {
+                                continue;
+                            }
+                        } else {
+                            if !container_re.is_match(&c.name) {
+                                continue;
+                            }
                         }
+                        containers.push(c.name.clone());
                     }
                 }
             }
@@ -129,6 +150,7 @@ pub async fn list_container_names(
     pod_regex: &Regex,
     all_namespaces: bool,
     resource_query: Option<&str>,
+    container_regex: Option<&Regex>, // NEW: allow passing container regex
 ) -> Result<()> {
     let pods_api: Api<Pod>;
     if all_namespaces {
@@ -152,24 +174,117 @@ pub async fn list_container_names(
             continue;
         }
         let pod_namespace = pod.metadata.namespace.as_deref().unwrap_or("default");
-        if let Some(spec) = pod.spec {
-            for container in spec.containers {
-                rows.push((pod_namespace.to_string(), pod_name.to_string(), container.name, "normal".to_string()));
-            }
-            if let Some(init_containers) = spec.init_containers {
-                for container in init_containers {
-                    rows.push((pod_namespace.to_string(), pod_name.to_string(), container.name, "init".to_string()));
+        let pod_ip = pod.status.as_ref().and_then(|s| s.pod_ip.as_deref()).unwrap_or("");
+        // Container statuses for info
+        let mut status_map = std::collections::HashMap::new();
+        if let Some(status) = &pod.status {
+            if let Some(container_statuses) = &status.container_statuses {
+                for cs in container_statuses {
+                    status_map.insert(cs.name.clone(), cs);
                 }
             }
-            if let Some(ephemeral_containers) = spec.ephemeral_containers {
+            if let Some(init_statuses) = &status.init_container_statuses {
+                for cs in init_statuses {
+                    status_map.insert(cs.name.clone(), cs);
+                }
+            }
+            if let Some(ephemeral_statuses) = &status.ephemeral_container_statuses {
+                for cs in ephemeral_statuses {
+                    status_map.insert(cs.name.clone(), cs);
+                }
+            }
+        }
+        if let Some(spec) = &pod.spec {
+            let mut add_row = |container: &k8s_openapi::api::core::v1::Container, typ: &str| {
+                if let Some(re) = container_regex {
+                    if !re.is_match(&container.name) {
+                        return;
+                    }
+                }
+                let status = status_map.get(&container.name);
+                let (running_for, restarts, state) = if let Some(cs) = status {
+                    let running_from_opt = cs.state.as_ref()
+                        .and_then(|state| state.running.as_ref().and_then(|r| r.started_at.as_ref()))
+                        .map(|dt| dt.0);
+                    let running_for = if let Some(started_at) = running_from_opt {
+                        let now = Utc::now();
+                        let duration = now.signed_duration_since(started_at);
+                        if duration.num_seconds() > 0 {
+                            // Format as human readable
+                            let secs = duration.num_seconds();
+                            let (days, rem) = (secs / 86400, secs % 86400);
+                            let (hours, rem) = (rem / 3600, rem % 3600);
+                            let (mins, secs) = (rem / 60, rem % 60);
+                            if days > 0 {
+                                format!("{}d {}h {}m", days, hours, mins)
+                            } else if hours > 0 {
+                                format!("{}h {}m", hours, mins)
+                            } else if mins > 0 {
+                                format!("{}m {}s", mins, secs)
+                            } else {
+                                format!("{}s", secs)
+                            }
+                        } else {
+                            "0s".to_string()
+                        }
+                    } else {
+                        "-".to_string()
+                    };
+                    let restarts = cs.restart_count;
+                    let state = if let Some(state) = &cs.state {
+                        if state.running.is_some() {
+                            if cs.ready { "Running+Ready" } else { "Running (Not Ready)" }
+                        } else if state.terminated.is_some() {
+                            "Terminated"
+                        } else if state.waiting.is_some() {
+                            "Waiting"
+                        } else {
+                            "Unknown"
+                        }
+                    } else {
+                        "Unknown"
+                    };
+                    (running_for, restarts, state.to_string())
+                } else {
+                    ("-".to_string(), 0, "Unknown".to_string())
+                };
+                rows.push((pod_namespace.to_string(), pod_name.to_string(), container.name.clone(), typ.to_string(), pod_ip.to_string(), running_for, restarts, state));
+            };
+            for container in &spec.containers {
+                add_row(container, "normal");
+            }
+            if let Some(init_containers) = &spec.init_containers {
+                for container in init_containers {
+                    add_row(container, "init");
+                }
+            }
+            if let Some(ephemeral_containers) = &spec.ephemeral_containers {
                 for container in ephemeral_containers {
-                    rows.push((pod_namespace.to_string(), pod_name.to_string(), container.name, "ephemeral".to_string()));
+                    // EphemeralContainer is a different type, so handle manually
+                    let name = &container.name;
+                    if let Some(re) = container_regex {
+                        if !re.is_match(name) {
+                            continue;
+                        }
+                    }
+                    // Ephemeral containers do not have status info in ContainerStatus, so use defaults
+                    rows.push((pod_namespace.to_string(), pod_name.to_string(), name.clone(), "ephemeral".to_string(), pod_ip.to_string(), "-".to_string(), 0, "Unknown".to_string()));
                 }
             }
         }
     }
     if rows.is_empty() {
-        println!("No pods found matching the pattern \"{}\" in namespace \"{}\"", pod_regex, if all_namespaces { "all namespaces" } else { namespace });
+        let container_filter = if let Some(re) = container_regex {
+            re.as_str()
+        } else {
+            "(all containers)"
+        };
+        println!(
+            "No containers found matching pod pattern \"{}\" and container filter \"{}\" in namespace \"{}\"",
+            pod_regex,
+            container_filter,
+            if all_namespaces { "all namespaces" } else { namespace }
+        );
         return Ok(());
     }
     // Use comfy-table for output
@@ -177,10 +292,25 @@ pub async fn list_container_names(
     table
         .load_preset(UTF8_FULL)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec!["Namespace", "Pod", "Container", "Type"]);
-    for (ns, pod, cont, typ) in rows {
-        table.add_row(vec![Cell::new(ns), Cell::new(pod), Cell::new(cont), Cell::new(typ)]);
+        .set_header(vec!["Namespace", "Pod", "Container", "Type", "Pod IP", "Running For", "Restarts", "State"]);
+    for (ns, pod, cont, typ, ip, start, restarts, state) in rows {
+        let padded_state = format!("{:<18}", state); // pad all states to 18 chars
+        let colored_state = if state == "Running+Ready" {
+            padded_state.green().bold().to_string()
+        } else {
+            padded_state.red().bold().to_string()
+        };
+        let state_cell = Cell::new(colored_state).set_alignment(CellAlignment::Left);
+        table.add_row(vec![Cell::new(ns), Cell::new(pod), Cell::new(cont), Cell::new(typ), Cell::new(ip), Cell::new(start), Cell::new(restarts.to_string()), state_cell]);
     }
     println!("{}", table);
     Ok(())
+}
+
+// Helper function to check if a regex is a plain name (no regex metacharacters)
+fn is_plain_name(re: &Regex) -> bool {
+    let s = re.as_str();
+    // If it contains only alphanumeric, dash, or underscore, treat as plain name
+    // and does not start/end with ^/$ or contain . * + ? | ( ) [ ] { } \
+    !s.contains(|c: char| "^$.|?*+()[]{}\\".contains(c))
 }
