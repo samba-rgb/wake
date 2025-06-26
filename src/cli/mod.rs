@@ -200,12 +200,14 @@ pub async fn run(mut args: Args) -> Result<()> {
     // If list_containers flag is set, just list containers and exit
     if args.list_containers {
         info!("CLI: Listing containers and exiting");
+        let container_regex = args.container_regex().ok();
         return crate::k8s::pod::list_container_names(
             &client, 
             &args.namespace, 
             &pod_regex, 
             args.all_namespaces,
-            args.resource.as_deref()
+            args.resource.as_deref(),
+            container_regex.as_ref(),
         ).await;
     }
     
