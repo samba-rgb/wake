@@ -1,18 +1,18 @@
-mod args;
+pub mod args;
 
 pub use args::{Args, parse_args};
 use anyhow::{Result, Context};
 use tracing::info;
-use std::path::Path;
 use std::fs;
 use regex::Regex;
+use std::io::Write;
+use std::fs::File;
+use std::collections::HashMap;
+use std::path::Path;
 use crate::k8s::pod::select_pods;
 use kube::Api;
 use k8s_openapi::api::core::v1::Pod;
-use std::io::Write;
-use std::fs::File;
 use chrono::Local;
-use std::collections::HashMap;
 
 /// Prints WAKE in big text with dots
 fn print_wake_big_text() {
@@ -115,6 +115,15 @@ async fn run_script_in_pods(args: &Args) -> Result<()> {
 }
 
 pub async fn run(mut args: Args) -> Result<()> {
+    if args.author {
+        let author_path = std::path::Path::new("author.txt");
+        if let Ok(content) = std::fs::read_to_string(author_path) {
+            println!("{}", content);
+        } else {
+            println!("samba\nGitHub: https://github.com/samba-rgb\n");
+        }
+        return Ok(());
+    }
     info!("=== CLI MODULE STARTING ===");
     info!("CLI: Received args - namespace: {}, pod_selector: {}, container: {}", 
           args.namespace, args.pod_selector, args.container);
