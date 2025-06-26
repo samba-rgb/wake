@@ -1,9 +1,7 @@
-use wake::k8s::client::{create_client, get_current_context_namespace};
+use wake::k8s::client::{create_client, get_current_context_namespace, K8sClient};
 use wake::cli::Args;
-use anyhow::Result;
-use std::path::PathBuf;
 use tempfile::NamedTempFile;
-use std::io::Write;
+use std::path::PathBuf;
 
 // Mock tests that don't require a real cluster
 #[cfg(test)]

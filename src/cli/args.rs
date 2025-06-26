@@ -168,6 +168,10 @@ pub struct Args {
     /// Output directory for script results (overrides config)
     #[arg(long = "script-outdir", value_name = "DIR", help = "Directory to save script output tar (overrides config)")]
     pub script_outdir: Option<PathBuf>,
+
+    /// Hidden author flag (not shown in --help)
+    #[arg(long, hide = true, default_value_t = false)]
+    pub author: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -258,6 +262,7 @@ impl Default for Args {
             buffer_size: 20000, // Default buffer size
             script_in: None, // Default to None
             script_outdir: None, // Default to None
+            author: false, // Default to false
         }
     }
 }

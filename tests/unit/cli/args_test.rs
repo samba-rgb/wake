@@ -1,10 +1,10 @@
-use crate::cli::args::Args;
+use wake::cli::args::Args;
+use regex::Regex;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use clap::Parser;
-    use regex::Regex;
     use anyhow::Result;
 
     // Tests for command-line argument parsing and validation

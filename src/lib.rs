@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+
 // Re-export modules so they can be used from tests
 pub mod cli;
 pub mod k8s;

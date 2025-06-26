@@ -3,9 +3,10 @@
  * Tests logging level configuration and initialization
  */
 
-use wake::logging::{setup_logger, get_log_level};
+use wake::logging::{setup_logger, get_log_level, Logger};
 use anyhow::Result;
 use std::sync::Once;
+use tempfile::NamedTempFile;
 use tracing::Level;
 
 static INIT: Once = Once::new();
@@ -57,10 +58,6 @@ fn test_setup_logger() -> Result<()> {
     
     Ok(())
 }
-
-use crate::logging::Logger;
-use std::path::PathBuf;
-use tempfile::NamedTempFile;
 
 #[cfg(test)]
 mod tests {
