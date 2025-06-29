@@ -888,6 +888,11 @@ impl DisplayManager {
 
     /// Hash-based mouse click handler for perfect selection accuracy
     pub fn handle_mouse_click(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
+        // Allow terminal copy-paste in non-follow mode
+        if !self.auto_scroll {
+            return false; // Skip custom logic
+        }
+
         // Only allow selection in pause mode (not in follow mode)
         if self.auto_scroll {
             return false;
@@ -944,6 +949,11 @@ impl DisplayManager {
     
     /// Enhanced mouse drag handler with optimized performance for Linux/Unix systems
     pub fn handle_mouse_drag(&mut self, _x: u16, y: u16, log_area: Rect) -> (bool, bool) {
+        // Allow terminal copy-paste in non-follow mode
+        if !self.auto_scroll {
+            return (false, false); // Skip custom logic
+        }
+
         // Returns (selection_changed, should_scroll)
         
         // Check if we have an active selection to extend
@@ -1078,6 +1088,11 @@ impl DisplayManager {
 
     /// Handle mouse release to finalize hash-based selection
     pub fn handle_mouse_release(&mut self) -> bool {
+        // Allow terminal copy-paste in non-follow mode
+        if !self.auto_scroll {
+            return false; // Skip custom logic
+        }
+
         if let Some(ref mut selection) = self.hash_selection {
             if selection.is_dragging {
                 selection.end_drag();
@@ -1244,20 +1259,16 @@ impl DisplayManager {
     pub fn scroll_down(&mut self, lines: usize, viewport_height: usize) {
         let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
         self.scroll_offset = (self.scroll_offset + lines).min(max_scroll);
-        
-        // Auto-enable auto-scroll when user manually scrolls to the bottom
-        if self.scroll_offset >= max_scroll {
-            self.auto_scroll = true;
-        } else {
-            self.auto_scroll = false;
-        }
-        
+
+        // Ensure auto_scroll remains disabled in pause mode
+        self.auto_scroll = false;
+
         // Invalidate cache when scrolling
         self.cache_generation += 1;
-        
+
         self.validate_scroll_bounds(viewport_height);
         self.update_display_window(viewport_height);
-        
+
         // Update selection after scrolling
         self.update_selection_after_scroll(viewport_height);
     }
@@ -1825,18 +1836,23 @@ impl DisplayManager {
     /// Detect log level from message and return appropriate color
     fn detect_log_level_color(&self, message: &str) -> Color {
         let message_lower = message.to_lowercase();
-        
-        if message_lower.contains("error") || message_lower.contains("err") || 
-           message_lower.contains("fatal") || message_lower.contains("panic") {
+
+        // Match whole words using regex to avoid substring issues
+        let error_regex = Regex::new(r"\b(error|err|fatal|panic)\b").unwrap();
+        let warning_regex = Regex::new(r"\b(warn|warning)\b").unwrap();
+        let info_regex = Regex::new(r"\b(info|information)\b").unwrap();
+        let debug_regex = Regex::new(r"\b(debug|trace)\b").unwrap();
+        let success_regex = Regex::new(r"\b(success|ok|complete)\b").unwrap();
+
+        if error_regex.is_match(&message_lower) {
             self.color_scheme.error_color()
-        } else if message_lower.contains("warn") || message_lower.contains("warning") {
+        } else if warning_regex.is_match(&message_lower) {
             self.color_scheme.warning_color()
-        } else if message_lower.contains("info") || message_lower.contains("information") {
+        } else if info_regex.is_match(&message_lower) {
             self.color_scheme.accent_color()
-        } else if message_lower.contains("debug") || message_lower.contains("trace") {
+        } else if debug_regex.is_match(&message_lower) {
             self.color_scheme.dim_text_color()
-        } else if message_lower.contains("success") || message_lower.contains("ok") || 
-                  message_lower.contains("complete") {
+        } else if success_regex.is_match(&message_lower) {
             self.color_scheme.success_color()
         } else {
             self.color_scheme.default_message_color()
