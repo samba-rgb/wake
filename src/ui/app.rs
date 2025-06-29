@@ -77,7 +77,14 @@ pub async fn run_app(
     info!("UI: Setting up terminal...");
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, crossterm::event::EnableMouseCapture)?;
+    // Remove mouse capture entirely to allow native terminal behavior
+    execute!(stdout, EnterAlternateScreen)?;
+    // Ensure the cursor is set to its default shape
+    execute!(stdout, crossterm::cursor::SetCursorStyle::DefaultUserShape)?;
+    // Ensure mouse capture is disabled in non-follow mode
+    if !args.follow {
+        execute!(stdout, crossterm::event::DisableMouseCapture)?;
+    }
     // Note: Mouse capture is disabled by default to allow terminal text selection
     // Users can press 'm' to enable application mouse features if needed
     let backend = CrosstermBackend::new(stdout);
