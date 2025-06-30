@@ -279,8 +279,24 @@ pub async fn run_app(
                                 };
                             }
                             InputEvent::UpdateIncludeFilter(pattern) => {
-                                let pattern_opt = if pattern.is_empty() { None } else { Some(pattern.clone()) };
+
+                                // Validate the pattern before proceeding
+                                let pattern_opt = if pattern.is_empty() {
+                                    None
+                                } else if let Err(e) = regex::Regex::new(&pattern) {
+                                    // Show an alert dialog for invalid pattern
+                                    // display_manager.show_popup_alert(frame, message);
+                                    // Log the error message using formatted string
+                                    display_manager.add_system_log(&format!("Invalid include filter pattern: {}", e));
+                                    None
+                                } else {
+                                    Some(pattern.clone())
+                                };
+
                                 if let Err(e) = filter_manager.update_include_pattern(pattern_opt.clone()).await {
+                                    // display_manager.show_popup(&format!(
+                                    //     "❌ Failed to update include pattern: {}", e
+                                    // ));
                                     error!("Failed to update include pattern: {}", e);
                                 } else {
                                     // Add a filter change notification to the display (old logs remain)
@@ -296,6 +312,8 @@ pub async fn run_app(
                             InputEvent::UpdateExcludeFilter(pattern) => {
                                 let pattern_opt = if pattern.is_empty() { None } else { Some(pattern.clone()) };
                                 if let Err(e) = filter_manager.update_exclude_pattern(pattern_opt.clone()).await {
+                                    // Log the error message using formatted string for exclude filter
+                                    display_manager.add_system_log(&format!("Invalid exclude filter pattern: {}", e));
                                     error!("Failed to update exclude pattern: {}", e);
                                 } else {
                                     // Add a filter change notification to the display (old logs remain)
@@ -510,9 +528,6 @@ pub async fn run_app(
                                 ])
                                 .split(terminal.size()?)[1]; // Get log area
                             
-                            if display_manager.handle_mouse_click(mouse_event.column, mouse_event.row, log_area) {
-                                display_manager.add_system_log("🖱️ Started text selection - drag to extend, use arrow keys to extend further");
-                            }
                         }
                         MouseEventKind::Drag(MouseButton::Left) => {
                             // Handle mouse drag for extending selection with auto-scroll
@@ -525,16 +540,7 @@ pub async fn run_app(
                                 ])
                                 .split(terminal.size()?)[1]; // Get log area
 
-                            let (selection_changed, scrolled) = display_manager.handle_mouse_drag(
-                                mouse_event.column, 
-                                mouse_event.row, 
-                                log_area
-                            );
-                            
-                            if selection_changed || scrolled {
-                                // Force immediate render when selection changes or auto-scroll occurs
-                                last_render = std::time::Instant::now().checked_sub(render_interval).unwrap_or_else(|| std::time::Instant::now());
-                            }
+                        
                         }
                         MouseEventKind::Up(MouseButton::Left) => {
                             // Handle mouse release to end dragging

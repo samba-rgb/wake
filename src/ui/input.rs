@@ -339,7 +339,7 @@ impl InputHandler {
             "🔍 Advanced Filter Examples:",
             "  Basic text: 'error'                     - Show logs containing 'error'",
             "  Regex: 'ERROR|WARN'                     - Show ERROR or WARN logs",
-            "  Complex: '\"user.*login\" && \"success\"'  - User login success logs",
+            "  Complex: 'user.*login && success'       - User login success logs",
             "  Exclude: 'debug'                        - Hide all debug messages",
             "",
             "📁 File Output (when -w flag used):",
