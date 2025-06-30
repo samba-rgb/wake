@@ -390,6 +390,8 @@ Options:
   -v, --verbosity <VERBOSITY>     Verbosity level for debug output [default: 0]
   -L, --list-containers           List all containers in matched pods
       --all-containers            Show logs from all containers in pods
+      --script-in <PATH>          Path to a script to run in each selected pod (copied and executed as /tmp/wake-script.sh)
+      --script-outdir <DIR>       Directory to save script output tar (overrides config)
   -h, --help                      Print help
   -V, --version                   Print version
 ```
