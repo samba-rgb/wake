@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::style::{Style, Modifier, Color};
 use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
@@ -372,6 +373,20 @@ impl InputHandler {
             "  5. Press Ctrl+C to copy logs for sharing",
             "",
             "Press 'h' again or 'q' to close this help screen.",
+        ]
+    }
+
+    pub fn get_ui_hints(&self) -> Vec<&'static str> {
+        vec![
+            "⬆ Scroll Up",
+            "⬇ Scroll Down",
+            "f Follow Mode",
+            "i Include Filter",
+            "e Exclude Filter",
+            "q Quit",
+            "h Help",
+            "PageUp/PageDown: Scroll by page",
+            "Home/End: Go to top/bottom",
         ]
     }
 }
