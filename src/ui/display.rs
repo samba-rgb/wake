@@ -1479,32 +1479,52 @@ impl DisplayManager {
 
     /// Render the display manager UI with include/exclude filter boxes
     pub fn render(&mut self, f: &mut Frame, input_handler: &InputHandler) {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(4), // Filter input area
-                Constraint::Min(0),    // Log display area - takes remaining space
-                Constraint::Length(3), // Status bar - FIXED: increased from 2 to 3 for better visibility
-            ])
-            .split(f.size());
+        if input_handler.mode == InputMode::Help {
+            // Render help screen
+            let help_text = input_handler.get_help_text().join("\n");
+            let help_widget = Paragraph::new(help_text)
+                .block(Block::default()
+                    .borders(Borders::ALL)
+                    .title(Span::styled("Help", Style::default().add_modifier(Modifier::BOLD)))
+                )
+                .wrap(Wrap { trim: true });
 
-        // Update terminal width for hash cache
-        let new_width = f.size().width as usize;
-        if self.terminal_width != new_width {
-            self.terminal_width = new_width;
-            self.cache_generation += 1;
+            f.render_widget(help_widget, f.size());
+        } else {
+            // Render the regular UI
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(4), // Input filter area
+                    Constraint::Min(0),    // Log display area - takes remaining space
+                    Constraint::Length(3), // Status bar
+                    Constraint::Length(3), // Hint area
+                ])
+                .split(f.size());
+
+            // Update terminal width for hash cache
+            let new_width = f.size().width as usize;
+            if self.terminal_width != new_width {
+                self.terminal_width = new_width;
+                self.cache_generation += 1;
+            }
+
+            // Render the input filter area at the top
+            self.render_filter_input_area(f, chunks[0], input_handler);
+
+            // Render log display area in the middle
+            self.render_logs(f, chunks[1]);
+
+            // Render the status bar below logs
+            self.render_enhanced_status_bar(f, chunks[2], input_handler);
+
+            // Render the hint area at the bottom
+            self.render_ui_hints(f, chunks[3], input_handler);
         }
-
-        // Render the filter input area at the top
-        self.render_filter_input_area(f, chunks[0], input_handler);
-
-        // Render log display area in the middle
-        self.render_logs(f, chunks[1]);
-
-        // FIXED: Always render the status bar at the bottom with proper content
-        self.render_enhanced_status_bar(f, chunks[2], input_handler);
     }
+}
 
+impl DisplayManager {
     /// FIXED: Renamed and enhanced status bar rendering function 
     fn render_enhanced_status_bar(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
         use ratatui::widgets::{Block, Borders, Paragraph};
@@ -1863,5 +1883,26 @@ impl DisplayManager {
     fn strip_ansi_codes(&self, text: &str) -> String {
         let ansi_regex = ANSI_REGEX.get_or_init(|| Regex::new(r"(\x1b\[[0-9;]*[a-zA-Z]|\x1b\[[0-9;]*m|\[[0-9;]*m)").unwrap());
         ansi_regex.replace_all(text, "").to_string()
+    }
+}
+
+impl DisplayManager {
+    pub fn render_ui_hints(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
+        use ratatui::widgets::{Block, Borders, Paragraph};
+        use ratatui::style::{Style, Modifier, Color};
+        use ratatui::text::{Line, Span};
+
+        let hints = input_handler.get_ui_hints().join("   ");
+        let styled_hint = Line::from(vec![
+            Span::styled(hints, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        ]);
+
+        let hints_widget = Paragraph::new(styled_hint)
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .title(Span::styled("Controls", Style::default().add_modifier(Modifier::BOLD)))
+            );
+
+        f.render_widget(hints_widget, area);
     }
 }
