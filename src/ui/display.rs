@@ -5,12 +5,15 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 use std::collections::{HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
+use std::io;
 use std::sync::OnceLock;
+use tokio::sync::mpsc;
+use tokio::task;
 
 /// Global regex instance for ANSI stripping - compiled once
 static ANSI_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -886,198 +889,13 @@ impl DisplayManager {
         true
     }
 
-    /// Hash-based mouse click handler for perfect selection accuracy
-    pub fn handle_mouse_click(&mut self, x: u16, y: u16, log_area: Rect) -> bool {
-        // Only allow selection in pause mode (not in follow mode)
-        if self.auto_scroll {
-            return false;
-        }
-        
-        // Check if click is within the log area content
-        if x < log_area.x + 1 || x >= log_area.x + log_area.width - 1 ||
-           y < log_area.y + 2 || y >= log_area.y + log_area.height - 1 {
-            return false;
-        }
-        
-        let content_start_y = log_area.y + 2;
-        let relative_y = (y - content_start_y) as usize;
-        let viewport_height = (log_area.height as usize).saturating_sub(3);
-        
-        // Rebuild cache if needed
-        if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
-            self.hash_line_cache.rebuild(
-                &self.log_entries,
-                self.scroll_offset,
-                self.terminal_width,
-                viewport_height,
-                self.show_timestamps
-            );
-        }
-        
-        // Get the hash for the clicked visual line
-        if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(relative_y).cloned() {
-            // Check if we're clicking on existing selection
-            if let Some(ref existing_selection) = self.hash_selection {
-                let start_visual = existing_selection.visual_start_line;
-                let end_visual = existing_selection.visual_end_line;
-                
-                if relative_y >= start_visual && relative_y <= end_visual {
-                    // Clicking inside existing selection - clear it
-                    self.clear_selection();
-                    self.add_system_log("🖱️ Clicked inside selection - cleared selection");
-                    return true;
-                }
-            }
-            
-            // Start new hash-based selection
-            self.hash_selection = Some(HashBasedSelection::new(line_hash.clone(), relative_y));
-            self.selection_cursor = relative_y;
-            
-            self.add_system_log(&format!("🖱️ Hash selection started at visual line {} (log entry {})", 
-                relative_y, line_hash.log_entry_index));
-            return true;
-        }
-        
-        self.add_system_log(&format!("❌ No hash found for visual line {}", relative_y));
-        false
-    }
-    
-    /// Enhanced mouse drag handler with optimized performance for Linux/Unix systems
-    pub fn handle_mouse_drag(&mut self, _x: u16, y: u16, log_area: Rect) -> (bool, bool) {
-        // Returns (selection_changed, should_scroll)
-        
-        // Check if we have an active selection to extend
-        let has_selection = self.hash_selection.is_some();
-        if !has_selection {
-            return (false, false);
-        }
-        
-        // Only allow in pause mode
-        if self.auto_scroll {
-            return (false, false);
-        }
-        
-        let content_start_y = log_area.y + 2;
-        let content_end_y = log_area.y + log_area.height - 1;
-        let viewport_height = (log_area.height as usize).saturating_sub(3);
-        
-        // Enhanced edge detection for auto-scroll during drag
-        const SCROLL_EDGE_THRESHOLD: u16 = 2; // Lines from edge to trigger scroll
-        let mut scroll_direction = None;
-        let mut relative_y;
-        
-        // Detect edge scrolling zones
-        if y < content_start_y + SCROLL_EDGE_THRESHOLD {
-            // Dragging near top edge - scroll up
-            scroll_direction = Some(-1);
-            relative_y = 0;
-        } else if y >= content_end_y - SCROLL_EDGE_THRESHOLD {
-            // Dragging near bottom edge - scroll down  
-            scroll_direction = Some(1);
-            relative_y = viewport_height.saturating_sub(1);
-        } else if y >= content_start_y && y < content_end_y {
-            // Normal drag within viewport
-            relative_y = (y - content_start_y) as usize;
-            if relative_y >= viewport_height {
-                relative_y = viewport_height.saturating_sub(1);
-            }
-        } else {
-            // Outside viewport entirely
-            return (false, false);
-        }
-        
-        // PERFORMANCE FIX: Throttle scroll updates to reduce CPU usage
-        let mut scrolled = false;
-        if let Some(direction) = scroll_direction {
-            let scroll_speed = 1; // Reduced from variable speed for consistency
-            if direction < 0 {
-                // Scroll up
-                if self.scroll_offset > 0 {
-                    let scroll_amount = scroll_speed.min(self.scroll_offset);
-                    self.scroll_offset -= scroll_amount;
-                    scrolled = true;
-                }
-            } else {
-                // Scroll down
-                let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
-                if self.scroll_offset < max_scroll {
-                    let scroll_amount = scroll_speed.min(max_scroll - self.scroll_offset);
-                    self.scroll_offset += scroll_amount;
-                    scrolled = true;
-                }
-            }
-            
-            if scrolled {
-                // Invalidate cache after scrolling
-                self.cache_generation += 1;
-                self.validate_scroll_bounds(viewport_height);
-                self.update_display_window(viewport_height);
-            }
-        }
-        
-        // PERFORMANCE FIX: Only rebuild cache if scrolled or if really needed
-        let need_cache_rebuild = scrolled || 
-            !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation);
-        
-        if need_cache_rebuild {
-            self.hash_line_cache.rebuild(
-                &self.log_entries,
-                self.scroll_offset,
-                self.terminal_width,
-                viewport_height,
-                self.show_timestamps
-            );
-        }
-        
-        // Update selection with hash-based accuracy - PERFORMANCE OPTIMIZED
-        let selection_changed = if let Some(line_hash) = self.hash_line_cache.get_hash_for_visual_line(relative_y).cloned() {
-            // Get current selection state before borrowing mutably
-            let (old_start, old_end, was_dragging) = if let Some(ref selection) = self.hash_selection {
-                (selection.visual_start_line, selection.visual_end_line, selection.is_dragging)
-            } else {
-                return (false, scrolled);
-            };
-            
-            // Now safely borrow mutably for updates
-            if let Some(ref mut selection) = self.hash_selection {
-                // Start dragging if not already
-                if !was_dragging {
-                    selection.start_drag();
-                }
-                
-                // Extend selection to new position
-                selection.extend_to(line_hash, relative_y);
-                
-                // Check if selection actually changed
-                let changed = old_start != selection.visual_start_line || old_end != selection.visual_end_line;
-                
-                // PERFORMANCE FIX: Reduce logging frequency for micro-adjustments
-                if changed && !scrolled {
-                    let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                    // Only log every 10 lines or for small selections to reduce spam
-                    if lines_selected % 10 == 0 || lines_selected <= 3 {
-                        self.add_system_log(&format!("🖱️ Selection: {} lines", lines_selected));
-                    }
-                }
-                
-                changed
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-        
-        // PERFORMANCE FIX: Only update selection after scroll if really necessary
-        if scrolled && self.hash_selection.is_some() && need_cache_rebuild {
-            self.update_selection_after_scroll(viewport_height);
-        }
-        
-        (selection_changed || scrolled, scrolled)
-    }
-
     /// Handle mouse release to finalize hash-based selection
     pub fn handle_mouse_release(&mut self) -> bool {
+        // Allow terminal copy-paste in non-follow mode
+        if !self.auto_scroll {
+            return false; // Skip custom logic
+        }
+
         if let Some(ref mut selection) = self.hash_selection {
             if selection.is_dragging {
                 selection.end_drag();
@@ -1244,20 +1062,16 @@ impl DisplayManager {
     pub fn scroll_down(&mut self, lines: usize, viewport_height: usize) {
         let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
         self.scroll_offset = (self.scroll_offset + lines).min(max_scroll);
-        
-        // Auto-enable auto-scroll when user manually scrolls to the bottom
-        if self.scroll_offset >= max_scroll {
-            self.auto_scroll = true;
-        } else {
-            self.auto_scroll = false;
-        }
-        
+
+        // Ensure auto_scroll remains disabled in pause mode
+        self.auto_scroll = false;
+
         // Invalidate cache when scrolling
         self.cache_generation += 1;
-        
+
         self.validate_scroll_bounds(viewport_height);
         self.update_display_window(viewport_height);
-        
+
         // Update selection after scrolling
         self.update_selection_after_scroll(viewport_height);
     }
@@ -1422,82 +1236,62 @@ impl DisplayManager {
         Line::from(highlighted_spans)
     }
 
-    /// High-performance auto-scroll during drag with Linux kernel optimizations
-    #[allow(dead_code)]
-    pub fn auto_scroll_during_drag(&mut self, direction: i8, viewport_height: usize) -> bool {
-        // Optimized for Linux/Unix systems with faster scroll rates
-        let scroll_speed = match direction.abs() {
-            1 => 1,  // Slow scroll near edge
-            2 => 3,  // Medium scroll  
-            _ => 5,  // Fast scroll when dragging far outside
-        };
-        
-        let mut scrolled = false;
-        
-        if direction < 0 {
-            // Scroll up
-            if self.scroll_offset > 0 {
-                let scroll_amount = scroll_speed.min(self.scroll_offset);
-                self.scroll_offset -= scroll_amount;
-                scrolled = true;
-            }
-        } else if direction > 0 {
-            // Scroll down
-            let max_scroll = self.log_entries.len().saturating_sub(viewport_height);
-            if self.scroll_offset < max_scroll {
-                let scroll_amount = scroll_speed.min(max_scroll - self.scroll_offset);
-                self.scroll_offset += scroll_amount;
-                scrolled = true;
-            }
-        }
-        
-        if scrolled {
-            // Use Linux-optimized cache invalidation
-            self.cache_generation += 1;
-            self.validate_scroll_bounds(viewport_height);
-            self.update_display_window(viewport_height);
-            
-            // Update any active selection to follow the scroll
-            if self.hash_selection.is_some() {
-                self.update_selection_after_scroll(viewport_height);
-            }
-        }
-        
-        scrolled
-    }
-
     /// Render the display manager UI with include/exclude filter boxes
     pub fn render(&mut self, f: &mut Frame, input_handler: &InputHandler) {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(4), // Filter input area
-                Constraint::Min(0),    // Log display area - takes remaining space
-                Constraint::Length(3), // Status bar - FIXED: increased from 2 to 3 for better visibility
-            ])
-            .split(f.size());
+        if input_handler.mode == InputMode::Help {
+            // Render help screen
+            let help_text = input_handler.get_help_text().join("\n");
+            let help_widget = Paragraph::new(help_text)
+                .block(Block::default()
+                    .borders(Borders::ALL)
+                    .title(Span::styled("Help", Style::default().add_modifier(Modifier::BOLD)))
+                )
+                .wrap(Wrap { trim: true });
 
-        // Update terminal width for hash cache
-        let new_width = f.size().width as usize;
-        if self.terminal_width != new_width {
-            self.terminal_width = new_width;
-            self.cache_generation += 1;
+            f.render_widget(help_widget, f.size());
+        } else {
+            // Render the regular UI
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(4), // Input filter area
+                    Constraint::Min(0),    // Log display area - takes remaining space
+                    Constraint::Length(3), // Status bar
+                    Constraint::Length(3), // Hint area
+                ])
+                .split(f.size());
+
+            // Update terminal width for hash cache
+            let new_width = f.size().width as usize;
+            if self.terminal_width != new_width {
+                self.terminal_width = new_width;
+                self.cache_generation += 1;
+            }
+
+
+
+            //
+
+            // Render the input filter area at the top
+            self.render_filter_input_area(f, chunks[0], input_handler);
+
+            // Render log display area in the middle
+            self.render_logs(f, chunks[1]);
+
+            // Render the status bar below logs
+            self.render_enhanced_status_bar(f, chunks[2], input_handler);
+
+            // Render the hint area at the bottom
+            self.render_ui_hints(f, chunks[3], input_handler);
         }
-
-        // Render the filter input area at the top
-        self.render_filter_input_area(f, chunks[0], input_handler);
-
-        // Render log display area in the middle
-        self.render_logs(f, chunks[1]);
-
-        // FIXED: Always render the status bar at the bottom with proper content
-        self.render_enhanced_status_bar(f, chunks[2], input_handler);
     }
+}
 
+impl DisplayManager {
     /// FIXED: Renamed and enhanced status bar rendering function 
     fn render_enhanced_status_bar(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
         use ratatui::widgets::{Block, Borders, Paragraph};
-        use ratatui::style::{Color, Modifier, Style};
+        use ratatui::style::{Style, Modifier, Color};
         use ratatui::text::{Line, Span};
 
         let chunks = Layout::default()
@@ -1825,18 +1619,23 @@ impl DisplayManager {
     /// Detect log level from message and return appropriate color
     fn detect_log_level_color(&self, message: &str) -> Color {
         let message_lower = message.to_lowercase();
-        
-        if message_lower.contains("error") || message_lower.contains("err") || 
-           message_lower.contains("fatal") || message_lower.contains("panic") {
+
+        // Match whole words using regex to avoid substring issues
+        let error_regex = Regex::new(r"\b(error|err|fatal|panic)\b").unwrap();
+        let warning_regex = Regex::new(r"\b(warn|warning)\b").unwrap();
+        let info_regex = Regex::new(r"\b(info|information)\b").unwrap();
+        let debug_regex = Regex::new(r"\b(debug|trace)\b").unwrap();
+        let success_regex = Regex::new(r"\b(success|ok|complete)\b").unwrap();
+
+        if error_regex.is_match(&message_lower) {
             self.color_scheme.error_color()
-        } else if message_lower.contains("warn") || message_lower.contains("warning") {
+        } else if warning_regex.is_match(&message_lower) {
             self.color_scheme.warning_color()
-        } else if message_lower.contains("info") || message_lower.contains("information") {
+        } else if info_regex.is_match(&message_lower) {
             self.color_scheme.accent_color()
-        } else if message_lower.contains("debug") || message_lower.contains("trace") {
+        } else if debug_regex.is_match(&message_lower) {
             self.color_scheme.dim_text_color()
-        } else if message_lower.contains("success") || message_lower.contains("ok") || 
-                  message_lower.contains("complete") {
+        } else if success_regex.is_match(&message_lower) {
             self.color_scheme.success_color()
         } else {
             self.color_scheme.default_message_color()
@@ -1847,5 +1646,58 @@ impl DisplayManager {
     fn strip_ansi_codes(&self, text: &str) -> String {
         let ansi_regex = ANSI_REGEX.get_or_init(|| Regex::new(r"(\x1b\[[0-9;]*[a-zA-Z]|\x1b\[[0-9;]*m|\[[0-9;]*m)").unwrap());
         ansi_regex.replace_all(text, "").to_string()
+    }
+}
+
+impl DisplayManager {
+    pub fn render_ui_hints(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
+        use ratatui::widgets::{Block, Borders, Paragraph};
+        use ratatui::style::{Style, Modifier, Color};
+        use ratatui::text::{Line, Span};
+
+        let hints = input_handler.get_ui_hints().join("   ");
+        let styled_hint = Line::from(vec![
+            Span::styled(hints, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        ]);
+
+        let hints_widget = Paragraph::new(styled_hint)
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .title(Span::styled("Controls", Style::default().add_modifier(Modifier::BOLD)))
+            );
+
+        f.render_widget(hints_widget, area);
+    }
+
+    /// Render a centered popup dialog with a custom message
+    pub fn render_popup(&self, f: &mut Frame, message: &str) {
+        use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+        use ratatui::style::{Style, Modifier, Color};
+        use ratatui::text::{Line, Span};
+        use ratatui::layout::Rect;
+
+        // Center the popup in the terminal
+        let popup_area = Rect::new(
+            (f.size().width.saturating_sub(50)) / 2,
+            (f.size().height.saturating_sub(10)) / 2,
+            50,
+            10,
+        );
+
+        // Create the alert message widget
+        let alert_message = Paragraph::new(Line::from(Span::styled(
+            message,
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title(Span::styled("Alert", Style::default().add_modifier(Modifier::BOLD)))
+        );
+
+        // Clear the area behind the popup
+        f.render_widget(Clear, popup_area);
+
+        // Render the popup
+        f.render_widget(alert_message, popup_area);
     }
 }
