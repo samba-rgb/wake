@@ -99,9 +99,13 @@ pub struct Args {
     ///   - Negation: "!timeout"
     ///   - Exact text: "\"exact phrase\""
     ///   - Complex: "(info || debug) && !noise"
+    /// Note: Always use single quotes (' ') around patterns with logical operators.
+    /// Examples:
+    ///   - Correct: -i '"info" || "error"'
+    ///   - Incorrect: -i "info" || "error"
     /// This filter INCLUDES logs that match the pattern
-    #[arg(short = 'i', long = "include", help = "Include logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex)")]
-    pub include: Option<String>,
+    pub include: Option<String>,    #[arg(short = 'i', long = "include", help = "Include logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex), eg :  '\"info\" || \"error\"'")]
+
 
     /// Exclude logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
     /// Same syntax as --include but for exclusion. This filter EXCLUDES logs that match the pattern
@@ -109,7 +113,7 @@ pub struct Args {
     ///   - Exclude debug: "debug"
     ///   - Exclude multiple: "debug || trace"
     ///   - Exclude errors from specific pod: "error && pod-name"
-    #[arg(short = 'e', long = "exclude", help = "Exclude logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex)")]
+    #[arg(short = 'e', long = "exclude", help = "Exclude logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex) eg: '\"debug\" || \"trace\"'")]
     pub exclude: Option<String>,
 
     /// Show timestamps in logs
