@@ -39,7 +39,7 @@ NEW: Run scripts in pods and collect output!\n\
 ---\n\
 Configuration Examples:\n\
   wake setconfig autosave true                            # Enable autosave with auto-generated filenames\n\
-  wake setconfig autosave true --path \"/path/to/logs\"    # Enable autosave with custom path\n\
+  wake setconfig autosave true --path \"/path/to/logs\"    # Enable autosave with custom path, file name generated will be wake_log_timestamp_{}.log\n\
   wake setconfig autosave false                           # Disable autosave\n\
   wake setconfig ui-buffer-expansion 10                   # Set UI buffer expansion to 10x in pause mode\n\
   wake setconfig ui-buffer-expansion 5                    # Set UI buffer expansion to 5x in pause mode\n\
@@ -104,8 +104,8 @@ pub struct Args {
     ///   - Correct: -i '"info" || "error"'
     ///   - Incorrect: -i "info" || "error"
     /// This filter INCLUDES logs that match the pattern
-    #[arg(short = 'i', long = "include", value_name = "PATTERN", help = "Include logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex), e.g.: \"info\" || \"error\"")]
-    pub include: Option<String>,    #[arg(short = 'i', long = "include", help = "Include logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex), eg :  '\"info\" || \"error\"'")]
+    #[arg(short = 'i', long = "include", help = "Include logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex), eg :  '\"info\" || \"error\"'")]
+    pub include: Option<String>,    
 
 
     /// Exclude logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)

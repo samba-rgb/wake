@@ -100,7 +100,7 @@ pub fn setup_signal_handler() -> Result<()> {
 /// Generate a timestamp-based filename in the format wake_log_timestamp(dd_mm_yyyy:hh:mm:ss)
 fn generate_log_filename(directory: &str) -> String {
     let timestamp = Local::now().format("%d_%m_%Y:%H_%M_%S").to_string();
-    format!("{}/wake_log_timestamp({}).log", directory, timestamp)
+    format!("{}/wake_log_timestamp_{}.log", directory, timestamp)
 }
 
 /// Enhanced determine_autosave_path to ensure file creation without errors
