@@ -1,6 +1,8 @@
 use anyhow::Result;
+use chrono::Local;
 use futures::{Stream, StreamExt};
 use std::io::{self, Write};
+use std::path::Path;
 use tokio::signal;
 use tokio::sync::mpsc;
 use tracing::{error, info, Level};
@@ -95,6 +97,40 @@ pub fn setup_signal_handler() -> Result<()> {
     Ok(())
 }
 
+/// Generate a timestamp-based filename in the format wake_log_timestamp(dd_mm_yyyy:hh:mm:ss)
+fn generate_log_filename(directory: &str) -> String {
+    let timestamp = Local::now().format("%d_%m_%Y:%H_%M_%S").to_string();
+    format!("{}/wake_log_timestamp({}).log", directory, timestamp)
+}
+
+/// Enhanced determine_autosave_path to ensure file creation without errors
+fn determine_autosave_path(input: &str) -> Result<String> {
+    let path = Path::new(input);
+    info!("Received input path: {}", input);
+    if path.is_file() {
+        info!("Input is a file: {}", input);
+        Ok(input.to_string())
+    } else if path.is_dir() {
+        let generated_path = generate_log_filename(input);
+        info!("Input is a directory. Generated file path: {}", generated_path);
+        // Ensure the file is created in the directory
+        OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&generated_path)?;
+        Ok(generated_path)
+    } else {
+        // If the input is neither a file nor a directory, create a default file in the current directory
+        let default_path = generate_log_filename(".");
+        info!("Input is invalid. Creating default file: {}", default_path);
+        OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&default_path)?;
+        Ok(default_path)
+    }
+}
+
 /// Set up output writers based on autosave config and CLI args
 fn setup_output_writers(args: &Args, config: &Config) -> Result<(Box<dyn Write + Send>, Option<Box<dyn Write + Send>>)> {
     // Determine autosave file path using the priority logic:
@@ -102,21 +138,26 @@ fn setup_output_writers(args: &Args, config: &Config) -> Result<(Box<dyn Write +
     // 2. If autosave is enabled and no -w flag, use configured path or auto-generated filename
     
     let autosave_writer: Option<Box<dyn Write + Send>> = if config.autosave.enabled {
-        // Get the appropriate autosave path
         let autosave_path = if let Some(ref _output_file) = args.output_file {
             // If -w flag is provided, logs go to that file (primary), no separate autosave needed
             None
         } else {
             // No -w flag, use autosave configuration
             if let Some(ref configured_path) = config.autosave.path {
-                Some(configured_path.clone())
+                let resolved_path = if Path::new(configured_path).is_dir() {
+                    determine_autosave_path(configured_path)?
+                } else {
+                    configured_path.clone()
+                };
+                Some(resolved_path)
             } else {
-                // Generate timestamp-based filename
-                let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-                Some(format!("wake_{}.log", timestamp))
+                // Use determine_autosave_path to handle file or directory input
+                // Use the current working directory as the base path
+                let autosave_path = determine_autosave_path(std::env::current_dir()?.to_str().unwrap())?;
+                Some(autosave_path)
             }
         };
-        
+
         if let Some(path) = autosave_path {
             info!("Autosave enabled: writing logs to {}", path);
             Some(Box::new(OpenOptions::new()
