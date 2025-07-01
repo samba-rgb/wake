@@ -376,7 +376,13 @@ Options:
   -t, --tail <TAIL>               Lines of logs to display from beginning [default: 10]
   -f, --follow                    Follow logs (stream in real time) [default: true]
   -i, --include <INCLUDE>         Filter logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
+                                  Note: Use single quotes (' ') around patterns with logical operators, e.g.,
+                                  - Correct: -i '"info" || "error"'
+                                  - Incorrect: -i "info" || "error"
   -E, --exclude <EXCLUDE>         Exclude logs using advanced pattern syntax (supports &&, ||, !, quotes, regex)
+                                  Note: Use single quotes (' ') around patterns with logical operators, e.g.,
+                                  - Correct: -E '"debug" && !"test"'
+                                  - Incorrect: -E "debug" && !"test"
   -T, --timestamps                Show timestamps in logs
   -o, --output <OUTPUT>           Output format (text, json, raw) [default: text]
   -w, --output-file <FILE>        Write logs to file (use with --ui for both file and UI)
