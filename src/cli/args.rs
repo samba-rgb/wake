@@ -104,6 +104,7 @@ pub struct Args {
     ///   - Correct: -i '"info" || "error"'
     ///   - Incorrect: -i "info" || "error"
     /// This filter INCLUDES logs that match the pattern
+    #[arg(short = 'i', long = "include", value_name = "PATTERN", help = "Include logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex), e.g.: \"info\" || \"error\"")]
     pub include: Option<String>,    #[arg(short = 'i', long = "include", help = "Include logs matching pattern (supports advanced syntax: &&, ||, !, quotes, regex), eg :  '\"info\" || \"error\"'")]
 
 
