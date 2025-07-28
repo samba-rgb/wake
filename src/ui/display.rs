@@ -364,12 +364,17 @@ pub enum ColorScheme {
 }
 
 impl ColorScheme {
-    /// Enhanced terminal detection with better heuristics and macOS Terminal support
+    /// Enhanced terminal detection with better heuristics and fallback to basic colors
     pub fn detect() -> Self {
+        // First check if terminal supports colors at all
+        if !Self::terminal_supports_colors() {
+            return ColorScheme::Auto; // Use basic black/white mode
+        }
+        
         // Check for macOS Terminal app specifically - it has limited RGB support
         if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
             if term_program == "Apple_Terminal" {
-                // macOS default Terminal - use Auto scheme with ANSI colors for brightness
+                // macOS default Terminal - use Auto scheme with basic colors only
                 return ColorScheme::Auto;
             }
         }
@@ -378,10 +383,9 @@ impl ColorScheme {
         if let Ok(term) = std::env::var("TERM") {
             if term.contains("256color") || term.contains("truecolor") {
                 // For terminals with good color support, use Dark theme by default
-                // since it has better contrast and visibility
                 return ColorScheme::Dark;
             }
-            // For basic terminals, use Auto scheme with ANSI colors
+            // For basic terminals, use Auto scheme with basic colors
             if term == "xterm" || term.starts_with("xterm-") {
                 return ColorScheme::Auto;
             }
@@ -395,7 +399,7 @@ impl ColorScheme {
         // For VS Code terminals, use Dark theme for better visibility
         if std::env::var("VSCODE_INJECTION").is_ok() || 
            std::env::var("TERM_PROGRAM").map_or(false, |v| v.contains("vscode")) {
-            return ColorScheme::Dark; // Changed from Light to Dark for better visibility
+            return ColorScheme::Dark;
         }
         
         // Check background hints - but default to Auto for safety on unknown terminals
@@ -407,61 +411,88 @@ impl ColorScheme {
             }
         }
         
-        // Default to Auto theme for maximum compatibility with limited RGB terminals
+        // Default to Auto theme for maximum compatibility with limited color terminals
         ColorScheme::Auto
+    }
+    
+    /// Check if terminal supports colors beyond basic black/white
+    fn terminal_supports_colors() -> bool {
+        // Check if NO_COLOR is set (standard way to disable colors)
+        if std::env::var("NO_COLOR").is_ok() {
+            return false;
+        }
+        
+        // Check TERM variable for color support
+        if let Ok(term) = std::env::var("TERM") {
+            if term == "dumb" || term.is_empty() {
+                return false;
+            }
+            // Basic terminals that only support black/white
+            if term == "linux" || term == "vt100" || term == "vt102" {
+                return false;
+            }
+        }
+        
+        // Check if we're in a pipe or redirection (no TTY)
+        if !atty::is(atty::Stream::Stdout) {
+            return false;
+        }
+        
+        // If we get here, assume basic color support
+        true
     }
     
     /// Modern primary text color with better contrast
     pub fn primary_text(self) -> Color {
         match self {
-            ColorScheme::Dark => Color::Rgb(240, 240, 240),  // Soft white
-            ColorScheme::Light => Color::Rgb(30, 30, 30),    // Deep black
-            ColorScheme::Auto => Color::White,
+            ColorScheme::Dark => Color::White,    // Pure white for dark mode
+            ColorScheme::Light => Color::Black,   // Pure black for light mode
+            ColorScheme::Auto => Color::White,    // Force pure white for macOS Terminal
         }
     }
     
     /// Secondary text color for less important information
     pub fn secondary_text(self) -> Color {
         match self {
-            ColorScheme::Dark => Color::Rgb(180, 180, 180),  // Light gray
-            ColorScheme::Light => Color::Rgb(100, 100, 100), // Medium gray
-            ColorScheme::Auto => Color::DarkGray,
+            ColorScheme::Dark => Color::White,    // White for dark mode
+            ColorScheme::Light => Color::Black,   // Black for light mode
+            ColorScheme::Auto => Color::White,    // Force white for macOS Terminal
         }
     }
     
     /// Accent color for highlights and selections
     pub fn accent_color(self) -> Color {
         match self {
-            ColorScheme::Dark => Color::Rgb(100, 200, 255),  // Modern blue
-            ColorScheme::Light => Color::Rgb(0, 120, 215),   // Professional blue
-            ColorScheme::Auto => Color::Blue,
+            ColorScheme::Dark => Color::White,    // White for dark mode
+            ColorScheme::Light => Color::Black,   // Black for light mode
+            ColorScheme::Auto => Color::White,    // Force white for macOS Terminal
         }
     }
     
     /// Success/positive color
     pub fn success_color(self) -> Color {
         match self {
-            ColorScheme::Dark => Color::Rgb(100, 255, 100),  // Bright green
-            ColorScheme::Light => Color::Rgb(0, 150, 0),     // Forest green
-            ColorScheme::Auto => Color::Green,
+            ColorScheme::Dark => Color::White,    // White for dark mode
+            ColorScheme::Light => Color::Black,   // Black for light mode
+            ColorScheme::Auto => Color::White,    // Force white for macOS Terminal
         }
     }
     
     /// Warning color
     pub fn warning_color(self) -> Color {
         match self {
-            ColorScheme::Dark => Color::Rgb(255, 200, 0),    // Golden yellow
-            ColorScheme::Light => Color::Rgb(200, 140, 0),   // Amber
-            ColorScheme::Auto => Color::Yellow,
+            ColorScheme::Dark => Color::White,    // White for dark mode
+            ColorScheme::Light => Color::Black,   // Black for light mode
+            ColorScheme::Auto => Color::White,    // Force white for macOS Terminal
         }
     }
     
     /// Error/danger color
     pub fn error_color(self) -> Color {
         match self {
-            ColorScheme::Dark => Color::Rgb(255, 100, 100),  // Bright red
-            ColorScheme::Light => Color::Rgb(200, 50, 50),   // Deep red
-            ColorScheme::Auto => Color::Red,
+            ColorScheme::Dark => Color::White,    // White for dark mode
+            ColorScheme::Light => Color::Black,   // Black for light mode
+            ColorScheme::Auto => Color::White,    // Force white for macOS Terminal
         }
     }
     
@@ -496,20 +527,28 @@ impl ColorScheme {
     /// Get dim text color for the color scheme
     pub fn dim_text_color(self) -> Color {
         match self {
-            ColorScheme::Dark => Color::Rgb(120, 120, 120),   // Dim gray
-            ColorScheme::Light => Color::Rgb(140, 140, 140),  // Medium gray
-            ColorScheme::Auto => Color::DarkGray,
+            ColorScheme::Dark => Color::White,    // White for dark mode
+            ColorScheme::Light => Color::Black,   // Black for light mode
+            ColorScheme::Auto => Color::White,    // Force white for macOS Terminal
         }
     }
     
     /// Get default text color
     pub fn text_color(self) -> Color {
-        self.primary_text()
+        match self {
+            ColorScheme::Dark => Color::White,    // Pure white for dark mode
+            ColorScheme::Light => Color::Black,   // Pure black for light mode
+            ColorScheme::Auto => Color::White,    // Force pure white for macOS Terminal
+        }
     }
     
     /// Get default message color for unknown log levels
     pub fn default_message_color(self) -> Color {
-        self.primary_text()
+        match self {
+            ColorScheme::Dark => Color::White,    // Pure white for dark mode
+            ColorScheme::Light => Color::Black,   // Pure black for light mode
+            ColorScheme::Auto => Color::White,    // Force white for macOS Terminal
+        }
     }
     
     /// Get container colors that work well on this background
@@ -896,13 +935,11 @@ impl DisplayManager {
             let estimated_viewport = 20;
             let max_scroll = self.log_entries.len().saturating_sub(estimated_viewport);
             self.scroll_offset = max_scroll;
-            self.update_display_window(estimated_viewport);
         }
-
+        
         true
     }
 
-    /// Handle mouse release to finalize hash-based selection
     pub fn handle_mouse_release(&mut self) -> bool {
         // Allow terminal copy-paste in non-follow mode
         if !self.auto_scroll {
