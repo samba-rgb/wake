@@ -377,6 +377,12 @@ impl InputHandler {
             "  5. Press Ctrl+C to copy logs for sharing",
             "",
             "Press 'h' again or 'q' to close this help screen.",
+            "",
+            "🖥️ Terminal Compatibility:",
+            "  • For best color visibility, use a modern terminal like iTerm2 (macOS) or GNOME Terminal (Linux)",
+            "  • macOS default Terminal may not show all colors perfectly; standard ANSI colors are used for compatibility",
+            "  • Wake auto-detects terminal color support and adjusts output",
+            "",
         ]
     }
 

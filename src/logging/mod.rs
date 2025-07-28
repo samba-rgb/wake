@@ -104,7 +104,7 @@ fn generate_log_filename(directory: &str) -> String {
 }
 
 /// Enhanced determine_autosave_path to ensure file creation without errors
-fn determine_autosave_path(input: &str) -> Result<String> {
+pub fn determine_autosave_path(input: &str) -> Result<String> {
     let path = Path::new(input);
     info!("Received input path: {}", input);
     if path.is_file() {
