@@ -1238,19 +1238,28 @@ impl DisplayManager {
 
     /// Render the display manager UI with include/exclude filter boxes
     pub fn render(&mut self, f: &mut Frame, input_handler: &InputHandler) {
+        // Force clear the entire screen with black background first
+        let full_screen = f.size();
+        let black_background = Paragraph::new("")
+            .style(Style::default().bg(Color::Black));
+        f.render_widget(black_background, full_screen);
+
         if input_handler.mode == InputMode::Help {
-            // Render help screen
+            // Render help screen with forced black background
             let help_text = input_handler.get_help_text().join("\n");
             let help_widget = Paragraph::new(help_text)
                 .block(Block::default()
                     .borders(Borders::ALL)
-                    .title(Span::styled("Help", Style::default().add_modifier(Modifier::BOLD)))
+                    .border_style(Style::default().fg(Color::White))
+                    .title(Span::styled("Help", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)))
+                    .style(Style::default().bg(Color::Black))
                 )
+                .style(Style::default().fg(Color::White).bg(Color::Black))
                 .wrap(Wrap { trim: true });
 
             f.render_widget(help_widget, f.size());
         } else {
-            // Render the regular UI
+            // Render the regular UI with black background
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
@@ -1267,10 +1276,6 @@ impl DisplayManager {
                 self.terminal_width = new_width;
                 self.cache_generation += 1;
             }
-
-
-
-            //
 
             // Render the input filter area at the top
             self.render_filter_input_area(f, chunks[0], input_handler);
@@ -1442,8 +1447,9 @@ impl DisplayManager {
                         _ => Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
                     }
                 ))
+                .style(Style::default().bg(Color::Black))
             )
-            .style(Style::default().fg(self.color_scheme.text_color()));
+            .style(Style::default().fg(self.color_scheme.text_color()).bg(Color::Black));
 
         f.render_widget(include_input, chunks[0]);
 
@@ -1474,8 +1480,9 @@ impl DisplayManager {
                         _ => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
                     }
                 ))
+                .style(Style::default().bg(Color::Black))
             )
-            .style(Style::default().fg(self.color_scheme.text_color()));
+            .style(Style::default().fg(self.color_scheme.text_color()).bg(Color::Black));
 
         f.render_widget(exclude_input, chunks[1]);
 
@@ -1600,18 +1607,19 @@ impl DisplayManager {
             lines.push(final_line);
         }
 
-        // Create the log display widget
+        // Create the log display widget with forced black background
         let logs_paragraph = Paragraph::new(lines)
             .block(Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(self.color_scheme.border_color()))
+                .border_style(Style::default().fg(Color::White))
                 .title(Span::styled(
                     format!(" Logs ({} entries) ", self.log_entries.len()),
-                    Style::default().fg(self.color_scheme.accent_color()).add_modifier(Modifier::BOLD)
+                    Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
                 ))
+                .style(Style::default().bg(Color::Black))
             )
             .wrap(Wrap { trim: false })
-            .style(Style::default().fg(self.color_scheme.text_color()));
+            .style(Style::default().fg(Color::White).bg(Color::Black));
 
         f.render_widget(logs_paragraph, area);
     }
@@ -1707,8 +1715,11 @@ impl DisplayManager {
         let hints_widget = Paragraph::new(styled_hint)
             .block(Block::default()
                 .borders(Borders::ALL)
-                .title(Span::styled("Controls", Style::default().add_modifier(Modifier::BOLD)))
-            );
+                .border_style(Style::default().fg(Color::White))
+                .title(Span::styled("Controls", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)))
+                .style(Style::default().bg(Color::Black))
+            )
+            .style(Style::default().fg(hint_color).bg(Color::Black));
 
         f.render_widget(hints_widget, area);
     }
