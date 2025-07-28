@@ -112,7 +112,8 @@ pub async fn run_app(
     let mut autosave_writer: Option<Box<dyn Write + Send>> = if config.autosave.enabled && args.output_file.is_none() {
         // Get the appropriate autosave path
         let autosave_path = if let Some(ref configured_path) = config.autosave.path {
-            configured_path.clone()
+            // Use the same path resolution logic as non-UI mode
+            crate::logging::determine_autosave_path(configured_path)?
         } else {
             // Generate timestamp-based filename
             let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");

@@ -316,16 +316,16 @@ pub struct DisplayManager {
     // Display window tracking
     pub display_start_index: usize,  // Start index of visible display window
     pub display_end_index: usize,    // End index of visible display window
+    pub colors_enabled: bool, // New: track if colors are enabled
 }
 
 impl DisplayManager {
     pub fn new(max_lines: usize, show_timestamps: bool, dev_mode: bool) -> anyhow::Result<Self> {
         let actual_max_lines = max_lines;
         let color_scheme = ColorScheme::detect();
-        
-        // Log detected color scheme
-        tracing::info!("Detected terminal color scheme: {:?}", color_scheme);
-        
+        // Use same color detection as Formatter
+        let colors_enabled = crate::output::Formatter::detect_color_support();
+        tracing::info!("Detected terminal color scheme: {:?}, colors_enabled: {}", color_scheme, colors_enabled);
         Ok(Self {
             log_entries: VecDeque::with_capacity(actual_max_lines),
             scroll_offset: 0,
@@ -339,6 +339,7 @@ impl DisplayManager {
             container_color_cache: HashMap::new(),
             dev_mode: dev_mode, // Set dev mode from parameter
             color_scheme,
+            colors_enabled,
             enhanced_buffer_active: false, // Default to enhanced buffer expansion inactive
             memory_warning_shown: false,   // Memory warning not shown initially
             memory_warning_active: false,  // Warning popup not active initially

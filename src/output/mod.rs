@@ -62,7 +62,7 @@ impl Formatter {
     }
 
     /// Detect if the terminal supports colors
-    fn detect_color_support() -> bool {
+    pub fn detect_color_support() -> bool {
         // Check for explicit color control
         if let Ok(no_color) = std::env::var("NO_COLOR") {
             if !no_color.is_empty() {
