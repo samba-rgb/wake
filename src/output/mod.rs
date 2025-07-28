@@ -105,6 +105,30 @@ impl Formatter {
         }
     }
 
+    /// Detect if terminal background is light or dark
+    fn detect_light_background() -> bool {
+        // Check COLORFGBG environment variable (format: "foreground;background")
+        if let Ok(colorfgbg) = std::env::var("COLORFGBG") {
+            if let Some(bg) = colorfgbg.split(';').nth(1) {
+                if let Ok(bg_num) = bg.parse::<i32>() {
+                    // Background colors 7-15 are typically light
+                    return bg_num >= 7;
+                }
+            }
+        }
+        
+        // Check for common light theme indicators
+        if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
+            if term_program == "Apple_Terminal" {
+                // macOS Terminal - assume light mode by default since it's common
+                return true;
+            }
+        }
+        
+        // Default to dark background assumption for safety
+        false
+    }
+
     /// Formats a log entry based on the selected output format
     /// This method no longer includes filtering - filtering is handled by the filter manager
     #[allow(dead_code)]
@@ -139,6 +163,9 @@ impl Formatter {
             return format!("{}{}/{} {}", time_part, entry.pod_name, entry.container_name, entry.message);
         }
 
+        // Detect if we're on a light background
+        let is_light_background = Self::detect_light_background();
+
         let pod_color = self.get_color_for_pod(&entry.pod_name);
         let container_color = self.get_color_for_container(&entry.container_name);
 
@@ -147,7 +174,13 @@ impl Formatter {
 
         let time_part = if self.show_timestamps {
             if let Some(ts) = entry.timestamp {
-                format!("{} ", ts.format("%Y-%m-%d %H:%M:%S%.3f").to_string().bright_black())
+                if is_light_background {
+                    // Dark text for light backgrounds
+                    format!("{} ", ts.format("%Y-%m-%d %H:%M:%S%.3f").to_string().black())
+                } else {
+                    // Bright text for dark backgrounds
+                    format!("{} ", ts.format("%Y-%m-%d %H:%M:%S%.3f").to_string().bright_black())
+                }
             } else {
                 String::new()
             }
@@ -155,7 +188,7 @@ impl Formatter {
             String::new()
         };
 
-        // Enhanced color coding for log levels
+        // Enhanced color coding for log levels with light/dark mode support
         let message_with_level_color = if entry.message.contains("FATAL") || entry.message.contains("CRITICAL") {
             entry.message.bright_red().bold().to_string()
         } else if entry.message.contains("ERROR") || entry.message.contains("ERR") {
@@ -163,12 +196,30 @@ impl Formatter {
         } else if entry.message.contains("WARN") || entry.message.contains("WARNING") {
             entry.message.bright_yellow().to_string()
         } else if entry.message.contains("INFO") {
-            entry.message.bright_white().to_string()
+            if is_light_background {
+                // Dark blue for light backgrounds - good visibility
+                entry.message.blue().to_string()
+            } else {
+                // Bright white for dark backgrounds
+                entry.message.bright_white().to_string()
+            }
         } else if entry.message.contains("DEBUG") || entry.message.contains("TRACE") {
-            entry.message.bright_cyan().to_string()
+            if is_light_background {
+                // Dark cyan for light backgrounds
+                entry.message.cyan().to_string()
+            } else {
+                // Bright cyan for dark backgrounds
+                entry.message.bright_cyan().to_string()
+            }
         } else {
-            // Default color - use bright white for better visibility
-            entry.message.bright_white().to_string()
+            // Default message color based on background
+            if is_light_background {
+                // Black text for light backgrounds - maximum visibility
+                entry.message.black().to_string()
+            } else {
+                // Bright white for dark backgrounds
+                entry.message.bright_white().to_string()
+            }
         };
 
         // Format the complete log entry
