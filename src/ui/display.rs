@@ -364,81 +364,16 @@ pub enum ColorScheme {
 }
 
 impl ColorScheme {
-    /// Enhanced terminal detection with better heuristics and fallback to basic colors
+    /// Force dark mode for UI mode with guaranteed color support
     pub fn detect() -> Self {
-        // First check if terminal supports colors at all
-        if !Self::terminal_supports_colors() {
-            return ColorScheme::Auto; // Use basic black/white mode
-        }
-        
-        // Check for macOS Terminal app specifically - it has limited RGB support
-        if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
-            if term_program == "Apple_Terminal" {
-                // macOS default Terminal - use Auto scheme with basic colors only
-                return ColorScheme::Auto;
-            }
-        }
-        
-        // Force color support for known good terminals
-        if let Ok(term) = std::env::var("TERM") {
-            if term.contains("256color") || term.contains("truecolor") {
-                // For terminals with good color support, use Dark theme by default
-                return ColorScheme::Dark;
-            }
-            // For basic terminals, use Auto scheme with basic colors
-            if term == "xterm" || term.starts_with("xterm-") {
-                return ColorScheme::Auto;
-            }
-        }
-        
-        // Check for colorterm support
-        if std::env::var("COLORTERM").is_ok() {
-            return ColorScheme::Dark;
-        }
-        
-        // For VS Code terminals, use Dark theme for better visibility
-        if std::env::var("VSCODE_INJECTION").is_ok() || 
-           std::env::var("TERM_PROGRAM").map_or(false, |v| v.contains("vscode")) {
-            return ColorScheme::Dark;
-        }
-        
-        // Check background hints - but default to Auto for safety on unknown terminals
-        if let Ok(colorfgbg) = std::env::var("COLORFGBG") {
-            if let Some(bg) = colorfgbg.split(';').nth(1) {
-                if let Ok(bg_num) = bg.parse::<i32>() {
-                    return if bg_num >= 7 { ColorScheme::Light } else { ColorScheme::Auto };
-                }
-            }
-        }
-        
-        // Default to Auto theme for maximum compatibility with limited color terminals
-        ColorScheme::Auto
+        // Always use Dark mode for UI - this ensures consistent appearance
+        // and maximum readability across all terminals
+        ColorScheme::Dark
     }
     
     /// Check if terminal supports colors beyond basic black/white
     fn terminal_supports_colors() -> bool {
-        // Check if NO_COLOR is set (standard way to disable colors)
-        if std::env::var("NO_COLOR").is_ok() {
-            return false;
-        }
-        
-        // Check TERM variable for color support
-        if let Ok(term) = std::env::var("TERM") {
-            if term == "dumb" || term.is_empty() {
-                return false;
-            }
-            // Basic terminals that only support black/white
-            if term == "linux" || term == "vt100" || term == "vt102" {
-                return false;
-            }
-        }
-        
-        // Check if we're in a pipe or redirection (no TTY)
-        if !atty::is(atty::Stream::Stdout) {
-            return false;
-        }
-        
-        // If we get here, assume basic color support
+        // Always return true for UI mode - we want colors enabled
         true
     }
     
