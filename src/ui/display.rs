@@ -1237,13 +1237,28 @@ impl DisplayManager {
     /// Apply selection highlighting to a line
     fn apply_selection_highlight(&self, line: Line<'static>) -> Line<'static> {
         let highlighted_spans: Vec<Span> = line.spans.into_iter().map(|span| {
-            Span::styled(
-                span.content,
-                span.style
-                    .bg(self.color_scheme.selection_bg())
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD)
-            )
+            // Different highlighting strategies based on color scheme
+            match self.color_scheme {
+                ColorScheme::Auto => {
+                    // For macOS Terminal (Auto scheme), use inverse colors for better visibility
+                    Span::styled(
+                        span.content,
+                        span.style
+                            .add_modifier(Modifier::REVERSED) // Use terminal's reverse video instead of manual colors
+                            .add_modifier(Modifier::BOLD)
+                    )
+                }
+                _ => {
+                    // For modern terminals with good RGB support, use background highlighting
+                    Span::styled(
+                        span.content,
+                        span.style
+                            .bg(self.color_scheme.selection_bg())
+                            .fg(Color::White)
+                            .add_modifier(Modifier::BOLD)
+                    )
+                }
+            }
         }).collect();
         
         Line::from(highlighted_spans)
