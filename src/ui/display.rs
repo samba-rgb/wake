@@ -364,14 +364,26 @@ pub enum ColorScheme {
 }
 
 impl ColorScheme {
-    /// Enhanced terminal detection with better heuristics
+    /// Enhanced terminal detection with better heuristics and macOS Terminal support
     pub fn detect() -> Self {
+        // Check for macOS Terminal app specifically - it has limited RGB support
+        if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
+            if term_program == "Apple_Terminal" {
+                // macOS default Terminal - use Auto scheme with ANSI colors for brightness
+                return ColorScheme::Auto;
+            }
+        }
+        
         // Force color support for known good terminals
         if let Ok(term) = std::env::var("TERM") {
             if term.contains("256color") || term.contains("truecolor") {
                 // For terminals with good color support, use Dark theme by default
                 // since it has better contrast and visibility
                 return ColorScheme::Dark;
+            }
+            // For basic terminals, use Auto scheme with ANSI colors
+            if term == "xterm" || term.starts_with("xterm-") {
+                return ColorScheme::Auto;
             }
         }
         
@@ -386,17 +398,17 @@ impl ColorScheme {
             return ColorScheme::Dark; // Changed from Light to Dark for better visibility
         }
         
-        // Check background hints - but default to Dark for safety
+        // Check background hints - but default to Auto for safety on unknown terminals
         if let Ok(colorfgbg) = std::env::var("COLORFGBG") {
             if let Some(bg) = colorfgbg.split(';').nth(1) {
                 if let Ok(bg_num) = bg.parse::<i32>() {
-                    return if bg_num >= 7 { ColorScheme::Light } else { ColorScheme::Dark };
+                    return if bg_num >= 7 { ColorScheme::Light } else { ColorScheme::Auto };
                 }
             }
         }
         
-        // Default to dark theme for maximum compatibility and visibility
-        ColorScheme::Dark
+        // Default to Auto theme for maximum compatibility with limited RGB terminals
+        ColorScheme::Auto
     }
     
     /// Modern primary text color with better contrast
@@ -1303,12 +1315,20 @@ impl DisplayManager {
             ])
             .split(area);
 
-        // ENHANCED: Main status information with MAXIMUM VISIBILITY
+        // ENHANCED: Main status information with MAXIMUM VISIBILITY for macOS Terminal
         let mode_text = if self.auto_scroll { "▶️ FOLLOW" } else { "⏸️ PAUSE" };
         let mode_color = if self.auto_scroll { 
-            Color::Rgb(0, 255, 0) // Bright green for FOLLOW
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightGreen, // Bright ANSI green
+                _ => Color::Rgb(0, 255, 0) // RGB green for modern terminals
+            }
         } else { 
-            Color::Rgb(255, 255, 0) // Bright yellow for PAUSE
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightYellow, // Bright ANSI yellow
+                _ => Color::Rgb(255, 255, 0) // RGB yellow for modern terminals
+            }
         };
 
         let scroll_info = format!("Line {}/{}", 
@@ -1342,14 +1362,26 @@ impl DisplayManager {
 
         f.render_widget(main_status, chunks[0]);
 
-        // ENHANCED memory and filter status with maximum visibility
+        // ENHANCED memory and filter status with maximum visibility for macOS Terminal
         let memory_percent = self.get_memory_usage_percent();
         let memory_color = if memory_percent >= 80.0 {
-            Color::Rgb(255, 0, 0) // Bright red for critical
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightRed, // Bright ANSI red
+                _ => Color::Rgb(255, 0, 0) // RGB red for modern terminals
+            }
         } else if memory_percent >= 60.0 {
-            Color::Rgb(255, 255, 0) // Bright yellow for warning
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightYellow, // Bright ANSI yellow
+                _ => Color::Rgb(255, 255, 0) // RGB yellow for modern terminals
+            }
         } else {
-            Color::Rgb(0, 255, 0) // Bright green for OK
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightGreen, // Bright ANSI green
+                _ => Color::Rgb(0, 255, 0) // RGB green for modern terminals
+            }
         };
 
         let memory_icon = if memory_percent >= 80.0 { "⚠️" } else { "💾" };
@@ -1404,7 +1436,11 @@ impl DisplayManager {
         };
 
         let include_border_style = if input_handler.mode == InputMode::EditingInclude {
-            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD),
+                _ => Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+            }
         } else {
             Style::default().fg(self.color_scheme.border_color())
         };
@@ -1413,7 +1449,12 @@ impl DisplayManager {
             .block(Block::default()
                 .borders(Borders::ALL)
                 .border_style(include_border_style)
-                .title(Span::styled(include_title, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)))
+                .title(Span::styled(include_title, 
+                    match self.color_scheme {
+                        ColorScheme::Auto => Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD),
+                        _ => Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                    }
+                ))
             )
             .style(Style::default().fg(self.color_scheme.text_color()));
 
@@ -1427,7 +1468,11 @@ impl DisplayManager {
         };
 
         let exclude_border_style = if input_handler.mode == InputMode::EditingExclude {
-            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD),
+                _ => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+            }
         } else {
             Style::default().fg(self.color_scheme.border_color())
         };
@@ -1436,7 +1481,12 @@ impl DisplayManager {
             .block(Block::default()
                 .borders(Borders::ALL)
                 .border_style(exclude_border_style)
-                .title(Span::styled(exclude_title, Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)))
+                .title(Span::styled(exclude_title, 
+                    match self.color_scheme {
+                        ColorScheme::Auto => Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD),
+                        _ => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+                    }
+                ))
             )
             .style(Style::default().fg(self.color_scheme.text_color()));
 
@@ -1657,8 +1707,14 @@ impl DisplayManager {
         use ratatui::text::{Line, Span};
 
         let hints = input_handler.get_ui_hints().join("   ");
+        // Use brighter colors for Auto scheme (macOS Terminal)
+        let hint_color = match self.color_scheme {
+            ColorScheme::Auto => Color::LightCyan, // Bright ANSI cyan for macOS Terminal
+            _ => Color::Cyan // RGB/standard cyan for modern terminals
+        };
+        
         let styled_hint = Line::from(vec![
-            Span::styled(hints, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            Span::styled(hints, Style::default().fg(hint_color).add_modifier(Modifier::BOLD))
         ]);
 
         let hints_widget = Paragraph::new(styled_hint)
