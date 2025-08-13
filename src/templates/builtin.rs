@@ -210,7 +210,7 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
                 command: vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    "if command -v jstack > /dev/null; then jstack {{pid}} > /tmp/thread_dump_{{pid}}_$(date +%Y%m%d_%H%M%S).txt; else jcmd {{pid}} Thread.print > /tmp/thread_dump_{{pid}}_$(date +%Y%m%d_%H%M%S).txt; fi".to_string(),
+                    "if command -v jstack > /dev/null; then jstack {{pid}} > /tmp/thread_dump_{{pid}}_wake.txt; else jcmd {{pid}} Thread.print > /tmp/thread_dump_{{pid}}_wake.txt; fi".to_string(),
                 ],
                 working_dir: None,
                 env_vars: HashMap::new(),

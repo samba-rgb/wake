@@ -325,8 +325,13 @@ impl TemplateExecutor {
         let mut command_results = Vec::new();
         let mut downloaded_files = Vec::new();
 
-        // Execute each command in sequence with UI updates
+        // Execute each command in sequence with UI updates (EXCLUDING cleanup commands)
         for (cmd_index, template_cmd) in template.commands.iter().enumerate() {
+            // Skip cleanup commands - they'll be executed after file download
+            if template_cmd.description.to_lowercase().contains("clean up") {
+                continue;
+            }
+
             // Update UI with current command
             let _ = ui_tx
                 .send(UIUpdate::PodStatusChanged {
@@ -478,6 +483,34 @@ impl TemplateExecutor {
             downloaded_files.extend(files);
         }
 
+        // Execute cleanup commands AFTER files are downloaded
+        let cleanup_commands: Vec<_> = template.commands.iter()
+            .filter(|cmd| cmd.description.to_lowercase().contains("clean up"))
+            .collect();
+
+        if !cleanup_commands.is_empty() {
+            let _ = ui_tx
+                .send(UIUpdate::CommandOutput {
+                    pod_index,
+                    command_index: template.commands.len(), // Use index beyond normal commands
+                    output: "🧹 Cleaning up files from pod...".to_string(),
+                })
+                .await;
+
+            for cleanup_cmd in cleanup_commands {
+                let _ = self
+                    .execute_command_on_pod_with_ui(
+                        cleanup_cmd,
+                        execution,
+                        pod,
+                        pod_index,
+                        template.commands.len(),
+                        ui_tx.clone(),
+                    )
+                    .await;
+            }
+        }
+
         Ok(PodExecutionResult {
             pod_name: pod.name.clone(),
             pod_namespace: pod.namespace.clone(),
@@ -497,8 +530,13 @@ impl TemplateExecutor {
         let mut command_results = Vec::new();
         let mut downloaded_files = Vec::new();
 
-        // Execute each command in sequence
+        // Execute each command in sequence (EXCLUDING cleanup commands)
         for template_cmd in &template.commands {
+            // Skip cleanup commands - they'll be executed after file download
+            if template_cmd.description.to_lowercase().contains("clean up") {
+                continue;
+            }
+
             let result = self
                 .execute_command_on_pod(template_cmd, execution, pod)
                 .await;
@@ -528,6 +566,20 @@ impl TemplateExecutor {
                 .download_files_from_pod(output_pattern, execution, pod)
                 .await?;
             downloaded_files.extend(files);
+        }
+
+        // Execute cleanup commands AFTER files are downloaded
+        let cleanup_commands: Vec<_> = template.commands.iter()
+            .filter(|cmd| cmd.description.to_lowercase().contains("clean up"))
+            .collect();
+
+        if !cleanup_commands.is_empty() {
+            println!("🧹 Cleaning up files from pod {}/{}", pod.namespace, pod.name);
+            for cleanup_cmd in cleanup_commands {
+                let _ = self
+                    .execute_command_on_pod(cleanup_cmd, execution, pod)
+                    .await;
+            }
         }
 
         Ok(PodExecutionResult {
