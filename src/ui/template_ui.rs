@@ -510,16 +510,48 @@ fn draw_command_logs(f: &mut Frame, area: Rect, pod: &PodExecutionState, scroll:
 
 /// Draw progress section
 fn draw_progress(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
-    let progress = pod.current_command_index as f64 / pod.total_commands as f64;
-    let progress_text = format!(
-        "{}/{} commands",
-        pod.current_command_index,
-        pod.total_commands
-    );
+    // Calculate progress based on pod status and completed commands
+    let (completed_commands, progress_text) = match &pod.status {
+        PodStatus::Completed => {
+            // When completed, all commands are done
+            (pod.total_commands, format!("{}/{} commands (Complete)", pod.total_commands, pod.total_commands))
+        }
+        PodStatus::Failed { .. } => {
+            // When failed, show current progress
+            let completed = pod.current_command_index + 1;
+            (completed, format!("{}/{} commands (Failed)", completed, pod.total_commands))
+        }
+        PodStatus::Running { .. } => {
+            // When running, current command is in progress
+            let completed = pod.current_command_index;
+            (completed, format!("{}/{} commands (Running)", completed + 1, pod.total_commands))
+        }
+        PodStatus::DownloadingFiles { .. } => {
+            // When downloading, all commands are done
+            (pod.total_commands, format!("{}/{} commands (Downloading)", pod.total_commands, pod.total_commands))
+        }
+        _ => {
+            // Starting or waiting
+            let completed = pod.current_command_index;
+            (completed, format!("{}/{} commands", completed, pod.total_commands))
+        }
+    };
+
+    let progress = if pod.total_commands > 0 {
+        completed_commands as f64 / pod.total_commands as f64
+    } else {
+        0.0
+    };
 
     let gauge = Gauge::default()
         .block(Block::default().title("Progress").borders(Borders::ALL))
-        .gauge_style(Style::default().fg(Color::Blue))
+        .gauge_style(Style::default().fg(match &pod.status {
+            PodStatus::Completed => Color::Green,
+            PodStatus::Failed { .. } => Color::Red,
+            PodStatus::Running { .. } => Color::Blue,
+            PodStatus::DownloadingFiles { .. } => Color::Magenta,
+            _ => Color::Yellow,
+        }))
         .percent((progress * 100.0) as u16)
         .label(progress_text);
 
