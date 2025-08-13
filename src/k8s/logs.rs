@@ -920,6 +920,10 @@ impl LogWatcher {
             namespace: pod_namespace.clone(),
             name: pod_name.clone(),
             containers,
+            cpu_usage_percent: None,
+            memory_usage_percent: None,
+            memory_usage_bytes: None,
+            memory_limit_bytes: None,
         };
         
         // Send notification about new pod

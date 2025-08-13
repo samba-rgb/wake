@@ -471,25 +471,84 @@ fn draw_pod_details(f: &mut Frame, area: Rect, state: &TemplateUIState) {
 
 /// Draw pod information
 fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
-    let info_text = vec![
+    // Create formatted lines with consistent alignment
+    let pod_name = format!("{}/{}", pod.pod_info.namespace, pod.pod_info.name);
+    let status_text = get_status_text(&pod.status);
+    let status_color = get_status_color(&pod.status);
+
+    // Format CPU information
+    let cpu_text = if let Some(cpu_percent) = pod.pod_info.cpu_usage_percent {
+        format!("{:.1}%", cpu_percent)
+    } else {
+        "N/A".to_string()
+    };
+    let cpu_color = pod.pod_info.cpu_usage_percent.map(|cpu| {
+        if cpu > 80.0 { Color::Red }
+        else if cpu > 60.0 { Color::Yellow }
+        else { Color::Green }
+    }).unwrap_or(Color::Gray);
+
+    // Format memory information
+    let (memory_text, memory_color) = if let Some(memory_percent) = pod.pod_info.memory_usage_percent {
+        let memory_color = if memory_percent > 80.0 { Color::Red }
+        else if memory_percent > 60.0 { Color::Yellow }
+        else { Color::Green };
+
+        let memory_text = if let (Some(usage_bytes), Some(limit_bytes)) = 
+            (pod.pod_info.memory_usage_bytes, pod.pod_info.memory_limit_bytes) {
+            format!("{:.1}% ({}/{})", 
+                memory_percent, 
+                format_bytes(usage_bytes), 
+                format_bytes(limit_bytes)
+            )
+        } else {
+            format!("{:.1}%", memory_percent)
+        };
+        (memory_text, memory_color)
+    } else if let Some(usage_bytes) = pod.pod_info.memory_usage_bytes {
+        (format_bytes(usage_bytes), Color::White)
+    } else {
+        ("N/A".to_string(), Color::Gray)
+    };
+
+    let info_lines = vec![
         Line::from(vec![
-            Span::styled("Pod: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(format!("{}/{}", pod.pod_info.namespace, pod.pod_info.name)),
+            Span::styled("Pod:     ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+            Span::raw(format!("{:<47}", pod_name)),
+            Span::styled("CPU:     ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+            Span::styled(cpu_text, Style::default().fg(cpu_color)),
         ]),
         Line::from(vec![
-            Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(
-                get_status_text(&pod.status),
-                Style::default().fg(get_status_color(&pod.status)),
-            ),
+            Span::styled("Status:  ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+            Span::raw(format!("{:<47}", status_text)),
+            Span::styled("Memory:  ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+            Span::styled(memory_text, Style::default().fg(memory_color)),
         ]),
     ];
 
-    let paragraph = Paragraph::new(info_text)
+    let paragraph = Paragraph::new(info_lines)
         .block(Block::default().title("Pod Information").borders(Borders::ALL))
         .wrap(Wrap { trim: true });
 
     f.render_widget(paragraph, area);
+}
+
+/// Format bytes into human-readable format
+fn format_bytes(bytes: u64) -> String {
+    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
+    let mut size = bytes as f64;
+    let mut unit_index = 0;
+
+    while size >= 1024.0 && unit_index < UNITS.len() - 1 {
+        size /= 1024.0;
+        unit_index += 1;
+    }
+
+    if unit_index == 0 {
+        format!("{} {}", bytes, UNITS[unit_index])
+    } else {
+        format!("{:.1} {}", size, UNITS[unit_index])
+    }
 }
 
 /// Draw command logs
