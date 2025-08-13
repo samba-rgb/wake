@@ -54,7 +54,7 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
                     "name=wake-recording".to_string(),
                     "settings=profile".to_string(),
                     "duration={{time}}".to_string(),
-                    "filename=/tmp/jfr_{{pid}}_$(date +%Y%m%d_%H%M%S).jfr".to_string(),
+                    "filename=/tmp/jfr_{{pid}}_wake.jfr".to_string(),
                 ],
                 working_dir: None,
                 env_vars: HashMap::new(),
@@ -64,9 +64,9 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
             TemplateCommand {
                 description: "Verify JFR recording started successfully".to_string(),
                 command: vec![
-                    "sh".to_string(),
-                    "-c".to_string(),
-                    "echo 'Checking JFR status...'; jcmd {{pid}} JFR.check; JFR_STATUS=$?; echo \"JFR.check exit code: $JFR_STATUS\"; if [ $JFR_STATUS -eq 0 ]; then echo 'JFR check command succeeded'; if jcmd {{pid}} JFR.check | grep -q 'Recording.*running'; then echo 'JFR recording is active and running'; else echo 'JFR check succeeded but no active recordings found'; jcmd {{pid}} JFR.check | head -10; fi; else echo 'JFR.check command failed - this might be normal if no recordings exist yet'; jcmd {{pid}} JFR.check 2>&1 | head -5 || echo 'Could not get JFR status'; fi".to_string(),
+                    "jcmd".to_string(),
+                    "{{pid}}".to_string(),
+                    "JFR.check".to_string(),
                 ],
                 working_dir: None,
                 env_vars: HashMap::new(),
@@ -118,8 +118,8 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
         ],
         commands: vec![
             TemplateCommand {
-                description: "Check if jcmd is available".to_string(),
-                command: vec!["which".to_string(), "jcmd".to_string()],
+                description: "Check if jmap is available".to_string(),
+                command: vec!["which".to_string(), "jmap".to_string()],
                 working_dir: None,
                 env_vars: HashMap::new(),
                 ignore_failure: false,
@@ -134,20 +134,11 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
                 capture_output: true,
             },
             TemplateCommand {
-                description: "Force garbage collection".to_string(),
-                command: vec!["jcmd".to_string(), "{{pid}}".to_string(), "VM.gc".to_string()],
-                working_dir: None,
-                env_vars: HashMap::new(),
-                ignore_failure: true,
-                capture_output: true,
-            },
-            TemplateCommand {
-                description: "Generate heap dump".to_string(),
+                description: "Generate heap dump using jmap".to_string(),
                 command: vec![
-                    "jcmd".to_string(),
+                    "jmap".to_string(),
+                    "-dump:live,format=b,file=/tmp/heap_dump_{{pid}}_wake.hprof".to_string(),
                     "{{pid}}".to_string(),
-                    "GC.dump_heap".to_string(),
-                    "/tmp/heap_dump_{{pid}}_$(date +%Y%m%d_%H%M%S).hprof".to_string(),
                 ],
                 working_dir: None,
                 env_vars: HashMap::new(),
@@ -171,7 +162,7 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
                 required: true,
             },
         ],
-        required_tools: vec!["jcmd".to_string()],
+        required_tools: vec!["jmap".to_string()],
         timeout: Some(Duration::from_secs(600)), // 10 minutes max
     });
     
