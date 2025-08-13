@@ -227,7 +227,7 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
             },
             TemplateCommand {
                 description: "Clean up thread dump files from pod".to_string(),
-                command: vec!["rm".to_string(), "-f".to_string(), "/tmp/thread_dump_*.txt".to_string()],
+                command: vec!["rm".to_string(), "-f".to_string(), "/tmp/thread_dump_{{pid}}_wake.txt".to_string()],
                 working_dir: None,
                 env_vars: HashMap::new(),
                 ignore_failure: true,  // Don't fail if cleanup fails

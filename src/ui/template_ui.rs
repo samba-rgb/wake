@@ -37,19 +37,23 @@ pub struct TemplateUIState {
     pub show_help: bool,
     pub execution_complete: bool,
     pub show_completion_dialog: bool,
+    pub completion_time: Option<chrono::DateTime<Local>>, // Store fixed completion time
     pub global_logs: VecDeque<String>,
     pub error_message: Option<String>,
 }
 
 impl TemplateUIState {
     pub fn new(execution: TemplateExecution, pods: Vec<PodInfo>, template: Template) -> Self {
+        // Calculate total commands including cleanup commands
+        let total_commands = template.commands.len();
+        
         let pod_states = pods
             .into_iter()
             .map(|pod| PodExecutionState {
                 pod_info: pod,
                 status: PodStatus::Starting,
                 current_command_index: 0,
-                total_commands: template.commands.len(),
+                total_commands, // This now includes cleanup commands
                 command_logs: Vec::new(),
                 downloaded_files: Vec::new(),
                 error_message: None,
@@ -67,6 +71,7 @@ impl TemplateUIState {
             show_completion_dialog: false,
             global_logs: VecDeque::new(),
             error_message: None,
+            completion_time: None,
         }
     }
 
@@ -136,7 +141,8 @@ impl TemplateUIState {
             }
             UIUpdate::ExecutionCompleted => {
                 self.execution_complete = true;
-                self.show_completion_dialog = true; // Show dialog when execution completes
+                self.show_completion_dialog = true;
+                self.completion_time = Some(Local::now()); // Store fixed completion time
                 self.global_logs
                     .push_back("🎉 Template execution completed!".to_string());
             }
@@ -152,6 +158,7 @@ impl TemplateUIState {
         if all_completed && !self.pods.is_empty() && !self.show_completion_dialog {
             self.execution_complete = true;
             self.show_completion_dialog = true;
+            self.completion_time = Some(Local::now()); // Store fixed completion time
         }
     }
 
@@ -680,7 +687,12 @@ fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
     
     let total_files = state.pods.iter().map(|pod| pod.downloaded_files.len()).sum::<usize>();
     
-    let execution_time = Local::now().signed_duration_since(state.execution.timestamp.with_timezone(&Local)).num_seconds();
+    // Use stored completion time instead of calculating live
+    let execution_time = if let Some(completion_time) = state.completion_time {
+        completion_time.signed_duration_since(state.execution.timestamp.with_timezone(&Local)).num_seconds()
+    } else {
+        Local::now().signed_duration_since(state.execution.timestamp.with_timezone(&Local)).num_seconds()
+    };
     let minutes = execution_time / 60;
     let seconds = execution_time % 60;
 
