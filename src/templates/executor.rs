@@ -485,7 +485,8 @@ impl TemplateExecutor {
 
         // Execute cleanup commands AFTER files are downloaded
         let cleanup_commands: Vec<_> = template.commands.iter()
-            .filter(|cmd| cmd.description.to_lowercase().contains("clean up"))
+            .enumerate()
+            .filter(|(_, cmd)| cmd.description.to_lowercase().contains("clean up"))
             .collect();
 
         if !cleanup_commands.is_empty() {
@@ -497,16 +498,42 @@ impl TemplateExecutor {
                 })
                 .await;
 
-            for cleanup_cmd in cleanup_commands {
-                let _ = self
+            for (original_index, cleanup_cmd) in cleanup_commands {
+                // Update pod status to show cleanup command is running
+                let _ = ui_tx
+                    .send(UIUpdate::PodStatusChanged {
+                        pod_index,
+                        status: PodStatus::Running {
+                            command_index: original_index,
+                        },
+                    })
+                    .await;
+
+                let _ = ui_tx
+                    .send(UIUpdate::CommandStarted {
+                        pod_index,
+                        command_index: original_index,
+                        description: cleanup_cmd.description.clone(),
+                    })
+                    .await;
+
+                let cleanup_result = self
                     .execute_command_on_pod_with_ui(
                         cleanup_cmd,
                         execution,
                         pod,
                         pod_index,
-                        template.commands.len(),
+                        original_index,
                         ui_tx.clone(),
                     )
+                    .await;
+
+                let _ = ui_tx
+                    .send(UIUpdate::CommandCompleted {
+                        pod_index,
+                        command_index: original_index,
+                        success: cleanup_result.is_ok(),
+                    })
                     .await;
             }
         }
@@ -946,7 +973,7 @@ impl TemplateExecutor {
     fn parse_duration(&self, duration_str: &str) -> Result<u64> {
         let duration_str = duration_str.trim();
         
-        if duration_str.is_empty() {
+        if (duration_str.is_empty()) {
             return Err(anyhow!("Duration cannot be empty"));
         }
 
