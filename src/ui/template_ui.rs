@@ -471,7 +471,16 @@ fn draw_pod_details(f: &mut Frame, area: Rect, state: &TemplateUIState) {
 
 /// Draw pod information
 fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
-    // Create formatted lines with consistent alignment
+    // Create a grid layout for better organization
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Row 1: Pod name and CPU
+            Constraint::Length(1), // Row 2: Status and Memory
+        ])
+        .split(area.inner(&Margin { vertical: 1, horizontal: 1 }));
+
+    // Format pod information
     let pod_name = format!("{}/{}", pod.pod_info.namespace, pod.pod_info.name);
     let status_text = get_status_text(&pod.status);
     let status_color = get_status_color(&pod.status);
@@ -511,26 +520,74 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
         ("N/A".to_string(), Color::Gray)
     };
 
-    let info_lines = vec![
-        Line::from(vec![
-            Span::styled("Pod:     ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-            Span::raw(format!("{:<47}", pod_name)),
-            Span::styled("CPU:     ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-            Span::styled(cpu_text, Style::default().fg(cpu_color)),
-        ]),
-        Line::from(vec![
-            Span::styled("Status:  ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-            Span::raw(format!("{:<47}", status_text)),
-            Span::styled("Memory:  ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-            Span::styled(memory_text, Style::default().fg(memory_color)),
-        ]),
-    ];
+    // Create horizontal layout for each row (left and right columns)
+    let row1_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(60), // Left column: Pod info
+            Constraint::Percentage(40), // Right column: CPU info
+        ])
+        .split(chunks[0]);
 
-    let paragraph = Paragraph::new(info_lines)
-        .block(Block::default().title("Pod Information").borders(Borders::ALL))
-        .wrap(Wrap { trim: true });
+    let row2_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(60), // Left column: Status info
+            Constraint::Percentage(40), // Right column: Memory info
+        ])
+        .split(chunks[1]);
 
-    f.render_widget(paragraph, area);
+    // Truncate text if too long for the available space
+    let max_pod_width = (row1_chunks[0].width as usize).saturating_sub(6); // Account for "Pod: "
+    let displayed_pod_name = if pod_name.len() > max_pod_width {
+        format!("{}...", &pod_name[..max_pod_width.saturating_sub(3)])
+    } else {
+        pod_name
+    };
+
+    let max_status_width = (row2_chunks[0].width as usize).saturating_sub(9); // Account for "Status: "
+    let displayed_status = if status_text.len() > max_status_width {
+        format!("{}...", &status_text[..max_status_width.saturating_sub(3)])
+    } else {
+        status_text
+    };
+
+    // Row 1: Pod name and CPU
+    let pod_line = Line::from(vec![
+        Span::styled("Pod: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+        Span::styled(displayed_pod_name, Style::default().fg(Color::White)),
+    ]);
+    let pod_paragraph = Paragraph::new(pod_line);
+    f.render_widget(pod_paragraph, row1_chunks[0]);
+
+    let cpu_line = Line::from(vec![
+        Span::styled("CPU: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+        Span::styled(cpu_text, Style::default().fg(cpu_color)),
+    ]);
+    let cpu_paragraph = Paragraph::new(cpu_line).alignment(Alignment::Right);
+    f.render_widget(cpu_paragraph, row1_chunks[1]);
+
+    // Row 2: Status and Memory
+    let status_line = Line::from(vec![
+        Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+        Span::styled(displayed_status, Style::default().fg(status_color)),
+    ]);
+    let status_paragraph = Paragraph::new(status_line);
+    f.render_widget(status_paragraph, row2_chunks[0]);
+
+    let memory_line = Line::from(vec![
+        Span::styled("Memory: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+        Span::styled(memory_text, Style::default().fg(memory_color)),
+    ]);
+    let memory_paragraph = Paragraph::new(memory_line).alignment(Alignment::Right);
+    f.render_widget(memory_paragraph, row2_chunks[1]);
+
+    // Draw the border around the entire pod info area
+    let border_block = Block::default()
+        .title("Pod Information")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Blue));
+    f.render_widget(border_block, area);
 }
 
 /// Format bytes into human-readable format
