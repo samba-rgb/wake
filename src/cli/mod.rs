@@ -125,15 +125,29 @@ pub async fn run(mut args: Args) -> Result<()> {
         }
         return Ok(());
     }
+
     info!("=== CLI MODULE STARTING ===");
     info!("CLI: Received args - namespace: {}, pod_selector: {}, container: {}", 
           args.namespace, args.pod_selector, args.container);
     info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
           args.ui, args.no_ui, args.output_file);
+
     // Handle configuration commands first
     if let Some(command) = &args.command {
         return handle_config_command(command).await;
     }
+
+    // Handle template commands
+    if args.list_templates {
+        return handle_list_templates().await;
+    }
+
+    if let Some(ref template_name) = args.execute_template {
+        let result = handle_template_execution(&args, template_name).await;
+        // Return the result without forcing exit - let the program complete naturally
+        return result;
+    }
+
     // EARLY RETURN for --script-in
     if args.script_in.is_some() {
         return run_script_in_pods(&args).await;
@@ -338,6 +352,140 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
                     println!("{}", table);
                 }
             }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Handle listing all available templates
+async fn handle_list_templates() -> Result<()> {
+    use crate::templates::registry::TemplateRegistry;
+    
+    println!("📋 Available Wake Templates:");
+    println!();
+    
+    let registry = TemplateRegistry::with_builtins();
+    let templates = registry.get_all_templates();
+    
+    if templates.is_empty() {
+        println!("No templates available.");
+        return Ok(());
+    }
+    
+    // Create a nice table for templates
+    let mut table = Table::new();
+    table.set_header(["Template", "Description", "Parameters"]);
+    
+    for (name, template) in templates {
+        let params = template.parameters
+            .iter()
+            .map(|p| format!("{}:{}", p.name, match p.param_type {
+                crate::templates::ParameterType::Integer => "int",
+                crate::templates::ParameterType::String => "str", 
+                crate::templates::ParameterType::Duration => "duration",
+                crate::templates::ParameterType::Path => "path",
+                crate::templates::ParameterType::Boolean => "bool",
+            }))
+            .collect::<Vec<_>>()
+            .join(", ");
+            
+        table.add_row([name.clone(), template.description.clone(), params]);
+    }
+    
+    println!("{}", table);
+    println!();
+    println!("💡 Usage examples:");
+    println!("  wake -t thread-dump 1234");
+    println!("  wake -t jfr 1234 30s --template-output ./output");
+    println!("  wake -t heap-dump 1234 -n my-namespace");
+    
+    Ok(())
+}
+
+/// Handle template execution
+async fn handle_template_execution(args: &Args, template_name: &str) -> Result<()> {
+    use crate::templates::registry::TemplateRegistry;
+    use crate::templates::executor::TemplateExecutor;
+    use crate::k8s::pod::select_pods;
+    
+    println!("🚀 Executing template: {}", template_name);
+    
+    // Initialize template system
+    let registry = TemplateRegistry::with_builtins();
+    let template_executor = TemplateExecutor::new(registry);
+    
+    // Check if template exists
+    if !template_executor.list_templates().contains(&template_name) {
+        eprintln!("❌ Template '{}' not found.", template_name);
+        eprintln!();
+        eprintln!("Available templates:");
+        for available_template in template_executor.list_templates() {
+            eprintln!("  - {}", available_template);
+        }
+        eprintln!();
+        eprintln!("Use --list-templates to see detailed information about each template.");
+        std::process::exit(1);
+    }
+    
+    // Get the kubernetes client
+    let client = crate::k8s::client::create_client(args).await?;
+    
+    // Select pods based on the provided criteria
+    let pod_regex = args.pod_regex().context("Invalid pod selector regex")?;
+    let container_regex = args.container_regex().context("Invalid container regex")?;
+    
+    let pods = select_pods(
+        &client,
+        &args.namespace,
+        &pod_regex,
+        &container_regex,
+        args.all_namespaces,
+        args.resource.as_deref(),
+    ).await?;
+    
+    if pods.is_empty() {
+        eprintln!("❌ No pods found matching the criteria.");
+        eprintln!("   Namespace: {}", args.namespace);
+        eprintln!("   Pod selector: {}", args.pod_selector);
+        eprintln!("   Container: {}", args.container);
+        std::process::exit(1);
+    }
+    
+    println!("📍 Found {} pod(s) to execute template on:", pods.len());
+    for pod in &pods {
+        println!("  - {}/{}", pod.namespace, pod.name);
+    }
+    println!();
+    
+    // Execute the template
+    let result = template_executor.execute_template(
+        template_name,
+        args.template_args.clone(),
+        &pods,
+        args.template_output.clone(),
+        args,
+    ).await;
+    
+    match result {
+        Ok(execution_result) => {
+            println!("✅ Template execution completed!");
+            println!("📁 Results saved to: {}", execution_result.output_dir.display());
+            
+            let successful = execution_result.pod_results.iter().filter(|r| r.success).count();
+            let failed = execution_result.pod_results.len() - successful;
+            
+            println!();
+            println!("📊 Execution Summary:");
+            println!("  ✅ Successful: {}", successful);
+            if failed > 0 {
+                println!("  ❌ Failed: {}", failed);
+            }
+            println!("  📁 Output directory: {}", execution_result.output_dir.display());
+        }
+        Err(e) => {
+            eprintln!("❌ Template execution failed: {}", e);
+            std::process::exit(1);
         }
     }
     

@@ -218,9 +218,33 @@ async fn run_template_app<B: Backend>(
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 let mut state = ui_state.lock().await;
+                
+                // Handle help screen separately
+                if state.show_help {
+                    match key.code {
+                        KeyCode::Char('h') | KeyCode::F(1) | KeyCode::Esc => {
+                            state.show_help = false;
+                        }
+                        KeyCode::Char('q') => {
+                            break; // Allow quitting from help screen
+                        }
+                        _ => {}
+                    }
+                    continue; // Skip other key processing when help is shown
+                }
+                
+                // Handle main UI keys
                 match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => {
+                    KeyCode::Char('q') => {
+                        // Allow quitting at any time, not just when execution is complete
+                        break;
+                    }
+                    KeyCode::Esc => {
+                        // Esc can always quit or close help
                         if state.execution_complete {
+                            break;
+                        } else {
+                            // If execution is running, show a confirmation or just quit
                             break;
                         }
                     }
