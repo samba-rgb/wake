@@ -358,16 +358,36 @@ impl TemplateExecutor {
 
             match result {
                 Ok(cmd_result) => {
-                    // Send command output to UI
-                    if template_cmd.capture_output && !cmd_result.stdout.is_empty() {
+                    // Always send command output to UI immediately, regardless of capture_output setting
+                    // This is especially important for JFR start command to see if it succeeded
+                    if !cmd_result.stdout.is_empty() {
                         let _ = ui_tx
                             .send(UIUpdate::CommandOutput {
                                 pod_index,
                                 command_index: cmd_index,
-                                output: cmd_result.stdout.clone(),
+                                output: format!("📤 STDOUT:\n{}", cmd_result.stdout),
                             })
                             .await;
                     }
+                    
+                    if !cmd_result.stderr.is_empty() {
+                        let _ = ui_tx
+                            .send(UIUpdate::CommandOutput {
+                                pod_index,
+                                command_index: cmd_index,
+                                output: format!("📥 STDERR:\n{}", cmd_result.stderr),
+                            })
+                            .await;
+                    }
+                    
+                    // Show exit code for debugging
+                    let _ = ui_tx
+                        .send(UIUpdate::CommandOutput {
+                            pod_index,
+                            command_index: cmd_index,
+                            output: format!("🔢 Exit code: {}", cmd_result.exit_code),
+                        })
+                        .await;
 
                     let _ = ui_tx
                         .send(UIUpdate::CommandCompleted {
@@ -380,6 +400,15 @@ impl TemplateExecutor {
                     command_results.push(cmd_result);
                 }
                 Err(e) => {
+                    // Send error details to UI
+                    let _ = ui_tx
+                        .send(UIUpdate::CommandOutput {
+                            pod_index,
+                            command_index: cmd_index,
+                            output: format!("❌ Command failed: {}", e),
+                        })
+                        .await;
+
                     let _ = ui_tx
                         .send(UIUpdate::CommandCompleted {
                             pod_index,
