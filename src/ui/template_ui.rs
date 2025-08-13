@@ -36,6 +36,7 @@ pub struct TemplateUIState {
     pub log_scroll: usize,
     pub show_help: bool,
     pub execution_complete: bool,
+    pub show_completion_dialog: bool,
     pub global_logs: VecDeque<String>,
     pub error_message: Option<String>,
 }
@@ -63,6 +64,7 @@ impl TemplateUIState {
             log_scroll: 0,
             show_help: false,
             execution_complete: false,
+            show_completion_dialog: false,
             global_logs: VecDeque::new(),
             error_message: None,
         }
@@ -74,6 +76,8 @@ impl TemplateUIState {
                 if let Some(pod) = self.pods.get_mut(pod_index) {
                     pod.status = status;
                 }
+                // Check if all pods are completed
+                self.check_all_pods_completed();
             }
             UIUpdate::CommandStarted {
                 pod_index,
@@ -132,9 +136,22 @@ impl TemplateUIState {
             }
             UIUpdate::ExecutionCompleted => {
                 self.execution_complete = true;
+                self.show_completion_dialog = true; // Show dialog when execution completes
                 self.global_logs
                     .push_back("🎉 Template execution completed!".to_string());
             }
+        }
+    }
+
+    /// Check if all pods have completed and show completion dialog
+    fn check_all_pods_completed(&mut self) {
+        let all_completed = self.pods.iter().all(|pod| {
+            matches!(pod.status, PodStatus::Completed | PodStatus::Failed { .. })
+        });
+        
+        if all_completed && !self.pods.is_empty() && !self.show_completion_dialog {
+            self.execution_complete = true;
+            self.show_completion_dialog = true;
         }
     }
 
@@ -232,6 +249,31 @@ async fn run_template_app<B: Backend>(
                     }
                     continue; // Skip other key processing when help is shown
                 }
+
+                // Handle completion dialog separately
+                if state.show_completion_dialog {
+                    match key.code {
+                        KeyCode::Enter | KeyCode::Char('q') | KeyCode::Esc => {
+                            break; // Exit application
+                        }
+                        KeyCode::Char('v') => {
+                            // Switch to detailed log view
+                            state.show_completion_dialog = false;
+                        }
+                        KeyCode::Char('o') => {
+                            // Open output directory (for now, just exit)
+                            // TODO: Implement opening file manager
+                            break;
+                        }
+                        KeyCode::Char('r') => {
+                            // Run template again (for now, just exit)
+                            // TODO: Implement template restart
+                            break;
+                        }
+                        _ => {}
+                    }
+                    continue; // Skip other key processing when completion dialog is shown
+                }
                 
                 // Handle main UI keys
                 match key.code {
@@ -290,6 +332,12 @@ async fn run_template_app<B: Backend>(
 fn draw_template_ui(f: &mut Frame, state: &TemplateUIState) {
     if state.show_help {
         draw_help_popup(f, state);
+        return;
+    }
+
+    // Show completion dialog if all pods are done
+    if state.show_completion_dialog {
+        draw_completion_dialog(f, state);
         return;
     }
 
@@ -617,6 +665,97 @@ fn draw_help_popup(f: &mut Frame, state: &TemplateUIState) {
         .wrap(Wrap { trim: true });
 
     f.render_widget(help_paragraph, popup_area);
+}
+
+/// Draw completion dialog when all pods are finished
+fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
+    let popup_area = centered_rect(70, 60, f.size());
+    
+    f.render_widget(Clear, popup_area);
+
+    // Calculate execution summary
+    let total_pods = state.pods.len();
+    let successful_pods = state.pods.iter().filter(|pod| matches!(pod.status, PodStatus::Completed)).count();
+    let failed_pods = state.pods.iter().filter(|pod| matches!(pod.status, PodStatus::Failed { .. })).count();
+    
+    let total_files = state.pods.iter().map(|pod| pod.downloaded_files.len()).sum::<usize>();
+    
+    let execution_time = Local::now().signed_duration_since(state.execution.timestamp.with_timezone(&Local)).num_seconds();
+    let minutes = execution_time / 60;
+    let seconds = execution_time % 60;
+
+    let dialog_text = vec![
+        Line::from(vec![Span::styled(
+            "🎉 Template Execution Complete!",
+            Style::default().add_modifier(Modifier::BOLD).fg(Color::Green),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Template: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(&state.template.name, Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(vec![
+            Span::styled("Execution ID: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(&state.execution.execution_id[..8], Style::default().fg(Color::Gray)),
+        ]),
+        Line::from(""),
+        Line::from(vec![Span::styled("Execution Summary:", Style::default().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![
+            Span::raw("  📊 Total Pods: "),
+            Span::styled(total_pods.to_string(), Style::default().fg(Color::White)),
+        ]),
+        Line::from(vec![
+            Span::raw("  ✅ Successful: "),
+            Span::styled(successful_pods.to_string(), Style::default().fg(Color::Green)),
+        ]),
+        Line::from(vec![
+            Span::raw("  ❌ Failed: "),
+            Span::styled(failed_pods.to_string(), Style::default().fg(if failed_pods > 0 { Color::Red } else { Color::Green })),
+        ]),
+        Line::from(vec![
+            Span::raw("  📁 Files Downloaded: "),
+            Span::styled(total_files.to_string(), Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(vec![
+            Span::raw("  ⏱️  Total Time: "),
+            Span::styled(format!("{}m {}s", minutes, seconds), Style::default().fg(Color::Yellow)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Output Directory: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(state.execution.output_dir.display().to_string(), Style::default().fg(Color::Magenta)),
+        ]),
+        Line::from(""),
+        if failed_pods > 0 {
+            Line::from(vec![
+                Span::styled("⚠️  Warning: ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                Span::raw("Some pods failed. Check the logs for details."),
+            ])
+        } else {
+            Line::from(vec![
+                Span::styled("🎯 Success! ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+                Span::raw("All pods completed successfully."),
+            ])
+        },
+        Line::from(""),
+        Line::from("Available Actions:"),
+        Line::from("  [Enter] or [q] - Exit"),
+        Line::from("  [v] - View detailed logs"),
+        Line::from("  [o] - Open output directory"),
+        Line::from("  [r] - Run template again"),
+    ];
+
+    let dialog = Paragraph::new(dialog_text)
+        .block(
+            Block::default()
+                .title("Execution Complete")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Green)),
+        )
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(dialog, popup_area);
 }
 
 /// Helper function to create a centered rectangle

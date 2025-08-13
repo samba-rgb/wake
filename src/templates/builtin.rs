@@ -89,6 +89,14 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
                 ignore_failure: true,
                 capture_output: true,
             },
+            TemplateCommand {
+                description: "Clean up JFR files from pod".to_string(),
+                command: vec!["rm".to_string(), "-f".to_string(), "/tmp/jfr_{{pid}}_wake.jfr".to_string()],
+                working_dir: None,
+                env_vars: HashMap::new(),
+                ignore_failure: true,  // Don't fail if cleanup fails
+                capture_output: true,
+            },
         ],
         output_files: vec![
             OutputFilePattern {
@@ -153,6 +161,14 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
                 ignore_failure: true,
                 capture_output: true,
             },
+            TemplateCommand {
+                description: "Clean up heap dump files from pod".to_string(),
+                command: vec!["rm".to_string(), "-f".to_string(), "/tmp/heap_dump_{{pid}}_wake.hprof".to_string()],
+                working_dir: None,
+                env_vars: HashMap::new(),
+                ignore_failure: true,  // Don't fail if cleanup fails
+                capture_output: true,
+            },
         ],
         output_files: vec![
             OutputFilePattern {
@@ -207,6 +223,14 @@ pub fn get_builtin_templates() -> HashMap<String, Template> {
                 working_dir: None,
                 env_vars: HashMap::new(),
                 ignore_failure: true,
+                capture_output: true,
+            },
+            TemplateCommand {
+                description: "Clean up thread dump files from pod".to_string(),
+                command: vec!["rm".to_string(), "-f".to_string(), "/tmp/thread_dump_*.txt".to_string()],
+                working_dir: None,
+                env_vars: HashMap::new(),
+                ignore_failure: true,  // Don't fail if cleanup fails
                 capture_output: true,
             },
         ],
