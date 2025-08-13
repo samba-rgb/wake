@@ -2,10 +2,13 @@ pub mod app;
 pub mod input;
 pub mod display;
 pub mod filter_manager;
+pub mod template_ui;
 
 use anyhow::Result;
 use crate::cli::Args;
 use crate::k8s::logs::LogEntry;
+use crate::templates::*;
+
 use futures::Stream;
 use std::pin::Pin;
 

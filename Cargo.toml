@@ -55,6 +55,7 @@ directories = "5.0.1"
 # Terminal UI
 crossterm = "0.27.0"
 ratatui = "0.26.0"
+unicode-width = "0.1.11"
 
 # Clipboard functionality
 arboard = "3.5.0"
@@ -67,6 +68,8 @@ threadpool = "1.8.1"
 num_cpus = "1.16.0"
 dirs = "5.0.1"
 fastrand = "2.0.1"
+uuid = { version = "1.8.0", features = ["v4"] }
+glob = "0.3.1"
 
 # Kernel-level optimizations
 libc = "0.2.155"
