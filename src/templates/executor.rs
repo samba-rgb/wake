@@ -160,15 +160,58 @@ impl TemplateExecutor {
         pods: &[PodInfo],
         template: &Template,
     ) -> Result<TemplateExecutionResult> {
-        // Create UI state
+        // Create UI state with initial pod metrics
+        let mut pods_with_metrics = pods.to_vec();
+        
+        // Try to get initial metrics (non-blocking)
+        if let Ok(client) = crate::k8s::client::create_client(&crate::cli::Args::default()).await {
+            let _ = crate::k8s::pod::update_pods_metrics(&client, &mut pods_with_metrics).await;
+        }
+
         let ui_state = Arc::new(Mutex::new(crate::ui::template_ui::TemplateUIState::new(
             execution.clone(),
-            pods.to_vec(),
+            pods_with_metrics.clone(),
             template.clone(),
         )));
 
         // Create channels for UI updates
         let (ui_tx, ui_rx) = mpsc::channel::<UIUpdate>(1000);
+
+        // Start periodic metrics update task
+        let ui_state_clone = ui_state.clone();
+        let pods_clone = pods_with_metrics.clone();
+        let metrics_task = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(2)); // Update every 2 seconds
+            
+            loop {
+                interval.tick().await;
+                
+                // Check if execution is complete
+                {
+                    let state = ui_state_clone.lock().await;
+                    if state.execution_complete {
+                        break;
+                    }
+                }
+                
+                // Update metrics
+                if let Ok(client) = crate::k8s::client::create_client(&crate::cli::Args::default()).await {
+                    let mut updated_pods = pods_clone.clone();
+                    if crate::k8s::pod::update_pods_metrics(&client, &mut updated_pods).await.is_ok() {
+                        // Update UI state with new metrics
+                        let mut state = ui_state_clone.lock().await;
+                        for (i, updated_pod) in updated_pods.iter().enumerate() {
+                            if let Some(pod_state) = state.pods.get_mut(i) {
+                                pod_state.pod_info.cpu_usage_percent = updated_pod.cpu_usage_percent;
+                                pod_state.pod_info.memory_usage_percent = updated_pod.memory_usage_percent;
+                                pod_state.pod_info.memory_usage_bytes = updated_pod.memory_usage_bytes;
+                                pod_state.pod_info.memory_limit_bytes = updated_pod.memory_limit_bytes;
+                            }
+                        }
+                    }
+                }
+            }
+        });
 
         // Start UI in separate task
         let ui_state_clone = ui_state.clone();
@@ -180,10 +223,11 @@ impl TemplateExecutor {
 
         // Execute template with UI updates
         let result = self
-            .execute_template_parallel_with_ui(execution, pods, template, ui_tx)
+            .execute_template_parallel_with_ui(execution, &pods_with_metrics, template, ui_tx)
             .await;
 
-        // Wait for UI to finish
+        // Clean up background tasks
+        metrics_task.abort();
         let _ = ui_task.await;
 
         result
@@ -973,7 +1017,7 @@ impl TemplateExecutor {
     fn parse_duration(&self, duration_str: &str) -> Result<u64> {
         let duration_str = duration_str.trim();
         
-        if (duration_str.is_empty()) {
+        if duration_str.is_empty() {
             return Err(anyhow!("Duration cannot be empty"));
         }
 
