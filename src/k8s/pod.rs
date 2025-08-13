@@ -4,10 +4,13 @@ use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client};
 use kube::api::{ListParams, ResourceExt};
 use regex::Regex;
-use tracing::{info, debug};
+use tracing::{info, debug, warn};
 use crate::k8s::selector::create_selector_for_resource;
 use comfy_table::{Table, presets::UTF8_FULL, ContentArrangement, Cell, CellAlignment};
 use chrono::{Utc, DateTime};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use http;
 
 /// Represents pod information relevant to log watching
 #[derive(Debug, Clone)]
@@ -15,6 +18,10 @@ pub struct PodInfo {
     pub namespace: String,
     pub name: String,
     pub containers: Vec<String>,
+    pub cpu_usage_percent: Option<f64>,
+    pub memory_usage_percent: Option<f64>,
+    pub memory_usage_bytes: Option<u64>,
+    pub memory_limit_bytes: Option<u64>,
 }
 
 /// Filters and selects pods based on regex patterns or resource type
@@ -119,6 +126,10 @@ pub async fn select_pods(
                     namespace: ns.clone(),
                     name: pod_name,
                     containers,
+                    cpu_usage_percent: None,
+                    memory_usage_percent: None,
+                    memory_usage_bytes: None,
+                    memory_limit_bytes: None,
                 });
             }
         }
@@ -313,4 +324,183 @@ fn is_plain_name(re: &Regex) -> bool {
     // If it contains only alphanumeric, dash, or underscore, treat as plain name
     // and does not start/end with ^/$ or contain . * + ? | ( ) [ ] { } \
     !s.contains(|c: char| "^$.|?*+()[]{}\\".contains(c))
+}
+
+/// Structures for parsing Kubernetes metrics API responses
+#[derive(Debug, Deserialize)]
+struct PodMetrics {
+    metadata: MetricMetadata,
+    containers: Vec<ContainerMetrics>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MetricMetadata {
+    name: String,
+    namespace: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContainerMetrics {
+    name: String,
+    usage: ResourceUsage,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResourceUsage {
+    cpu: String,
+    memory: String,
+}
+
+/// Fetch pod metrics from Kubernetes metrics API
+pub async fn fetch_pod_metrics(client: &Client, pod_info: &mut PodInfo) -> Result<()> {
+    // Try to fetch metrics from metrics.k8s.io API
+    let metrics_url = format!(
+        "/apis/metrics.k8s.io/v1beta1/namespaces/{}/pods/{}",
+        pod_info.namespace, pod_info.name
+    );
+
+    // Create a proper HTTP request
+    let request = http::Request::builder()
+        .method(http::Method::GET)
+        .uri(&metrics_url)
+        .body(vec![])
+        .map_err(|e| anyhow::anyhow!("Failed to build HTTP request: {}", e))?;
+
+    match client.request_text(request).await {
+        Ok(response_text) => {
+            match serde_json::from_str::<PodMetrics>(&response_text) {
+                Ok(pod_metrics) => {
+                    // Calculate total CPU and memory usage across all containers
+                    let mut total_cpu_millicores = 0u64;
+                    let mut total_memory_bytes = 0u64;
+
+                    for container in &pod_metrics.containers {
+                        if let Ok(cpu_millicores) = parse_cpu_usage(&container.usage.cpu) {
+                            total_cpu_millicores += cpu_millicores;
+                        }
+                        if let Ok(memory_bytes) = parse_memory_usage(&container.usage.memory) {
+                            total_memory_bytes += memory_bytes;
+                        }
+                    }
+
+                    // Get pod resource limits for percentage calculation
+                    if let Ok((cpu_limit_millicores, memory_limit_bytes)) = 
+                        get_pod_resource_limits(client, &pod_info.namespace, &pod_info.name).await {
+                        
+                        // Calculate CPU percentage
+                        if cpu_limit_millicores > 0 {
+                            pod_info.cpu_usage_percent = Some(
+                                (total_cpu_millicores as f64 / cpu_limit_millicores as f64) * 100.0
+                            );
+                        }
+
+                        // Calculate memory percentage
+                        if memory_limit_bytes > 0 {
+                            pod_info.memory_usage_percent = Some(
+                                (total_memory_bytes as f64 / memory_limit_bytes as f64) * 100.0
+                            );
+                            pod_info.memory_limit_bytes = Some(memory_limit_bytes);
+                        }
+                    }
+
+                    pod_info.memory_usage_bytes = Some(total_memory_bytes);
+                }
+                Err(e) => {
+                    debug!("Failed to parse pod metrics for {}: {}", pod_info.name, e);
+                }
+            }
+        }
+        Err(e) => {
+            debug!("Failed to fetch metrics for pod {}: {}", pod_info.name, e);
+        }
+    }
+
+    Ok(())
+}
+
+/// Parse CPU usage string (e.g., "100m" -> 100 millicores)
+fn parse_cpu_usage(cpu_str: &str) -> Result<u64> {
+    if cpu_str.ends_with('m') {
+        // Millicores (e.g., "100m")
+        let millis = cpu_str.trim_end_matches('m').parse::<u64>()?;
+        Ok(millis)
+    } else if cpu_str.ends_with('n') {
+        // Nanocores (e.g., "100000000n")
+        let nanos = cpu_str.trim_end_matches('n').parse::<u64>()?;
+        Ok(nanos / 1_000_000) // Convert to millicores
+    } else {
+        // Assume it's in cores (e.g., "0.5")
+        let cores = cpu_str.parse::<f64>()?;
+        Ok((cores * 1000.0) as u64) // Convert to millicores
+    }
+}
+
+/// Parse memory usage string (e.g., "128Mi" -> bytes)
+fn parse_memory_usage(memory_str: &str) -> Result<u64> {
+    let memory_str = memory_str.trim();
+    
+    if memory_str.ends_with("Ki") {
+        let value = memory_str.trim_end_matches("Ki").parse::<u64>()?;
+        Ok(value * 1024)
+    } else if memory_str.ends_with("Mi") {
+        let value = memory_str.trim_end_matches("Mi").parse::<u64>()?;
+        Ok(value * 1024 * 1024)
+    } else if memory_str.ends_with("Gi") {
+        let value = memory_str.trim_end_matches("Gi").parse::<u64>()?;
+        Ok(value * 1024 * 1024 * 1024)
+    } else if memory_str.ends_with("Ti") {
+        let value = memory_str.trim_end_matches("Ti").parse::<u64>()?;
+        Ok(value * 1024 * 1024 * 1024 * 1024)
+    } else {
+        // Assume bytes
+        memory_str.parse::<u64>().map_err(|e| e.into())
+    }
+}
+
+/// Get pod resource limits from pod specification
+async fn get_pod_resource_limits(client: &Client, namespace: &str, pod_name: &str) -> Result<(u64, u64)> {
+    let pods: Api<Pod> = Api::namespaced(client.clone(), namespace);
+    
+    match pods.get(pod_name).await {
+        Ok(pod) => {
+            let mut total_cpu_limit = 0u64;
+            let mut total_memory_limit = 0u64;
+
+            if let Some(spec) = &pod.spec {
+                for container in &spec.containers {
+                    if let Some(resources) = &container.resources {
+                        if let Some(limits) = &resources.limits {
+                            // Parse CPU limit
+                            if let Some(cpu_limit) = limits.get("cpu") {
+                                if let Ok(cpu_millicores) = parse_cpu_usage(&cpu_limit.0) {
+                                    total_cpu_limit += cpu_millicores;
+                                }
+                            }
+                            
+                            // Parse memory limit
+                            if let Some(memory_limit) = limits.get("memory") {
+                                if let Ok(memory_bytes) = parse_memory_usage(&memory_limit.0) {
+                                    total_memory_limit += memory_bytes;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Ok((total_cpu_limit, total_memory_limit))
+        }
+        Err(e) => {
+            debug!("Failed to get pod limits for {}: {}", pod_name, e);
+            Ok((0, 0))
+        }
+    }
+}
+
+/// Update pod metrics for a list of pods
+pub async fn update_pods_metrics(client: &Client, pods: &mut Vec<PodInfo>) -> Result<()> {
+    for pod in pods.iter_mut() {
+        let _ = fetch_pod_metrics(client, pod).await; // Ignore errors for individual pods
+    }
+    Ok(())
 }

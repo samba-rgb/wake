@@ -26,7 +26,11 @@ use crate::ui::{
     display::DisplayManager,
     filter_manager::DynamicFilterManager,
     input::{InputEvent, InputHandler, InputMode},
+    template_ui::TemplateUI,
 };
+
+use crate::templates::executor::TemplateExecutor;
+use crate::templates::registry::TemplateRegistry;
 use crate::kernel::{KernelOptimizer, prefetch_log_data};
 use futures::Stream;
 
@@ -89,6 +93,12 @@ pub async fn run_app(
     // Users can press 'm' to enable application mouse features if needed
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+
+    // Initialize template system
+    let mut template_registry = TemplateRegistry::new();
+    template_registry.load_builtin_templates();
+    let template_executor = TemplateExecutor::new(template_registry);
+    let template_ui = TemplateUI::new(template_executor);
 
     // Create application state
     info!("UI: Creating display manager and input handler...");

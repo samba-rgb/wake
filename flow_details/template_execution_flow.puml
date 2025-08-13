@@ -1,0 +1,80 @@
+@startuml template_execution_flow
+
+
+title Wake Template Execution Flow with Interactive UI
+
+actor User
+participant CLI
+participant TemplateExecutor
+participant UIManager
+participant PodExecutor
+participant KubernetesAPI
+participant Terminal
+
+== Initialization ==
+User -> CLI: wake -t jfr 1234 5m
+CLI -> TemplateExecutor: parse template args
+TemplateExecutor -> TemplateExecutor: validate template
+TemplateExecutor -> KubernetesAPI: select pods
+KubernetesAPI --> TemplateExecutor: pod list
+
+== UI Setup ==
+TemplateExecutor -> UIManager: create UI state
+UIManager -> Terminal: initialize TUI
+Terminal --> UIManager: terminal ready
+UIManager -> UIManager: start UI task
+
+== Parallel Execution ==
+loop For each pod (parallel)
+    TemplateExecutor -> PodExecutor: execute template
+    PodExecutor -> UIManager: pod starting
+    UIManager -> Terminal: update status (🔄 Starting)
+    
+    loop For each command
+        PodExecutor -> UIManager: command started
+        UIManager -> Terminal: update progress
+        PodExecutor -> KubernetesAPI: kubectl exec
+        
+        alt Wait command
+            PodExecutor -> UIManager: waiting locally
+            UIManager -> Terminal: progress bar (⏳ Waiting)
+            loop Every second
+                PodExecutor -> UIManager: progress update
+                UIManager -> Terminal: update bar
+            end
+        else Regular command
+            KubernetesAPI --> PodExecutor: command output
+            PodExecutor -> UIManager: command output
+            UIManager -> Terminal: display output
+        end
+        
+        PodExecutor -> UIManager: command completed
+        UIManager -> Terminal: update progress (✓)
+    end
+    
+    PodExecutor -> UIManager: downloading files
+    UIManager -> Terminal: update status (📥 Downloading)
+    PodExecutor -> KubernetesAPI: kubectl cp files
+    KubernetesAPI --> PodExecutor: files downloaded
+    
+    PodExecutor -> UIManager: pod completed
+    UIManager -> Terminal: update status (✅ Completed)
+end
+
+== User Interaction ==
+User -> Terminal: click pod / arrow keys
+Terminal -> UIManager: pod selected
+UIManager -> Terminal: show logs panel
+
+User -> Terminal: scroll logs
+Terminal -> UIManager: update scroll offset
+UIManager -> Terminal: render logs
+
+== Completion ==
+TemplateExecutor -> UIManager: execution completed
+UIManager -> Terminal: show summary
+User -> Terminal: q to quit
+Terminal -> UIManager: cleanup
+UIManager -> Terminal: restore terminal
+
+@enduml

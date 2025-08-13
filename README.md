@@ -190,6 +190,52 @@ Wake intelligently handles filter changes:
 - **New logs only** - Filter changes only affect incoming logs
 - **Filter history** - Navigate through previously used patterns with arrow keys
 
+## Template System
+
+Wake includes a powerful template system for executing predefined diagnostic and maintenance tasks across multiple Kubernetes pods. Templates automate common operations like generating heap dumps, thread dumps, JFR recordings, and other diagnostic procedures.
+
+### Quick Start with Templates
+
+```bash
+# List available templates
+wake --list-templates
+
+# Execute JFR template on matching pods
+wake --exec-template jfr --template-args 1234 30s
+
+# Execute heap dump template
+wake --exec-template heap-dump --template-args 1234
+
+# Execute thread dump template  
+wake --exec-template thread-dump --template-args 1234
+```
+
+### Built-in Templates
+
+- **JFR (Java Flight Recorder)**: Generate performance profiles for Java applications
+- **Heap Dump**: Generate Java heap dumps for memory analysis
+- **Thread Dump**: Generate Java thread dumps for deadlock and performance analysis
+
+### Interactive Template UI
+
+The template system features a real-time interactive UI that shows:
+- **Pod execution status** with visual progress indicators
+- **Live CPU and memory monitoring** (updated every 2 seconds)
+- **Command output logs** with detailed execution information
+- **File download tracking** with sizes and locations
+- **Error handling** with clear failure diagnostics
+
+### Template Features
+
+- **Parallel Execution**: Run templates on multiple pods simultaneously
+- **Real-time Monitoring**: Track progress with live resource usage
+- **Automatic File Download**: Generated files are downloaded to local machine
+- **Smart Cleanup**: Temporary files are cleaned up after download
+- **Error Recovery**: Robust error handling with detailed diagnostics
+- **Structured Output**: Files organized by namespace and pod
+
+For detailed documentation, examples, and advanced usage, see the [Template System README](src/templates/README.md).
+
 ## Running Scripts in Pods
 
 Wake can run scripts in Kubernetes pods and collect the output. This feature is useful for debugging, maintenance, or any task that requires executing commands in the pod's environment.
