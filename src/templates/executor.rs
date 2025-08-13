@@ -686,7 +686,21 @@ impl TemplateExecutor {
         execution: &TemplateExecution,
         pod: &PodInfo,
     ) -> Result<Vec<DownloadedFile>> {
-        // First, list files matching the pattern on the pod
+        // Extract directory and filename pattern from the full pattern
+        let pattern_path = Path::new(&pattern.pattern);
+        let (search_dir, filename_pattern) = if let Some(parent) = pattern_path.parent() {
+            // If pattern has a directory part (e.g., "/tmp/thread_dump_*.txt")
+            let parent_str = parent.to_string_lossy();
+            let filename = pattern_path.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("*");
+            (parent_str.to_string(), filename.to_string())
+        } else {
+            // If pattern is just a filename (e.g., "thread_dump_*.txt")
+            ("/".to_string(), pattern.pattern.clone())
+        };
+
+        // Use the improved find command: cd to directory then find with -name
         let mut kubectl_cmd = AsyncCommand::new("kubectl");
         kubectl_cmd
             .arg("exec")
@@ -694,29 +708,30 @@ impl TemplateExecutor {
             .arg(&pod.namespace)
             .arg(&pod.name)
             .arg("--")
-            .arg("find")
-            .arg("/")
-            .arg("-path")
-            .arg(&pattern.pattern)
-            .arg("-type")
-            .arg("f")
-            .arg("2>/dev/null");
+            .arg("sh")
+            .arg("-c")
+            .arg(format!(
+                "cd '{}' 2>/dev/null && find . -name '{}' -type f 2>/dev/null | head -100",
+                search_dir, filename_pattern
+            ));
 
         let output = kubectl_cmd.output().await?;
         
         if !output.status.success() {
             if pattern.required {
-                return Err(anyhow!("Failed to find files matching pattern: {}", pattern.pattern));
+                return Err(anyhow!("Failed to find files matching pattern: {} in directory: {}", filename_pattern, search_dir));
             }
             return Ok(vec![]);
         }
 
         let files_output = String::from_utf8_lossy(&output.stdout);
-        let remote_files: Vec<&str> = files_output.lines().filter(|line| !line.is_empty()).collect();
+        let relative_files: Vec<&str> = files_output.lines()
+            .filter(|line| !line.is_empty() && line.starts_with("./"))
+            .collect();
 
-        if remote_files.is_empty() {
+        if relative_files.is_empty() {
             if pattern.required {
-                return Err(anyhow!("No files found matching pattern: {}", pattern.pattern));
+                return Err(anyhow!("No files found matching pattern: {} in directory: {}", filename_pattern, search_dir));
             }
             return Ok(vec![]);
         }
@@ -731,8 +746,15 @@ impl TemplateExecutor {
         std::fs::create_dir_all(&pod_output_dir)?;
 
         // Download each file
-        for remote_path in remote_files {
-            let file_name = Path::new(remote_path)
+        for relative_file in relative_files {
+            // Convert relative path to absolute path
+            let absolute_path = if search_dir == "/" {
+                format!("/{}", &relative_file[2..]) // Remove "./" and add root "/"
+            } else {
+                format!("{}/{}", search_dir, &relative_file[2..]) // Remove "./" and prepend search_dir
+            };
+
+            let file_name = Path::new(&absolute_path)
                 .file_name()
                 .and_then(|name| name.to_str())
                 .unwrap_or("unknown_file");
@@ -745,7 +767,7 @@ impl TemplateExecutor {
                 .arg("cp")
                 .arg("-n")
                 .arg(&pod.namespace)
-                .arg(format!("{}:{}", pod.name, remote_path))
+                .arg(format!("{}:{}", pod.name, absolute_path))
                 .arg(&local_path);
 
             let cp_output = cp_cmd.output().await?;
@@ -753,7 +775,7 @@ impl TemplateExecutor {
             if cp_output.status.success() {
                 let file_size = local_path.metadata()?.len();
                 downloaded_files.push(DownloadedFile {
-                    remote_path: remote_path.to_string(),
+                    remote_path: absolute_path,
                     local_path,
                     file_type: pattern.file_type.clone(),
                     size_bytes: file_size,
