@@ -138,6 +138,22 @@ pub struct Args {
     #[arg(long)]
     pub template: Option<String>,
 
+    /// Execute a template with given arguments
+    #[arg(long = "exec-template", value_name = "TEMPLATE", help = "Execute a predefined template (e.g., jfr, heap-dump, thread-dump)")]
+    pub execute_template: Option<String>,
+
+    /// Arguments to pass to the template
+    #[arg(long = "template-args", value_name = "ARGS", help = "Arguments to pass to the template", num_args = 0..)]
+    pub template_args: Vec<String>,
+
+    /// List all available templates
+    #[arg(long = "list-templates", help = "List all available predefined templates")]
+    pub list_templates: bool,
+
+    /// Output directory for template execution results
+    #[arg(long = "template-output", value_name = "DIR", help = "Directory to save template execution results")]
+    pub template_output: Option<PathBuf>,
+
     /// Since time (e.g., 5s, 2m, 3h)
     #[arg(long)]
     pub since: Option<String>,
@@ -243,6 +259,8 @@ impl Default for Args {
             command: None,  // Add the missing command field
             pod_selector: ".*".to_string(),
             container: ".*".to_string(),
+            list_containers: false,
+            all_containers: false,
             namespace: get_default_namespace(), // Use helper function to get default namespace
             all_namespaces: false,
             kubeconfig: None,
@@ -256,15 +274,17 @@ impl Default for Args {
             output_file: None,
             resource: None,
             template: None,
+            execute_template: None,
+            template_args: Vec::new(),
+            list_templates: false,
+            template_output: None,
             since: None,
-            list_containers: false,
-            verbosity: 0,
-            all_containers: false,
             threads: None,
             ui: false, // Default to false, will be determined by logic
             no_ui: false, // Default to false
             dev: false, // Default to false
             buffer_size: 20000, // Default buffer size
+            verbosity: 0,
             script_in: None, // Default to None
             script_outdir: None, // Default to None
             author: false, // Default to false
