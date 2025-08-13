@@ -1,0 +1,645 @@
+use crate::templates::executor::{UIUpdate, PodStatus, CommandStatus, CommandLog, PodExecutionState, TemplateExecutor};
+use crate::templates::*;
+use crate::k8s::pod::PodInfo;
+use anyhow::Result;
+use chrono::Local;
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{
+    backend::{Backend, CrosstermBackend},
+    layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
+    style::{Color, Modifier, Style},
+    symbols::DOT,
+    text::{Line, Span, Text},
+    widgets::{
+        Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Scrollbar,
+        ScrollbarOrientation, ScrollbarState, Wrap,
+    },
+    Frame, Terminal,
+};
+use std::collections::VecDeque;
+use std::io;
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
+use unicode_width::UnicodeWidthStr;
+
+/// Template UI state
+#[derive(Debug, Clone)]
+pub struct TemplateUIState {
+    pub execution: TemplateExecution,
+    pub pods: Vec<PodExecutionState>,
+    pub template: Template,
+    pub selected_pod: usize,
+    pub log_scroll: usize,
+    pub show_help: bool,
+    pub execution_complete: bool,
+    pub global_logs: VecDeque<String>,
+    pub error_message: Option<String>,
+}
+
+impl TemplateUIState {
+    pub fn new(execution: TemplateExecution, pods: Vec<PodInfo>, template: Template) -> Self {
+        let pod_states = pods
+            .into_iter()
+            .map(|pod| PodExecutionState {
+                pod_info: pod,
+                status: PodStatus::Starting,
+                current_command_index: 0,
+                total_commands: template.commands.len(),
+                command_logs: Vec::new(),
+                downloaded_files: Vec::new(),
+                error_message: None,
+            })
+            .collect();
+
+        Self {
+            execution,
+            pods: pod_states,
+            template,
+            selected_pod: 0,
+            log_scroll: 0,
+            show_help: false,
+            execution_complete: false,
+            global_logs: VecDeque::new(),
+            error_message: None,
+        }
+    }
+
+    pub fn update(&mut self, update: UIUpdate) {
+        match update {
+            UIUpdate::PodStatusChanged { pod_index, status } => {
+                if let Some(pod) = self.pods.get_mut(pod_index) {
+                    pod.status = status;
+                }
+            }
+            UIUpdate::CommandStarted {
+                pod_index,
+                command_index,
+                description,
+            } => {
+                if let Some(pod) = self.pods.get_mut(pod_index) {
+                    pod.current_command_index = command_index;
+                    pod.command_logs.push(CommandLog {
+                        timestamp: Local::now(),
+                        command_index,
+                        description,
+                        output: None,
+                        status: CommandStatus::Running,
+                    });
+                }
+            }
+            UIUpdate::CommandOutput {
+                pod_index,
+                command_index,
+                output,
+            } => {
+                if let Some(pod) = self.pods.get_mut(pod_index) {
+                    if let Some(log) = pod
+                        .command_logs
+                        .iter_mut()
+                        .find(|log| log.command_index == command_index)
+                    {
+                        log.output = Some(output);
+                    }
+                }
+            }
+            UIUpdate::CommandCompleted {
+                pod_index,
+                command_index,
+                success,
+            } => {
+                if let Some(pod) = self.pods.get_mut(pod_index) {
+                    if let Some(log) = pod
+                        .command_logs
+                        .iter_mut()
+                        .find(|log| log.command_index == command_index)
+                    {
+                        log.status = if success {
+                            CommandStatus::Completed
+                        } else {
+                            CommandStatus::Failed
+                        };
+                    }
+                }
+            }
+            UIUpdate::FileDownloaded { pod_index, file } => {
+                if let Some(pod) = self.pods.get_mut(pod_index) {
+                    pod.downloaded_files.push(file);
+                }
+            }
+            UIUpdate::ExecutionCompleted => {
+                self.execution_complete = true;
+                self.global_logs
+                    .push_back("🎉 Template execution completed!".to_string());
+            }
+        }
+    }
+
+    pub fn next_pod(&mut self) {
+        if !self.pods.is_empty() {
+            self.selected_pod = (self.selected_pod + 1) % self.pods.len();
+        }
+    }
+
+    pub fn previous_pod(&mut self) {
+        if !self.pods.is_empty() {
+            self.selected_pod = if self.selected_pod == 0 {
+                self.pods.len() - 1
+            } else {
+                self.selected_pod - 1
+            };
+        }
+    }
+
+    pub fn scroll_log_up(&mut self) {
+        if self.log_scroll > 0 {
+            self.log_scroll -= 1;
+        }
+    }
+
+    pub fn scroll_log_down(&mut self) {
+        self.log_scroll += 1;
+    }
+
+    pub fn toggle_help(&mut self) {
+        self.show_help = !self.show_help;
+    }
+}
+
+/// Run the template UI
+pub async fn run_template_ui(
+    ui_state: Arc<Mutex<TemplateUIState>>,
+    mut ui_rx: mpsc::Receiver<UIUpdate>,
+) -> Result<()> {
+    // Setup terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let app_result = run_template_app(&mut terminal, ui_state, &mut ui_rx).await;
+
+    // Restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    app_result
+}
+
+/// Main template UI application loop
+async fn run_template_app<B: Backend>(
+    terminal: &mut Terminal<B>,
+    ui_state: Arc<Mutex<TemplateUIState>>,
+    ui_rx: &mut mpsc::Receiver<UIUpdate>,
+) -> Result<()> {
+    loop {
+        // Handle UI updates
+        while let Ok(update) = ui_rx.try_recv() {
+            let mut state = ui_state.lock().await;
+            state.update(update);
+        }
+
+        // Draw UI
+        {
+            let state = ui_state.lock().await;
+            terminal.draw(|f| draw_template_ui(f, &state))?;
+        }
+
+        // Handle input events
+        if event::poll(std::time::Duration::from_millis(100))? {
+            if let Event::Key(key) = event::read()? {
+                let mut state = ui_state.lock().await;
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Esc => {
+                        if state.execution_complete {
+                            break;
+                        }
+                    }
+                    KeyCode::Char('h') | KeyCode::F(1) => {
+                        state.toggle_help();
+                    }
+                    KeyCode::Right | KeyCode::Tab => {
+                        state.next_pod();
+                    }
+                    KeyCode::Left | KeyCode::BackTab => {
+                        state.previous_pod();
+                    }
+                    KeyCode::Up => {
+                        state.scroll_log_up();
+                    }
+                    KeyCode::Down => {
+                        state.scroll_log_down();
+                    }
+                    KeyCode::Enter => {
+                        if state.execution_complete {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Check if execution is complete
+        {
+            let state = ui_state.lock().await;
+            if state.execution_complete {
+                // Wait a bit more for user to review results
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Draw the template UI
+fn draw_template_ui(f: &mut Frame, state: &TemplateUIState) {
+    if state.show_help {
+        draw_help_popup(f, state);
+        return;
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Header
+            Constraint::Min(10),    // Main content
+            Constraint::Length(3),  // Footer
+        ])
+        .split(f.size());
+
+    // Header
+    draw_header(f, chunks[0], state);
+
+    // Main content area
+    let main_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .split(chunks[1]);
+
+    // Pod list
+    draw_pod_list(f, main_chunks[0], state);
+
+    // Pod details
+    draw_pod_details(f, main_chunks[1], state);
+
+    // Footer
+    draw_footer(f, chunks[2], state);
+}
+
+/// Draw header section
+fn draw_header(f: &mut Frame, area: Rect, state: &TemplateUIState) {
+    let title = format!(
+        "Wake Template Executor: {} (Execution ID: {})",
+        state.template.name,
+        &state.execution.execution_id[..8]
+    );
+
+    let header = Paragraph::new(title)
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .alignment(Alignment::Center)
+        .block(Block::default().borders(Borders::ALL));
+
+    f.render_widget(header, area);
+}
+
+/// Draw pod list
+fn draw_pod_list(f: &mut Frame, area: Rect, state: &TemplateUIState) {
+    let items: Vec<ListItem> = state
+        .pods
+        .iter()
+        .enumerate()
+        .map(|(i, pod)| {
+            let status_icon = get_status_icon(&pod.status);
+            let status_color = get_status_color(&pod.status);
+            let progress = format!(
+                "{}/{}", 
+                pod.current_command_index + 1, 
+                pod.total_commands
+            );
+
+            let content = vec![Line::from(vec![
+                Span::styled(status_icon, Style::default().fg(status_color)),
+                Span::raw(" "),
+                Span::styled(
+                    &pod.pod_info.name,
+                    Style::default().add_modifier(if i == state.selected_pod {
+                        Modifier::BOLD
+                    } else {
+                        Modifier::empty()
+                    }),
+                ),
+                Span::raw(" ("),
+                Span::styled(progress, Style::default().fg(Color::Gray)),
+                Span::raw(")"),
+            ])];
+
+            ListItem::new(content).style(if i == state.selected_pod {
+                Style::default().bg(Color::DarkGray)
+            } else {
+                Style::default()
+            })
+        })
+        .collect();
+
+    let mut list_state = ListState::default();
+    list_state.select(Some(state.selected_pod));
+
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title("Pods")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Blue)),
+        )
+        .highlight_style(Style::default().bg(Color::DarkGray));
+
+    f.render_stateful_widget(list, area, &mut list_state);
+}
+
+/// Draw pod details
+fn draw_pod_details(f: &mut Frame, area: Rect, state: &TemplateUIState) {
+    if let Some(pod) = state.pods.get(state.selected_pod) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(4), // Pod info
+                Constraint::Min(5),    // Command logs
+                Constraint::Length(3), // Progress
+            ])
+            .split(area);
+
+        // Pod info
+        draw_pod_info(f, chunks[0], pod);
+
+        // Command logs
+        draw_command_logs(f, chunks[1], pod, state.log_scroll);
+
+        // Progress
+        draw_progress(f, chunks[2], pod);
+    }
+}
+
+/// Draw pod information
+fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
+    let info_text = vec![
+        Line::from(vec![
+            Span::styled("Pod: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(format!("{}/{}", pod.pod_info.namespace, pod.pod_info.name)),
+        ]),
+        Line::from(vec![
+            Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                get_status_text(&pod.status),
+                Style::default().fg(get_status_color(&pod.status)),
+            ),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(info_text)
+        .block(Block::default().title("Pod Information").borders(Borders::ALL))
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(paragraph, area);
+}
+
+/// Draw command logs
+fn draw_command_logs(f: &mut Frame, area: Rect, pod: &PodExecutionState, scroll: usize) {
+    let mut log_lines = Vec::new();
+
+    for log in &pod.command_logs {
+        let timestamp = log.timestamp.format("%H:%M:%S");
+        let status_icon = match log.status {
+            CommandStatus::Running => "⏳",
+            CommandStatus::Completed => "✅",
+            CommandStatus::Failed => "❌",
+            CommandStatus::Waiting => "⏸️",
+        };
+
+        // Command description line
+        log_lines.push(Line::from(vec![
+            Span::styled(format!("[{}] ", timestamp), Style::default().fg(Color::Gray)),
+            Span::raw(status_icon),
+            Span::raw(" "),
+            Span::styled(&log.description, Style::default().add_modifier(Modifier::BOLD)),
+        ]));
+
+        // Command output if available
+        if let Some(ref output) = log.output {
+            for line in output.lines() {
+                log_lines.push(Line::from(vec![
+                    Span::raw("    "),
+                    Span::styled(line, Style::default().fg(Color::White)),
+                ]));
+            }
+        }
+
+        log_lines.push(Line::from("")); // Empty line for spacing
+    }
+
+    // Handle scrolling
+    let visible_lines = if scroll < log_lines.len() {
+        &log_lines[scroll..]
+    } else {
+        &[]
+    };
+
+    let paragraph = Paragraph::new(visible_lines.to_vec())
+        .block(
+            Block::default()
+                .title("Command Logs")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Green)),
+        )
+        .wrap(Wrap { trim: false });
+
+    f.render_widget(paragraph, area);
+
+    // Scrollbar
+    if log_lines.len() > area.height as usize {
+        let scrollbar = Scrollbar::default()
+            .orientation(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(None)
+            .end_symbol(None);
+        let mut scrollbar_state = ScrollbarState::new(log_lines.len().saturating_sub(area.height as usize))
+            .position(scroll);
+        f.render_stateful_widget(
+            scrollbar,
+            area.inner(&Margin {
+                vertical: 1,
+                horizontal: 0,
+            }),
+            &mut scrollbar_state,
+        );
+    }
+}
+
+/// Draw progress section
+fn draw_progress(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
+    let progress = pod.current_command_index as f64 / pod.total_commands as f64;
+    let progress_text = format!(
+        "{}/{} commands",
+        pod.current_command_index,
+        pod.total_commands
+    );
+
+    let gauge = Gauge::default()
+        .block(Block::default().title("Progress").borders(Borders::ALL))
+        .gauge_style(Style::default().fg(Color::Blue))
+        .percent((progress * 100.0) as u16)
+        .label(progress_text);
+
+    f.render_widget(gauge, area);
+}
+
+/// Draw footer
+fn draw_footer(f: &mut Frame, area: Rect, state: &TemplateUIState) {
+    let help_text = if state.execution_complete {
+        "Press 'q' or Enter to exit"
+    } else {
+        "Tab/Shift+Tab: Switch pods | ↑/↓: Scroll logs | h: Help | q: Quit"
+    };
+
+    let footer = Paragraph::new(help_text)
+        .style(Style::default().fg(Color::Gray))
+        .alignment(Alignment::Center)
+        .block(Block::default().borders(Borders::ALL));
+
+    f.render_widget(footer, area);
+}
+
+/// Draw help popup
+fn draw_help_popup(f: &mut Frame, state: &TemplateUIState) {
+    let popup_area = centered_rect(80, 70, f.size());
+    
+    f.render_widget(Clear, popup_area);
+
+    let help_text = vec![
+        Line::from(vec![Span::styled(
+            "Wake Template Executor - Help",
+            Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan),
+        )]),
+        Line::from(""),
+        Line::from("Keyboard Shortcuts:"),
+        Line::from("  Tab / Shift+Tab    - Switch between pods"),
+        Line::from("  ↑ / ↓             - Scroll command logs"),
+        Line::from("  h / F1            - Toggle this help"),
+        Line::from("  q / Esc           - Quit (when execution complete)"),
+        Line::from("  Enter             - Exit (when execution complete)"),
+        Line::from(""),
+        Line::from("Template Information:"),
+        Line::from(format!("  Name: {}", state.template.name)),
+        Line::from(format!("  Description: {}", state.template.description)),
+        Line::from(format!("  Commands: {}", state.template.commands.len())),
+        Line::from(format!("  Output Files: {}", state.template.output_files.len())),
+        Line::from(""),
+        Line::from("Status Icons:"),
+        Line::from("  🟡 Starting      🔵 Running"),
+        Line::from("  ⏳ Waiting       📥 Downloading"),
+        Line::from("  ✅ Completed     ❌ Failed"),
+        Line::from(""),
+        Line::from("Press 'h' again to close this help"),
+    ];
+
+    let help_paragraph = Paragraph::new(help_text)
+        .block(
+            Block::default()
+                .title("Help")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        )
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(help_paragraph, popup_area);
+}
+
+/// Helper function to create a centered rectangle
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
+
+/// Get status icon for display
+fn get_status_icon(status: &PodStatus) -> &'static str {
+    match status {
+        PodStatus::Starting => "🟡",
+        PodStatus::Running { .. } => "🔵",
+        PodStatus::WaitingLocal { .. } => "⏳",
+        PodStatus::DownloadingFiles { .. } => "📥",
+        PodStatus::Completed => "✅",
+        PodStatus::Failed { .. } => "❌",
+    }
+}
+
+/// Get status color for display
+fn get_status_color(status: &PodStatus) -> Color {
+    match status {
+        PodStatus::Starting => Color::Yellow,
+        PodStatus::Running { .. } => Color::Blue,
+        PodStatus::WaitingLocal { .. } => Color::Cyan,
+        PodStatus::DownloadingFiles { .. } => Color::Magenta,
+        PodStatus::Completed => Color::Green,
+        PodStatus::Failed { .. } => Color::Red,
+    }
+}
+
+/// Get status text for display
+fn get_status_text(status: &PodStatus) -> String {
+    match status {
+        PodStatus::Starting => "Starting".to_string(),
+        PodStatus::Running { command_index } => format!("Running command {}", command_index + 1),
+        PodStatus::WaitingLocal { duration, progress } => {
+            format!("Waiting {} ({:.1}%)", duration, progress * 100.0)
+        }
+        PodStatus::DownloadingFiles { current, total } => {
+            format!("Downloading files ({}/{})", current, total)
+        }
+        PodStatus::Completed => "Completed".to_string(),
+        PodStatus::Failed { error } => format!("Failed: {}", error),
+    }
+}
+
+/// Main Template UI controller
+pub struct TemplateUI {
+    template_executor: TemplateExecutor,
+}
+
+impl TemplateUI {
+    pub fn new(template_executor: TemplateExecutor) -> Self {
+        Self {
+            template_executor,
+        }
+    }
+    
+    pub async fn run_template(&mut self, template_name: &str, args: std::collections::HashMap<String, String>) -> Result<()> {
+        // This is a placeholder implementation
+        // In a real implementation, this would start template execution
+        // and manage the UI state
+        Ok(())
+    }
+}

@@ -1,0 +1,108 @@
+@startuml template_ui_architecture
+
+
+title Wake Template UI Architecture
+
+package "CLI Layer" {
+    [CLI Args Parser] as CLI
+    [Template Command Handler] as TCH
+}
+
+package "Template Engine" {
+    [Template Registry] as TR
+    [Template Executor] as TE
+    [Template Parser] as TP
+}
+
+package "UI Framework" {
+    [Terminal UI Manager] as TUI
+    [Event Handler] as EH
+    [State Manager] as SM
+    [Renderer] as R
+}
+
+package "UI Components" {
+    [Header Widget] as HW
+    [Pod List Widget] as PLW
+    [Log Panel Widget] as LPW
+    [Footer Widget] as FW
+    [Progress Bar] as PB
+}
+
+package "Kubernetes Layer" {
+    [Pod Selector] as PS
+    [Command Executor] as CE
+    [File Downloader] as FD
+}
+
+package "State Management" {
+    [UI State] as US
+    [Pod State] as PodS
+    [Command Log] as CL
+    [Update Channel] as UC
+}
+
+package "External" {
+    [Kubernetes API] as K8S
+    [Terminal] as T
+    [File System] as FS
+}
+
+' Connections
+CLI --> TCH
+TCH --> TE
+TE --> TR
+TE --> TP
+TE --> TUI
+
+TUI --> SM
+TUI --> EH
+TUI --> R
+
+SM --> US
+US --> PodS
+PodS --> CL
+
+R --> HW
+R --> PLW
+R --> LPW
+R --> FW
+PLW --> PB
+
+TE --> PS
+TE --> CE
+TE --> FD
+
+PS --> K8S
+CE --> K8S
+FD --> K8S
+FD --> FS
+
+EH --> T
+R --> T
+
+TE --> UC
+UC --> SM
+
+note right of TUI
+    Ratatui-based TUI
+    - 10 FPS rendering
+    - Mouse + keyboard input
+    - Responsive layout
+end note
+
+note right of TE
+    Parallel execution
+    - Futures for each pod
+    - UI progress updates
+    - Error isolation
+end note
+
+note bottom of UC
+    mpsc::channel
+    - Non-blocking updates
+    - Real-time progress
+    - Command output
+end note
+
+@enduml
