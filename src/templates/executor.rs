@@ -266,12 +266,23 @@ impl TemplateExecutor {
                         Err(e) => println!("❌ Failed pod {}/{}: {}", pod.namespace, pod.name, e),
                     }
 
-                    result
+                    // Return pod result even if it failed, wrapping errors in a failed result
+                    match result {
+                        Ok(pod_result) => pod_result,
+                        Err(_) => PodExecutionResult {
+                            pod_name: pod.name.clone(),
+                            pod_namespace: pod.namespace.clone(),
+                            command_results: Vec::new(),
+                            downloaded_files: Vec::new(),
+                            success: false,
+                        }
+                    }
                 }
             })
             .collect();
 
-        let pod_results = try_join_all(pod_futures).await?;
+        // Use join_all instead of try_join_all to allow individual pod failures
+        let pod_results = futures::future::join_all(pod_futures).await;
 
         // Print summary
         let successful = pod_results.iter().filter(|r| r.success).count();
@@ -324,7 +335,7 @@ impl TemplateExecutor {
                         .execute_template_on_pod_with_ui(&template, &execution, &pod, index, ui_tx.clone())
                         .await;
 
-                    // Send completion status
+                    // Send completion status - always send status regardless of success/failure
                     let status = match &result {
                         Ok(_) => PodStatus::Completed,
                         Err(e) => PodStatus::Failed {
@@ -339,12 +350,26 @@ impl TemplateExecutor {
                         })
                         .await;
 
-                    result
+                    // Return a Result that wraps the pod result, allowing individual failures
+                    match result {
+                        Ok(pod_result) => pod_result,
+                        Err(e) => {
+                            // Create a failed pod result instead of propagating the error
+                            PodExecutionResult {
+                                pod_name: pod.name.clone(),
+                                pod_namespace: pod.namespace.clone(),
+                                command_results: Vec::new(),
+                                downloaded_files: Vec::new(),
+                                success: false,
+                            }
+                        }
+                    }
                 }
             })
             .collect();
 
-        let pod_results = try_join_all(pod_futures).await?;
+        // Use join_all instead of try_join_all to allow individual pod failures
+        let pod_results = futures::future::join_all(pod_futures).await;
 
         // Send completion signal to UI
         let _ = ui_tx.send(UIUpdate::ExecutionCompleted).await;
@@ -890,14 +915,10 @@ impl TemplateExecutor {
 
         let mut downloaded_files = Vec::new();
 
-        // Create pod-specific output directory
-        let pod_output_dir = execution
-            .output_dir
-            .join(&pod.namespace)
-            .join(&pod.name);
-        std::fs::create_dir_all(&pod_output_dir)?;
+        // Create flat output directory (no nested pod directories)
+        std::fs::create_dir_all(&execution.output_dir)?;
 
-        // Download each file
+        // Download each file with flattened naming: pod_name_file_name
         for relative_file in relative_files {
             // Convert relative path to absolute path
             let absolute_path = if search_dir == "/" {
@@ -911,7 +932,9 @@ impl TemplateExecutor {
                 .and_then(|name| name.to_str())
                 .unwrap_or("unknown_file");
 
-            let local_path = pod_output_dir.join(file_name);
+            // Use flattened naming: pod_name_file_name
+            let flattened_name = format!("{}_{}", pod.name, file_name);
+            let local_path = execution.output_dir.join(flattened_name);
 
             // Use kubectl cp to download the file
             let mut cp_cmd = AsyncCommand::new("kubectl");
