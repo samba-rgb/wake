@@ -7,7 +7,8 @@ const BRIGHT_BLUE: Color = Color::Rgb(100, 149, 237);      // Cornflower blue fo
 const ELECTRIC_PURPLE: Color = Color::Rgb(138, 43, 226);   // Purple for special states
 const LIGHT_GRAY: Color = Color::Rgb(192, 192, 192);       // Light gray for text
 const MEDIUM_GRAY: Color = Color::Rgb(128, 128, 128);      // Medium gray for secondary text
-const DARK_BORDER: Color = Color::Rgb(80, 80, 80);         // Darker gray for borders
+const BRIGHT_WHITE: Color = Color::White;                  // Bright white for main borders
+const BRIGHT_GREEN: Color = Color::Green;                  // Bright green for success borders
 const SELECTION_BG: Color = Color::Rgb(64, 64, 64);        // Selection background
 const ACCENT_YELLOW: Color = Color::Rgb(255, 255, 0);      // Bright yellow for highlights
 
@@ -407,7 +408,7 @@ fn draw_header(f: &mut Frame, area: Rect, state: &TemplateUIState) {
     let header = Paragraph::new(title)
         .style(Style::default().fg(BRIGHT_CYAN).bg(DARK_BG).add_modifier(Modifier::BOLD))
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(DARK_BORDER)));
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(BRIGHT_WHITE)));
 
     f.render_widget(header, area);
 }
@@ -461,7 +462,7 @@ fn draw_pod_list(f: &mut Frame, area: Rect, state: &TemplateUIState) {
                 .title("Pods")
                 .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(DARK_BORDER))
+                .border_style(Style::default().fg(BRIGHT_WHITE))
                 .style(Style::default().bg(DARK_BG)),
         )
         .highlight_style(Style::default().bg(SELECTION_BG));
@@ -610,7 +611,7 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
         .title("Pod Information")
         .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(DARK_BORDER))
+        .border_style(Style::default().fg(BRIGHT_WHITE))
         .style(Style::default().bg(DARK_BG));
     f.render_widget(border_block, area);
 }
@@ -681,7 +682,7 @@ fn draw_command_logs(f: &mut Frame, area: Rect, pod: &PodExecutionState, scroll:
                 .title("Command Logs")
                 .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(DARK_BORDER))
+                .border_style(Style::default().fg(BRIGHT_WHITE))
                 .style(Style::default().bg(DARK_BG)),
         )
         .wrap(Wrap { trim: false });
@@ -747,7 +748,7 @@ fn draw_progress(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
             .title("Progress")
             .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(DARK_BORDER))
+            .border_style(Style::default().fg(BRIGHT_WHITE))
             .style(Style::default().bg(DARK_BG)))
         .gauge_style(Style::default().fg(match &pod.status {
             PodStatus::Completed => SOFT_GREEN,
@@ -773,7 +774,7 @@ fn draw_footer(f: &mut Frame, area: Rect, state: &TemplateUIState) {
     let footer = Paragraph::new(help_text)
         .style(Style::default().fg(MEDIUM_GRAY).bg(DARK_BG))
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(DARK_BORDER)));
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(BRIGHT_WHITE)));
 
     f.render_widget(footer, area);
 }
@@ -858,7 +859,7 @@ fn draw_help_popup(f: &mut Frame, state: &TemplateUIState) {
                 .title("Help")
                 .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(DARK_BORDER))
+                .border_style(Style::default().fg(BRIGHT_WHITE))
                 .style(Style::default().bg(DARK_BG)),
         )
         .wrap(Wrap { trim: true });
@@ -968,7 +969,7 @@ fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
                 .title("Execution Complete")
                 .title_style(Style::default().fg(SOFT_GREEN).add_modifier(Modifier::BOLD))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(DARK_BORDER))
+                .border_style(Style::default().fg(BRIGHT_WHITE))
                 .style(Style::default().bg(DARK_BG)),
         )
         .alignment(Alignment::Left)
