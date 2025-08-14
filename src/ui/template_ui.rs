@@ -1,3 +1,15 @@
+// Dark mode color scheme constants
+const DARK_BG: Color = Color::Black;
+const DARK_TEXT: Color = Color::Gray;
+const DARK_ACCENT: Color = Color::DarkGray;
+const DARK_SUCCESS: Color = Color::Rgb(0, 100, 0);      // Dark green
+const DARK_ERROR: Color = Color::Rgb(100, 0, 0);        // Dark red
+const DARK_WARNING: Color = Color::Rgb(100, 100, 0);    // Dark yellow
+const DARK_INFO: Color = Color::Rgb(0, 0, 100);         // Dark blue
+const DARK_PROGRESS: Color = Color::Rgb(80, 80, 80);    // Dark gray
+const DARK_BORDER: Color = Color::Rgb(60, 60, 60);      // Darker gray for borders
+const DARK_HIGHLIGHT: Color = Color::Rgb(40, 40, 40);   // Very dark gray for selection
+
 use crate::templates::executor::{UIUpdate, PodStatus, CommandStatus, CommandLog, PodExecutionState, TemplateExecutor};
 use crate::templates::*;
 use crate::k8s::pod::PodInfo;
@@ -204,6 +216,9 @@ pub async fn run_template_ui(
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+    
+    // Force black background
+    terminal.clear()?;
 
     let app_result = run_template_app(&mut terminal, ui_state, &mut ui_rx).await;
 
@@ -337,6 +352,10 @@ async fn run_template_app<B: Backend>(
 
 /// Draw the template UI
 fn draw_template_ui(f: &mut Frame, state: &TemplateUIState) {
+    // Fill entire background with black
+    let bg_block = Block::default().style(Style::default().bg(Color::Black));
+    f.render_widget(bg_block, f.size());
+
     if state.show_help {
         draw_help_popup(f, state);
         return;
@@ -385,9 +404,9 @@ fn draw_header(f: &mut Frame, area: Rect, state: &TemplateUIState) {
     );
 
     let header = Paragraph::new(title)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(Style::default().fg(Color::Gray).bg(Color::Black).add_modifier(Modifier::BOLD))
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL));
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)));
 
     f.render_widget(header, area);
 }
@@ -412,21 +431,21 @@ fn draw_pod_list(f: &mut Frame, area: Rect, state: &TemplateUIState) {
                 Span::raw(" "),
                 Span::styled(
                     &pod.pod_info.name,
-                    Style::default().add_modifier(if i == state.selected_pod {
+                    Style::default().fg(Color::Gray).add_modifier(if i == state.selected_pod {
                         Modifier::BOLD
                     } else {
                         Modifier::empty()
                     }),
                 ),
                 Span::raw(" ("),
-                Span::styled(progress, Style::default().fg(Color::Gray)),
+                Span::styled(progress, Style::default().fg(Color::DarkGray)),
                 Span::raw(")"),
             ])];
 
             ListItem::new(content).style(if i == state.selected_pod {
-                Style::default().bg(Color::DarkGray)
+                Style::default().bg(Color::Rgb(40, 40, 40))
             } else {
-                Style::default()
+                Style::default().bg(Color::Black)
             })
         })
         .collect();
@@ -435,13 +454,15 @@ fn draw_pod_list(f: &mut Frame, area: Rect, state: &TemplateUIState) {
     list_state.select(Some(state.selected_pod));
 
     let list = List::new(items)
+        .style(Style::default().bg(Color::Black))
         .block(
             Block::default()
                 .title("Pods")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Blue)),
+                .border_style(Style::default().fg(Color::DarkGray))
+                .style(Style::default().bg(Color::Black)),
         )
-        .highlight_style(Style::default().bg(Color::DarkGray));
+        .highlight_style(Style::default().bg(Color::Rgb(40, 40, 40)));
 
     f.render_stateful_widget(list, area, &mut list_state);
 }
@@ -557,14 +578,14 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
         Span::styled("Pod: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
         Span::styled(displayed_pod_name, Style::default().fg(Color::White)),
     ]);
-    let pod_paragraph = Paragraph::new(pod_line);
+    let pod_paragraph = Paragraph::new(pod_line).style(Style::default().bg(Color::Black));
     f.render_widget(pod_paragraph, row1_chunks[0]);
 
     let cpu_line = Line::from(vec![
         Span::styled("CPU: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
         Span::styled(cpu_text, Style::default().fg(cpu_color)),
     ]);
-    let cpu_paragraph = Paragraph::new(cpu_line).alignment(Alignment::Right);
+    let cpu_paragraph = Paragraph::new(cpu_line).alignment(Alignment::Right).style(Style::default().bg(Color::Black));
     f.render_widget(cpu_paragraph, row1_chunks[1]);
 
     // Row 2: Status and Memory
@@ -572,21 +593,22 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
         Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
         Span::styled(displayed_status, Style::default().fg(status_color)),
     ]);
-    let status_paragraph = Paragraph::new(status_line);
+    let status_paragraph = Paragraph::new(status_line).style(Style::default().bg(Color::Black));
     f.render_widget(status_paragraph, row2_chunks[0]);
 
     let memory_line = Line::from(vec![
         Span::styled("Memory: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
         Span::styled(memory_text, Style::default().fg(memory_color)),
     ]);
-    let memory_paragraph = Paragraph::new(memory_line).alignment(Alignment::Right);
+    let memory_paragraph = Paragraph::new(memory_line).alignment(Alignment::Right).style(Style::default().bg(Color::Black));
     f.render_widget(memory_paragraph, row2_chunks[1]);
 
     // Draw the border around the entire pod info area
     let border_block = Block::default()
         .title("Pod Information")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Blue));
+        .border_style(Style::default().fg(Color::DarkGray))
+        .style(Style::default().bg(Color::Black));
     f.render_widget(border_block, area);
 }
 
@@ -650,11 +672,13 @@ fn draw_command_logs(f: &mut Frame, area: Rect, pod: &PodExecutionState, scroll:
     };
 
     let paragraph = Paragraph::new(visible_lines.to_vec())
+        .style(Style::default().bg(Color::Black))
         .block(
             Block::default()
                 .title("Command Logs")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Green)),
+                .border_style(Style::default().fg(Color::DarkGray))
+                .style(Style::default().bg(Color::Black)),
         )
         .wrap(Wrap { trim: false });
 
@@ -715,14 +739,18 @@ fn draw_progress(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
     };
 
     let gauge = Gauge::default()
-        .block(Block::default().title("Progress").borders(Borders::ALL))
+        .block(Block::default()
+            .title("Progress")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::DarkGray))
+            .style(Style::default().bg(Color::Black)))
         .gauge_style(Style::default().fg(match &pod.status {
             PodStatus::Completed => Color::Green,
             PodStatus::Failed { .. } => Color::Red,
             PodStatus::Running { .. } => Color::Blue,
             PodStatus::DownloadingFiles { .. } => Color::Magenta,
             _ => Color::Yellow,
-        }))
+        }).bg(Color::Black))
         .percent((progress * 100.0) as u16)
         .label(progress_text);
 
@@ -738,9 +766,9 @@ fn draw_footer(f: &mut Frame, area: Rect, state: &TemplateUIState) {
     };
 
     let footer = Paragraph::new(help_text)
-        .style(Style::default().fg(Color::Gray))
+        .style(Style::default().fg(Color::Gray).bg(Color::Black))
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL));
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)));
 
     f.render_widget(footer, area);
 }
@@ -779,11 +807,13 @@ fn draw_help_popup(f: &mut Frame, state: &TemplateUIState) {
     ];
 
     let help_paragraph = Paragraph::new(help_text)
+        .style(Style::default().bg(Color::Black))
         .block(
             Block::default()
                 .title("Help")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(Color::DarkGray))
+                .style(Style::default().bg(Color::Black)),
         )
         .wrap(Wrap { trim: true });
 
