@@ -11,6 +11,7 @@ const LIME_GREEN: Color = Color::Rgb(50, 205, 50);          // Lime green for bo
 const GOLD: Color = Color::Rgb(255, 215, 0);                // Gold for highlights
 const SELECTION_BG: Color = Color::Rgb(25, 25, 112);        // Midnight blue for selection
 const CRIMSON: Color = Color::Rgb(220, 20, 60);             // Crimson for errors
+const HIGH_CONTRAST_WHITE: Color = Color::Rgb(255, 255, 255); // High contrast white for light terminals
 
 use crate::templates::executor::{UIUpdate, PodStatus, CommandStatus, CommandLog, PodExecutionState, TemplateExecutor};
 use crate::templates::*;
@@ -903,7 +904,7 @@ fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
         Line::from(""),
         Line::from(vec![
             Span::styled("Template: ", Style::default().add_modifier(Modifier::BOLD).fg(NEON_CYAN)),
-            Span::styled(&state.template.name, Style::default().fg(BRIGHT_WHITE)),
+            Span::styled(&state.template.name, Style::default().fg(HIGH_CONTRAST_WHITE)),
         ]),
         Line::from(vec![
             Span::styled("Execution ID: ", Style::default().add_modifier(Modifier::BOLD).fg(NEON_CYAN)),
@@ -912,24 +913,24 @@ fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
         Line::from(""),
         Line::from(vec![Span::styled("Execution Summary:", Style::default().add_modifier(Modifier::BOLD).fg(NEON_CYAN))]),
         Line::from(vec![
-            Span::raw("  📊 Total Pods: "),
-            Span::styled(total_pods.to_string(), Style::default().fg(BRIGHT_WHITE)),
+            Span::styled("  📊 Total Pods: ", Style::default().fg(HIGH_CONTRAST_WHITE)),
+            Span::styled(total_pods.to_string(), Style::default().fg(HIGH_CONTRAST_WHITE).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
-            Span::raw("  ✅ Successful: "),
-            Span::styled(successful_pods.to_string(), Style::default().fg(VIBRANT_GREEN)),
+            Span::styled("  ✅ Successful: ", Style::default().fg(HIGH_CONTRAST_WHITE)),
+            Span::styled(successful_pods.to_string(), Style::default().fg(VIBRANT_GREEN).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
-            Span::raw("  ❌ Failed: "),
-            Span::styled(failed_pods.to_string(), Style::default().fg(if failed_pods > 0 { CRIMSON } else { VIBRANT_GREEN })),
+            Span::styled("  ❌ Failed: ", Style::default().fg(HIGH_CONTRAST_WHITE)),
+            Span::styled(failed_pods.to_string(), Style::default().fg(if failed_pods > 0 { CRIMSON } else { VIBRANT_GREEN }).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
-            Span::raw("  📁 Files Downloaded: "),
-            Span::styled(total_files.to_string(), Style::default().fg(NEON_CYAN)),
+            Span::styled("  📁 Files Downloaded: ", Style::default().fg(HIGH_CONTRAST_WHITE)),
+            Span::styled(total_files.to_string(), Style::default().fg(NEON_CYAN).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
-            Span::raw("  ⏱️  Total Time: "),
-            Span::styled(format!("{}m {}s", minutes, seconds), Style::default().fg(GOLD)),
+            Span::styled("  ⏱️  Total Time: ", Style::default().fg(HIGH_CONTRAST_WHITE)),
+            Span::styled(format!("{}m {}s", minutes, seconds), Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -940,31 +941,31 @@ fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
         if failed_pods > 0 {
             Line::from(vec![
                 Span::styled("⚠️  Warning: ", Style::default().fg(ELECTRIC_ORANGE).add_modifier(Modifier::BOLD)),
-                Span::styled("Some pods failed. Check the logs for details.", Style::default().fg(BRIGHT_WHITE)),
+                Span::styled("Some pods failed. Check the logs for details.", Style::default().fg(HIGH_CONTRAST_WHITE)),
             ])
         } else {
             Line::from(vec![
                 Span::styled("🎯 Success! ", Style::default().fg(VIBRANT_GREEN).add_modifier(Modifier::BOLD)),
-                Span::styled("All pods completed successfully.", Style::default().fg(BRIGHT_WHITE)),
+                Span::styled("All pods completed successfully.", Style::default().fg(HIGH_CONTRAST_WHITE)),
             ])
         },
         Line::from(""),
         Line::from(vec![Span::styled("Available Actions:", Style::default().add_modifier(Modifier::BOLD).fg(NEON_CYAN))]),
         Line::from(vec![
-            Span::styled("  [Enter] or [q]", Style::default().fg(GOLD)),
-            Span::styled(" - Exit", Style::default().fg(BRIGHT_WHITE)),
+            Span::styled("  [Enter] or [q]", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+            Span::styled(" - Exit", Style::default().fg(HIGH_CONTRAST_WHITE)),
         ]),
         Line::from(vec![
-            Span::styled("  [v]", Style::default().fg(GOLD)),
-            Span::styled(" - View detailed logs", Style::default().fg(BRIGHT_WHITE)),
+            Span::styled("  [v]", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+            Span::styled(" - View detailed logs", Style::default().fg(HIGH_CONTRAST_WHITE)),
         ]),
         Line::from(vec![
-            Span::styled("  [o]", Style::default().fg(GOLD)),
-            Span::styled(" - Open output directory", Style::default().fg(BRIGHT_WHITE)),
+            Span::styled("  [o]", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+            Span::styled(" - Open output directory", Style::default().fg(HIGH_CONTRAST_WHITE)),
         ]),
         Line::from(vec![
-            Span::styled("  [r]", Style::default().fg(GOLD)),
-            Span::styled(" - Run template again", Style::default().fg(BRIGHT_WHITE)),
+            Span::styled("  [r]", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+            Span::styled(" - Run template again", Style::default().fg(HIGH_CONTRAST_WHITE)),
         ]),
     ];
 
