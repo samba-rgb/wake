@@ -428,16 +428,19 @@ fn draw_pod_list(f: &mut Frame, area: Rect, state: &TemplateUIState) {
                 pod.total_commands
             );
 
+            // Highlight the selected pod name with bright colors
+            let pod_name_style = if i == state.selected_pod {
+                Style::default().fg(NEON_CYAN).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(SILVER)
+            };
+
             let content = vec![Line::from(vec![
                 Span::styled(status_icon, Style::default().fg(status_color)),
                 Span::raw(" "),
                 Span::styled(
                     &pod.pod_info.name,
-                    Style::default().fg(SILVER).add_modifier(if i == state.selected_pod {
-                        Modifier::BOLD
-                    } else {
-                        Modifier::empty()
-                    }),
+                    pod_name_style,
                 ),
                 Span::raw(" ("),
                 Span::styled(progress, Style::default().fg(SILVER)),
@@ -871,6 +874,9 @@ fn draw_help_popup(f: &mut Frame, state: &TemplateUIState) {
 fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
     let popup_area = centered_rect(70, 60, f.size());
     
+    // Force black background for the entire popup area
+    let bg_clear = Block::default().style(Style::default().bg(DARK_BG));
+    f.render_widget(bg_clear, popup_area);
     f.render_widget(Clear, popup_area);
 
     // Calculate execution summary
