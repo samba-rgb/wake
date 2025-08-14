@@ -1,14 +1,15 @@
-// Dark mode color scheme constants
+// Enhanced color scheme constants for better visual experience
 const DARK_BG: Color = Color::Black;
-const DARK_TEXT: Color = Color::Gray;
-const DARK_ACCENT: Color = Color::DarkGray;
-const DARK_SUCCESS: Color = Color::Rgb(0, 100, 0);      // Dark green
-const DARK_ERROR: Color = Color::Rgb(100, 0, 0);        // Dark red
-const DARK_WARNING: Color = Color::Rgb(100, 100, 0);    // Dark yellow
-const DARK_INFO: Color = Color::Rgb(0, 0, 100);         // Dark blue
-const DARK_PROGRESS: Color = Color::Rgb(80, 80, 80);    // Dark gray
-const DARK_BORDER: Color = Color::Rgb(60, 60, 60);      // Darker gray for borders
-const DARK_HIGHLIGHT: Color = Color::Rgb(40, 40, 40);   // Very dark gray for selection
+const BRIGHT_CYAN: Color = Color::Rgb(0, 255, 255);        // Bright cyan for headers
+const SOFT_GREEN: Color = Color::Rgb(0, 200, 100);         // Soft green for success
+const WARM_ORANGE: Color = Color::Rgb(255, 165, 0);        // Orange for warnings
+const BRIGHT_BLUE: Color = Color::Rgb(100, 149, 237);      // Cornflower blue for info
+const ELECTRIC_PURPLE: Color = Color::Rgb(138, 43, 226);   // Purple for special states
+const LIGHT_GRAY: Color = Color::Rgb(192, 192, 192);       // Light gray for text
+const MEDIUM_GRAY: Color = Color::Rgb(128, 128, 128);      // Medium gray for secondary text
+const DARK_BORDER: Color = Color::Rgb(80, 80, 80);         // Darker gray for borders
+const SELECTION_BG: Color = Color::Rgb(64, 64, 64);        // Selection background
+const ACCENT_YELLOW: Color = Color::Rgb(255, 255, 0);      // Bright yellow for highlights
 
 use crate::templates::executor::{UIUpdate, PodStatus, CommandStatus, CommandLog, PodExecutionState, TemplateExecutor};
 use crate::templates::*;
@@ -404,9 +405,9 @@ fn draw_header(f: &mut Frame, area: Rect, state: &TemplateUIState) {
     );
 
     let header = Paragraph::new(title)
-        .style(Style::default().fg(Color::Gray).bg(Color::Black).add_modifier(Modifier::BOLD))
+        .style(Style::default().fg(BRIGHT_CYAN).bg(DARK_BG).add_modifier(Modifier::BOLD))
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)));
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(DARK_BORDER)));
 
     f.render_widget(header, area);
 }
@@ -431,21 +432,21 @@ fn draw_pod_list(f: &mut Frame, area: Rect, state: &TemplateUIState) {
                 Span::raw(" "),
                 Span::styled(
                     &pod.pod_info.name,
-                    Style::default().fg(Color::Gray).add_modifier(if i == state.selected_pod {
+                    Style::default().fg(LIGHT_GRAY).add_modifier(if i == state.selected_pod {
                         Modifier::BOLD
                     } else {
                         Modifier::empty()
                     }),
                 ),
                 Span::raw(" ("),
-                Span::styled(progress, Style::default().fg(Color::DarkGray)),
+                Span::styled(progress, Style::default().fg(MEDIUM_GRAY)),
                 Span::raw(")"),
             ])];
 
             ListItem::new(content).style(if i == state.selected_pod {
-                Style::default().bg(Color::Rgb(40, 40, 40))
+                Style::default().bg(SELECTION_BG)
             } else {
-                Style::default().bg(Color::Black)
+                Style::default().bg(DARK_BG)
             })
         })
         .collect();
@@ -454,15 +455,16 @@ fn draw_pod_list(f: &mut Frame, area: Rect, state: &TemplateUIState) {
     list_state.select(Some(state.selected_pod));
 
     let list = List::new(items)
-        .style(Style::default().bg(Color::Black))
+        .style(Style::default().bg(DARK_BG))
         .block(
             Block::default()
                 .title("Pods")
+                .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::DarkGray))
-                .style(Style::default().bg(Color::Black)),
+                .border_style(Style::default().fg(DARK_BORDER))
+                .style(Style::default().bg(DARK_BG)),
         )
-        .highlight_style(Style::default().bg(Color::Rgb(40, 40, 40)));
+        .highlight_style(Style::default().bg(SELECTION_BG));
 
     f.render_stateful_widget(list, area, &mut list_state);
 }
@@ -514,15 +516,15 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
     };
     let cpu_color = pod.pod_info.cpu_usage_percent.map(|cpu| {
         if cpu > 80.0 { Color::Red }
-        else if cpu > 60.0 { Color::Yellow }
-        else { Color::Green }
-    }).unwrap_or(Color::Gray);
+        else if cpu > 60.0 { WARM_ORANGE }
+        else { SOFT_GREEN }
+    }).unwrap_or(MEDIUM_GRAY);
 
     // Format memory information
     let (memory_text, memory_color) = if let Some(memory_percent) = pod.pod_info.memory_usage_percent {
         let memory_color = if memory_percent > 80.0 { Color::Red }
-        else if memory_percent > 60.0 { Color::Yellow }
-        else { Color::Green };
+        else if memory_percent > 60.0 { WARM_ORANGE }
+        else { SOFT_GREEN };
 
         let memory_text = if let (Some(usage_bytes), Some(limit_bytes)) = 
             (pod.pod_info.memory_usage_bytes, pod.pod_info.memory_limit_bytes) {
@@ -536,9 +538,9 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
         };
         (memory_text, memory_color)
     } else if let Some(usage_bytes) = pod.pod_info.memory_usage_bytes {
-        (format_bytes(usage_bytes), Color::White)
+        (format_bytes(usage_bytes), LIGHT_GRAY)
     } else {
-        ("N/A".to_string(), Color::Gray)
+        ("N/A".to_string(), MEDIUM_GRAY)
     };
 
     // Create horizontal layout for each row (left and right columns)
@@ -575,40 +577,41 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
 
     // Row 1: Pod name and CPU
     let pod_line = Line::from(vec![
-        Span::styled("Pod: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-        Span::styled(displayed_pod_name, Style::default().fg(Color::White)),
+        Span::styled("Pod: ", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN)),
+        Span::styled(displayed_pod_name, Style::default().fg(LIGHT_GRAY)),
     ]);
-    let pod_paragraph = Paragraph::new(pod_line).style(Style::default().bg(Color::Black));
+    let pod_paragraph = Paragraph::new(pod_line).style(Style::default().bg(DARK_BG));
     f.render_widget(pod_paragraph, row1_chunks[0]);
 
     let cpu_line = Line::from(vec![
-        Span::styled("CPU: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+        Span::styled("CPU: ", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN)),
         Span::styled(cpu_text, Style::default().fg(cpu_color)),
     ]);
-    let cpu_paragraph = Paragraph::new(cpu_line).alignment(Alignment::Right).style(Style::default().bg(Color::Black));
+    let cpu_paragraph = Paragraph::new(cpu_line).alignment(Alignment::Right).style(Style::default().bg(DARK_BG));
     f.render_widget(cpu_paragraph, row1_chunks[1]);
 
     // Row 2: Status and Memory
     let status_line = Line::from(vec![
-        Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+        Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN)),
         Span::styled(displayed_status, Style::default().fg(status_color)),
     ]);
-    let status_paragraph = Paragraph::new(status_line).style(Style::default().bg(Color::Black));
+    let status_paragraph = Paragraph::new(status_line).style(Style::default().bg(DARK_BG));
     f.render_widget(status_paragraph, row2_chunks[0]);
 
     let memory_line = Line::from(vec![
-        Span::styled("Memory: ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
+        Span::styled("Memory: ", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN)),
         Span::styled(memory_text, Style::default().fg(memory_color)),
     ]);
-    let memory_paragraph = Paragraph::new(memory_line).alignment(Alignment::Right).style(Style::default().bg(Color::Black));
+    let memory_paragraph = Paragraph::new(memory_line).alignment(Alignment::Right).style(Style::default().bg(DARK_BG));
     f.render_widget(memory_paragraph, row2_chunks[1]);
 
     // Draw the border around the entire pod info area
     let border_block = Block::default()
         .title("Pod Information")
+        .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray))
-        .style(Style::default().bg(Color::Black));
+        .border_style(Style::default().fg(DARK_BORDER))
+        .style(Style::default().bg(DARK_BG));
     f.render_widget(border_block, area);
 }
 
@@ -643,12 +646,12 @@ fn draw_command_logs(f: &mut Frame, area: Rect, pod: &PodExecutionState, scroll:
             CommandStatus::Waiting => "⏸️",
         };
 
-        // Command description line
+        // Command description line with enhanced colors
         log_lines.push(Line::from(vec![
-            Span::styled(format!("[{}] ", timestamp), Style::default().fg(Color::Gray)),
+            Span::styled(format!("[{}] ", timestamp), Style::default().fg(MEDIUM_GRAY)),
             Span::raw(status_icon),
             Span::raw(" "),
-            Span::styled(&log.description, Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(&log.description, Style::default().add_modifier(Modifier::BOLD).fg(LIGHT_GRAY)),
         ]));
 
         // Command output if available
@@ -656,7 +659,7 @@ fn draw_command_logs(f: &mut Frame, area: Rect, pod: &PodExecutionState, scroll:
             for line in output.lines() {
                 log_lines.push(Line::from(vec![
                     Span::raw("    "),
-                    Span::styled(line, Style::default().fg(Color::White)),
+                    Span::styled(line, Style::default().fg(LIGHT_GRAY)),
                 ]));
             }
         }
@@ -672,13 +675,14 @@ fn draw_command_logs(f: &mut Frame, area: Rect, pod: &PodExecutionState, scroll:
     };
 
     let paragraph = Paragraph::new(visible_lines.to_vec())
-        .style(Style::default().bg(Color::Black))
+        .style(Style::default().bg(DARK_BG))
         .block(
             Block::default()
                 .title("Command Logs")
+                .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::DarkGray))
-                .style(Style::default().bg(Color::Black)),
+                .border_style(Style::default().fg(DARK_BORDER))
+                .style(Style::default().bg(DARK_BG)),
         )
         .wrap(Wrap { trim: false });
 
@@ -741,16 +745,17 @@ fn draw_progress(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
     let gauge = Gauge::default()
         .block(Block::default()
             .title("Progress")
+            .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray))
-            .style(Style::default().bg(Color::Black)))
+            .border_style(Style::default().fg(DARK_BORDER))
+            .style(Style::default().bg(DARK_BG)))
         .gauge_style(Style::default().fg(match &pod.status {
-            PodStatus::Completed => Color::Green,
+            PodStatus::Completed => SOFT_GREEN,
             PodStatus::Failed { .. } => Color::Red,
-            PodStatus::Running { .. } => Color::Blue,
-            PodStatus::DownloadingFiles { .. } => Color::Magenta,
-            _ => Color::Yellow,
-        }).bg(Color::Black))
+            PodStatus::Running { .. } => BRIGHT_BLUE,
+            PodStatus::DownloadingFiles { .. } => ELECTRIC_PURPLE,
+            _ => ACCENT_YELLOW,
+        }).bg(DARK_BG))
         .percent((progress * 100.0) as u16)
         .label(progress_text);
 
@@ -766,9 +771,9 @@ fn draw_footer(f: &mut Frame, area: Rect, state: &TemplateUIState) {
     };
 
     let footer = Paragraph::new(help_text)
-        .style(Style::default().fg(Color::Gray).bg(Color::Black))
+        .style(Style::default().fg(MEDIUM_GRAY).bg(DARK_BG))
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)));
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(DARK_BORDER)));
 
     f.render_widget(footer, area);
 }
@@ -782,38 +787,79 @@ fn draw_help_popup(f: &mut Frame, state: &TemplateUIState) {
     let help_text = vec![
         Line::from(vec![Span::styled(
             "Wake Template Executor - Help",
-            Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan),
+            Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN),
         )]),
         Line::from(""),
-        Line::from("Keyboard Shortcuts:"),
-        Line::from("  Tab / Shift+Tab    - Switch between pods"),
-        Line::from("  ↑ / ↓             - Scroll command logs"),
-        Line::from("  h / F1            - Toggle this help"),
-        Line::from("  q / Esc           - Quit (when execution complete)"),
-        Line::from("  Enter             - Exit (when execution complete)"),
+        Line::from(vec![Span::styled("Keyboard Shortcuts:", Style::default().add_modifier(Modifier::BOLD).fg(LIGHT_GRAY))]),
+        Line::from(vec![
+            Span::styled("  Tab / Shift+Tab", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled("    - Switch between pods", Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  ↑ / ↓", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled("             - Scroll command logs", Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  h / F1", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled("            - Toggle this help", Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  q / Esc", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled("           - Quit (when execution complete)", Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Enter", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled("             - Exit (when execution complete)", Style::default().fg(LIGHT_GRAY)),
+        ]),
         Line::from(""),
-        Line::from("Template Information:"),
-        Line::from(format!("  Name: {}", state.template.name)),
-        Line::from(format!("  Description: {}", state.template.description)),
-        Line::from(format!("  Commands: {}", state.template.commands.len())),
-        Line::from(format!("  Output Files: {}", state.template.output_files.len())),
+        Line::from(vec![Span::styled("Template Information:", Style::default().add_modifier(Modifier::BOLD).fg(LIGHT_GRAY))]),
+        Line::from(vec![
+            Span::styled("  Name: ", Style::default().fg(BRIGHT_CYAN)),
+            Span::styled(&state.template.name, Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Description: ", Style::default().fg(BRIGHT_CYAN)),
+            Span::styled(&state.template.description, Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Commands: ", Style::default().fg(BRIGHT_CYAN)),
+            Span::styled(state.template.commands.len().to_string(), Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Output Files: ", Style::default().fg(BRIGHT_CYAN)),
+            Span::styled(state.template.output_files.len().to_string(), Style::default().fg(LIGHT_GRAY)),
+        ]),
         Line::from(""),
-        Line::from("Status Icons:"),
-        Line::from("  🟡 Starting      🔵 Running"),
-        Line::from("  ⏳ Waiting       📥 Downloading"),
-        Line::from("  ✅ Completed     ❌ Failed"),
+        Line::from(vec![Span::styled("Status Icons:", Style::default().add_modifier(Modifier::BOLD).fg(LIGHT_GRAY))]),
+        Line::from(vec![
+            Span::styled("  🟡 Starting", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled("      🔵 Running", Style::default().fg(BRIGHT_BLUE)),
+        ]),
+        Line::from(vec![
+            Span::styled("  ⏳ Waiting", Style::default().fg(BRIGHT_CYAN)),
+            Span::styled("       📥 Downloading", Style::default().fg(ELECTRIC_PURPLE)),
+        ]),
+        Line::from(vec![
+            Span::styled("  ✅ Completed", Style::default().fg(SOFT_GREEN)),
+            Span::styled("     ❌ Failed", Style::default().fg(Color::Red)),
+        ]),
         Line::from(""),
-        Line::from("Press 'h' again to close this help"),
+        Line::from(vec![
+            Span::styled("Press ", Style::default().fg(MEDIUM_GRAY)),
+            Span::styled("'h'", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled(" again to close this help", Style::default().fg(MEDIUM_GRAY)),
+        ]),
     ];
 
     let help_paragraph = Paragraph::new(help_text)
-        .style(Style::default().bg(Color::Black))
+        .style(Style::default().bg(DARK_BG))
         .block(
             Block::default()
                 .title("Help")
+                .title_style(Style::default().fg(BRIGHT_CYAN).add_modifier(Modifier::BOLD))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::DarkGray))
-                .style(Style::default().bg(Color::Black)),
+                .border_style(Style::default().fg(DARK_BORDER))
+                .style(Style::default().bg(DARK_BG)),
         )
         .wrap(Wrap { trim: true });
 
@@ -845,70 +891,85 @@ fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
     let dialog_text = vec![
         Line::from(vec![Span::styled(
             "🎉 Template Execution Complete!",
-            Style::default().add_modifier(Modifier::BOLD).fg(Color::Green),
+            Style::default().add_modifier(Modifier::BOLD).fg(SOFT_GREEN),
         )]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Template: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(&state.template.name, Style::default().fg(Color::Cyan)),
+            Span::styled("Template: ", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN)),
+            Span::styled(&state.template.name, Style::default().fg(LIGHT_GRAY)),
         ]),
         Line::from(vec![
-            Span::styled("Execution ID: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(&state.execution.execution_id[..8], Style::default().fg(Color::Gray)),
+            Span::styled("Execution ID: ", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN)),
+            Span::styled(&state.execution.execution_id[..8], Style::default().fg(MEDIUM_GRAY)),
         ]),
         Line::from(""),
-        Line::from(vec![Span::styled("Execution Summary:", Style::default().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled("Execution Summary:", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN))]),
         Line::from(vec![
             Span::raw("  📊 Total Pods: "),
-            Span::styled(total_pods.to_string(), Style::default().fg(Color::White)),
+            Span::styled(total_pods.to_string(), Style::default().fg(LIGHT_GRAY)),
         ]),
         Line::from(vec![
             Span::raw("  ✅ Successful: "),
-            Span::styled(successful_pods.to_string(), Style::default().fg(Color::Green)),
+            Span::styled(successful_pods.to_string(), Style::default().fg(SOFT_GREEN)),
         ]),
         Line::from(vec![
             Span::raw("  ❌ Failed: "),
-            Span::styled(failed_pods.to_string(), Style::default().fg(if failed_pods > 0 { Color::Red } else { Color::Green })),
+            Span::styled(failed_pods.to_string(), Style::default().fg(if failed_pods > 0 { Color::Red } else { SOFT_GREEN })),
         ]),
         Line::from(vec![
             Span::raw("  📁 Files Downloaded: "),
-            Span::styled(total_files.to_string(), Style::default().fg(Color::Cyan)),
+            Span::styled(total_files.to_string(), Style::default().fg(BRIGHT_CYAN)),
         ]),
         Line::from(vec![
             Span::raw("  ⏱️  Total Time: "),
-            Span::styled(format!("{}m {}s", minutes, seconds), Style::default().fg(Color::Yellow)),
+            Span::styled(format!("{}m {}s", minutes, seconds), Style::default().fg(ACCENT_YELLOW)),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Output Directory: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled(state.execution.output_dir.display().to_string(), Style::default().fg(Color::Magenta)),
+            Span::styled("Output Directory: ", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN)),
+            Span::styled(state.execution.output_dir.display().to_string(), Style::default().fg(ELECTRIC_PURPLE)),
         ]),
         Line::from(""),
         if failed_pods > 0 {
             Line::from(vec![
-                Span::styled("⚠️  Warning: ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-                Span::raw("Some pods failed. Check the logs for details."),
+                Span::styled("⚠️  Warning: ", Style::default().fg(WARM_ORANGE).add_modifier(Modifier::BOLD)),
+                Span::styled("Some pods failed. Check the logs for details.", Style::default().fg(LIGHT_GRAY)),
             ])
         } else {
             Line::from(vec![
-                Span::styled("🎯 Success! ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-                Span::raw("All pods completed successfully."),
+                Span::styled("🎯 Success! ", Style::default().fg(SOFT_GREEN).add_modifier(Modifier::BOLD)),
+                Span::styled("All pods completed successfully.", Style::default().fg(LIGHT_GRAY)),
             ])
         },
         Line::from(""),
-        Line::from("Available Actions:"),
-        Line::from("  [Enter] or [q] - Exit"),
-        Line::from("  [v] - View detailed logs"),
-        Line::from("  [o] - Open output directory"),
-        Line::from("  [r] - Run template again"),
+        Line::from(vec![Span::styled("Available Actions:", Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_CYAN))]),
+        Line::from(vec![
+            Span::styled("  [Enter] or [q]", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled(" - Exit", Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  [v]", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled(" - View detailed logs", Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  [o]", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled(" - Open output directory", Style::default().fg(LIGHT_GRAY)),
+        ]),
+        Line::from(vec![
+            Span::styled("  [r]", Style::default().fg(ACCENT_YELLOW)),
+            Span::styled(" - Run template again", Style::default().fg(LIGHT_GRAY)),
+        ]),
     ];
 
     let dialog = Paragraph::new(dialog_text)
+        .style(Style::default().bg(DARK_BG))
         .block(
             Block::default()
                 .title("Execution Complete")
+                .title_style(Style::default().fg(SOFT_GREEN).add_modifier(Modifier::BOLD))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Green)),
+                .border_style(Style::default().fg(DARK_BORDER))
+                .style(Style::default().bg(DARK_BG)),
         )
         .alignment(Alignment::Left)
         .wrap(Wrap { trim: true });
@@ -941,7 +1002,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 fn get_status_icon(status: &PodStatus) -> &'static str {
     match status {
         PodStatus::Starting => "🟡",
-        PodStatus::Running { .. } => "🔵",
+        PodStatus::Running { command_index } => "🔵",
         PodStatus::WaitingLocal { .. } => "⏳",
         PodStatus::DownloadingFiles { .. } => "📥",
         PodStatus::Completed => "✅",
