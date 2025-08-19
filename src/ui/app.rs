@@ -21,6 +21,7 @@ use std::fs::OpenOptions;
 
 use crate::cli::Args;
 use crate::k8s::logs::LogEntry;
+use crate::k8s::pod::PodInfo;
 use crate::config::Config;
 use crate::ui::{
     display::DisplayManager,
@@ -36,7 +37,8 @@ use futures::Stream;
 
 pub async fn run_app(
     log_stream: Pin<Box<dyn Stream<Item = LogEntry> + Send>>,
-    args: Args,
+    mut args: Args,
+    available_pods: Vec<PodInfo>,
 ) -> Result<()> {
     info!("=== STARTING UI APP ===");
     info!("UI: Args - namespace: {}, pod_selector: {}, container: {}", 
@@ -105,6 +107,14 @@ pub async fn run_app(
     let mut display_manager = DisplayManager::new(args.buffer_size, args.timestamps, args.dev)?;
     let mut input_handler = InputHandler::new(args.include.clone(), args.exclude.clone());
     
+    // Initialize pod selector with available pods
+    if !available_pods.is_empty() {
+        info!("UI: Initializing pod selector with {} pods", available_pods.len());
+        display_manager.set_pod_selector(available_pods, args.pod_selector.clone());
+    } else {
+        info!("UI: No pods available for pod selector");
+    }
+    
     // Load configuration for autosave functionality
     let config = Config::load().unwrap_or_default();
     info!("UI: Loaded autosave config - enabled: {}, path: {:?}", 
@@ -117,7 +127,7 @@ pub async fn run_app(
     } else {
         None
     };
-    
+
     // Set up autosave writer if autosave is enabled and no -w flag
     let mut autosave_writer: Option<Box<dyn Write + Send>> = if config.autosave.enabled && args.output_file.is_none() {
         // Get the appropriate autosave path
@@ -132,7 +142,6 @@ pub async fn run_app(
         
         info!("UI mode: Autosave enabled - writing logs to: {}", autosave_path);
         display_manager.add_system_log(&format!("💾 Autosave enabled: {}", autosave_path));
-        
         Some(Box::new(OpenOptions::new()
             .create(true)
             .append(true)
@@ -155,7 +164,7 @@ pub async fn run_app(
         0, // No buffer for retroactive filtering - only apply to new logs
     )?;
 
-    // Configure file output mode if file writer is present
+    // Configure file output mode if file_writer is present
     if file_writer.is_some() {
         display_manager.set_file_output_mode(true);
         info!("UI: File output mode enabled - logs will be saved to file");
@@ -231,6 +240,10 @@ pub async fn run_app(
     let render_interval = Duration::from_millis(16); // ~60 FPS max
     let mut pending_logs = Vec::new(); // Buffer for batching log entries
     
+    // Initialize pod selector with pods from args - this requires getting the pods
+    // We'll defer this until we have the selected pods available
+    let mut pods_for_selector: Option<Vec<PodInfo>> = None;
+    
     loop {
         // Check for cancellation
         if cancellation_token.is_cancelled() {
@@ -288,6 +301,50 @@ pub async fn run_app(
                                 } else {
                                     InputMode::Help
                                 };
+                            }
+                            InputEvent::TogglePodSelector => {
+                                // Toggle pod selector expansion/collapse
+                                if let Some(ref mut pod_selector) = display_manager.pod_selector {
+                                    pod_selector.toggle_expansion();
+                                    if pod_selector.is_expanded {
+                                        input_handler.mode = InputMode::PodSelector;
+                                        display_manager.add_system_log("📋 Pod selector expanded - use arrow keys to navigate, space to toggle pods");
+                                    } else {
+                                        input_handler.mode = InputMode::Normal;
+                                        display_manager.add_system_log("📋 Pod selector collapsed");
+                                    }
+                                } else {
+                                    display_manager.add_system_log("📋 No pod selector available - make sure you have pods matching your selector");
+                                }
+                            }
+                            InputEvent::PodSelectorUp => {
+                                if input_handler.mode == InputMode::PodSelector {
+                                    display_manager.handle_pod_selector_up();
+                                }
+                            }
+                            InputEvent::PodSelectorDown => {
+                                if input_handler.mode == InputMode::PodSelector {
+                                    display_manager.handle_pod_selector_down();
+                                }
+                            }
+                            InputEvent::TogglePodSelection => {
+                                if input_handler.mode == InputMode::PodSelector {
+                                    display_manager.toggle_pod_selection();
+                                }
+                            }
+                            InputEvent::ApplyPodSelection => {
+                                let selected_pods = display_manager.apply_pod_selection();
+                                if !selected_pods.is_empty() {
+                                    display_manager.add_system_log(&format!("✅ Pod selection updated: {} pods selected. Changes will take effect on next restart.", selected_pods.len()));
+                                } else {
+                                    display_manager.add_system_log("⚠️ No pods selected! You must select at least one pod.");
+                                }
+                                input_handler.mode = InputMode::Normal;
+                                
+                                // Clear the restart flag since user has applied changes
+                                if let Some(ref mut pod_selector) = display_manager.pod_selector {
+                                    pod_selector.clear_restart_flag();
+                                }
                             }
                             InputEvent::UpdateIncludeFilter(pattern) => {
 

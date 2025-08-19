@@ -30,6 +30,12 @@ pub enum InputEvent {
     SelectDown,            // Extend selection down with arrow keys
     ToggleSelection,       // Toggle selection at current position
     SelectAll,             // Select all logs
+    // Pod selection events
+    TogglePodSelector,     // Toggle pod selector dropdown
+    PodSelectorUp,         // Navigate up in pod selector
+    PodSelectorDown,       // Navigate down in pod selector
+    TogglePodSelection,    // Toggle selection of current pod
+    ApplyPodSelection,     // Apply pod selection changes
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,6 +44,7 @@ pub enum InputMode {
     EditingInclude,
     EditingExclude,
     Help,
+    PodSelector,           // New mode for pod selection
 }
 
 pub struct InputHandler {
@@ -67,6 +74,7 @@ impl InputHandler {
             InputMode::EditingInclude => self.handle_editing_mode(key, true),
             InputMode::EditingExclude => self.handle_editing_mode(key, false),
             InputMode::Help => self.handle_help_mode(key),
+            InputMode::PodSelector => self.handle_pod_selector_mode(key),
         }
     }
 
@@ -86,6 +94,10 @@ impl InputHandler {
                 self.mode = InputMode::EditingExclude;
                 self.cursor_position = self.exclude_input.len();
                 None
+            }
+            KeyCode::Char('p') => {
+                // New: 'p' key to toggle pod selector
+                Some(InputEvent::TogglePodSelector)
             }
             KeyCode::Char('h') => Some(InputEvent::ToggleHelp),
             KeyCode::Char('r') => Some(InputEvent::Refresh),
@@ -243,6 +255,33 @@ impl InputHandler {
         }
     }
 
+    fn handle_pod_selector_mode(&mut self, key: KeyEvent) -> Option<InputEvent> {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.mode = InputMode::Normal;
+                Some(InputEvent::TogglePodSelector) // Collapse when escaping
+            }
+            KeyCode::Char('p') => {
+                // Allow 'p' to collapse the pod selector when in pod selector mode
+                Some(InputEvent::TogglePodSelector)
+            }
+            KeyCode::Enter => {
+                self.mode = InputMode::Normal;
+                Some(InputEvent::ApplyPodSelection)
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                Some(InputEvent::PodSelectorUp)
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                Some(InputEvent::PodSelectorDown)
+            }
+            KeyCode::Char(' ') => {
+                Some(InputEvent::TogglePodSelection)
+            }
+            _ => None,
+        }
+    }
+
     fn add_to_history(&mut self, input: String) {
         if !input.is_empty() && self.input_history.front() != Some(&input) {
             self.input_history.push_front(input);
@@ -387,16 +426,25 @@ impl InputHandler {
     }
 
     pub fn get_ui_hints(&self) -> Vec<&'static str> {
-        vec![
-            "⬆ Scroll Up",
-            "⬇ Scroll Down",
-            "f Follow Mode",
-            "i Include Filter",
-            "e Exclude Filter",
-            "q Quit",
-            "h Help",
-            "PageUp/PageDown: Scroll by page",
-            "Home/End: Go to top/bottom",
-        ]
+        match self.mode {
+            InputMode::PodSelector => vec![
+                "↑/↓ Navigate",
+                "Space Toggle Selection", 
+                "Enter Apply",
+                "Esc Cancel",
+            ],
+            _ => vec![
+                "⬆ Scroll Up",
+                "⬇ Scroll Down",
+                "f Follow Mode",
+                "i Include Filter",
+                "e Exclude Filter",
+                "p Pod Selector",
+                "q Quit",
+                "h Help",
+                "PageUp/PageDown: Scroll by page",
+                "Home/End: Go to top/bottom",
+            ]
+        }
     }
 }

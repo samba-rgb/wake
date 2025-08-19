@@ -2,7 +2,7 @@ pub mod args;
 
 pub use args::{Args, parse_args};
 use anyhow::{Result, Context};
-use tracing::info;
+use tracing::{info, warn};
 use std::fs;
 use regex::Regex;
 use std::io::Write;
@@ -227,7 +227,7 @@ pub async fn run(mut args: Args) -> Result<()> {
     
     // Set up log watcher
     info!("CLI: Creating LogWatcher...");
-    let watcher = crate::k8s::LogWatcher::new(client, &args);
+    let watcher = crate::k8s::LogWatcher::new(client.clone(), &args);
     
     // Stream the logs
     info!("CLI: Starting log stream...");
@@ -240,8 +240,26 @@ pub async fn run(mut args: Args) -> Result<()> {
         if args.output_file.is_some() {
             println!("Starting UI mode with file output to: {:?}", args.output_file);
         }
+        
+        // Get the available pods for the pod selector
+        info!("CLI: Fetching pods for pod selector...");
+        let container_regex = args.container_regex().context("Invalid container regex")?;
+        let available_pods = select_pods(
+            &client,
+            &args.namespace,
+            &pod_regex,
+            &container_regex,
+            args.all_namespaces,
+            args.resource.as_deref(),
+        ).await.unwrap_or_else(|e| {
+            warn!("Failed to fetch pods for selector: {}", e);
+            vec![]
+        });
+        
+        info!("CLI: Found {} pods for selector", available_pods.len());
+        
         // Use the interactive UI with dynamic filtering
-        crate::ui::run_with_ui(log_streams, args).await?;
+        crate::ui::run_with_ui(log_streams, args, available_pods).await?;
         info!("CLI: UI mode completed");
     } else {
         info!("CLI: Starting CLI mode...");

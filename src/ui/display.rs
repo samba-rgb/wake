@@ -1,11 +1,12 @@
 use crate::k8s::logs::LogEntry;
+use crate::k8s::pod::PodInfo;
 use crate::ui::input::{InputMode, InputHandler};
 use regex::Regex;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap, List, ListItem, ListState},
     Frame,
 };
 use std::collections::{HashMap, VecDeque};
@@ -287,6 +288,89 @@ impl HashLineCache {
     }
 }
 
+/// Enhanced Pod Selector with real-time filtering
+#[derive(Debug, Clone)]
+pub struct PodSelectorState {
+    pub available_pods: Vec<PodInfo>,
+    pub selected_pods: Vec<bool>,  // Same length as available_pods, true if selected
+    pub cursor_position: usize,
+    pub is_expanded: bool,         // Whether the selector is expanded (showing list)
+    pub selector_pattern: String,  // The original selector pattern (e.g., "sam")
+    pub needs_log_restart: bool,   // Flag to indicate log stream needs restart
+}
+
+impl PodSelectorState {
+    pub fn new(pods: Vec<PodInfo>, selector_pattern: String) -> Self {
+        let pod_count = pods.len();
+        Self {
+            available_pods: pods,
+            selected_pods: vec![true; pod_count], // By default, all matching pods are selected
+            cursor_position: 0,
+            is_expanded: false,    // Start collapsed
+            selector_pattern,
+            needs_log_restart: false,
+        }
+    }
+
+    pub fn toggle_current_pod(&mut self) {
+        if self.cursor_position < self.selected_pods.len() && self.cursor_position < self.available_pods.len() {
+            self.selected_pods[self.cursor_position] = !self.selected_pods[self.cursor_position];
+            self.needs_log_restart = true;  // Mark that we need to restart logs
+        }
+    }
+
+    pub fn move_cursor_up(&mut self) {
+        if self.cursor_position > 0 {
+            self.cursor_position -= 1;
+        }
+    }
+
+    pub fn move_cursor_down(&mut self) {
+        if self.cursor_position + 1 < self.available_pods.len() {
+            self.cursor_position += 1;
+        }
+    }
+
+    pub fn toggle_expansion(&mut self) {
+        self.is_expanded = !self.is_expanded;
+    }
+
+    pub fn get_selected_pods(&self) -> Vec<PodInfo> {
+        self.available_pods
+            .iter()
+            .enumerate()
+            .filter_map(|(i, pod)| {
+                if i < self.selected_pods.len() && self.selected_pods[i] {
+                    Some(pod.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected_pods.iter().filter(|&&selected| selected).count()
+    }
+
+    pub fn get_summary_text(&self) -> String {
+        let selected = self.selected_count();
+        let total = self.available_pods.len();
+        
+        if selected == total {
+            format!("All {} pods selected ({})", total, self.selector_pattern)
+        } else if selected == 0 {
+            format!("No pods selected from {} available ({})", total, self.selector_pattern)
+        } else {
+            format!("{}/{} pods selected ({})", selected, total, self.selector_pattern)
+        }
+    }
+
+    pub fn clear_restart_flag(&mut self) {
+        self.needs_log_restart = false;
+    }
+}
+
 pub struct DisplayManager {
     pub log_entries: VecDeque<LogEntry>,
     pub scroll_offset: usize,
@@ -317,6 +401,7 @@ pub struct DisplayManager {
     pub display_start_index: usize,  // Start index of visible display window
     pub display_end_index: usize,    // End index of visible display window
     pub colors_enabled: bool, // New: track if colors are enabled
+    pub pod_selector: Option<PodSelectorState>,
 }
 
 impl DisplayManager {
@@ -350,6 +435,7 @@ impl DisplayManager {
             selection_cursor: 0,           // Cursor position for selection
             display_start_index: 0,        // Initialize display start index
             display_end_index: 0,          // Initialize display end index
+            pod_selector: None,
         })
     }
 }
@@ -949,7 +1035,7 @@ impl DisplayManager {
             let viewport_height = 50; // Conservative estimate, will be corrected in render
             
             // Ensure cache is built
-            if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
+            if (!self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation)) {
                 self.hash_line_cache.rebuild(
                     &self.log_entries,
                     self.scroll_offset,
@@ -1137,7 +1223,7 @@ impl DisplayManager {
     fn update_selection_after_scroll(&mut self, viewport_height: usize) {
         if let Some(ref mut selection) = self.hash_selection {
             // Rebuild cache if needed for current scroll position
-            if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
+            if (!self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation)) {
                 self.hash_line_cache.rebuild(
                     &self.log_entries,
                     self.scroll_offset,
@@ -1236,7 +1322,7 @@ impl DisplayManager {
         Line::from(highlighted_spans)
     }
 
-    /// Render the display manager UI with include/exclude filter boxes
+    /// Render the display manager UI with include/exclude filter boxes and pod selector
     pub fn render(&mut self, f: &mut Frame, input_handler: &InputHandler) {
         // Force clear the entire screen with black background first
         let full_screen = f.size();
@@ -1259,16 +1345,45 @@ impl DisplayManager {
 
             f.render_widget(help_widget, f.size());
         } else {
+            // Determine layout based on pod selector availability
+            let pod_selector_height = if self.pod_selector.is_some() {
+                if let Some(ref pod_selector) = self.pod_selector {
+                    if pod_selector.is_expanded {
+                        // When expanded, show more lines for the pod list
+                        (pod_selector.available_pods.len().min(8) + 3) as u16
+                    } else {
+                        3 // Just summary line when collapsed
+                    }
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+
             // Render the regular UI with black background
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(4), // Input filter area
-                    Constraint::Min(0),    // Log display area - takes remaining space
-                    Constraint::Length(3), // Status bar
-                    Constraint::Length(3), // Hint area
-                ])
-                .split(f.size());
+            let chunks = if pod_selector_height > 0 {
+                Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Length(4),                    // Input filter area
+                        Constraint::Length(pod_selector_height),  // Pod selector area
+                        Constraint::Min(0),                       // Log display area - takes remaining space
+                        Constraint::Length(3),                    // Status bar
+                        Constraint::Length(3),                    // Hint area
+                    ])
+                    .split(f.size())
+            } else {
+                Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Length(4), // Input filter area
+                        Constraint::Min(0),    // Log display area - takes remaining space
+                        Constraint::Length(3), // Status bar
+                        Constraint::Length(3), // Hint area
+                    ])
+                    .split(f.size())
+            };
 
             // Update terminal width for hash cache
             let new_width = f.size().width as usize;
@@ -1280,134 +1395,121 @@ impl DisplayManager {
             // Render the input filter area at the top
             self.render_filter_input_area(f, chunks[0], input_handler);
 
-            // Render log display area in the middle
-            self.render_logs(f, chunks[1]);
+            if pod_selector_height > 0 {
+                // Render pod selector area
+                self.render_pod_selector_area(f, chunks[1], input_handler);
+                
+                // Render log display area in the middle
+                self.render_logs(f, chunks[2]);
 
-            // Render the status bar below logs
-            self.render_enhanced_status_bar(f, chunks[2], input_handler);
+                // Render the status bar below logs
+                self.render_enhanced_status_bar(f, chunks[3], input_handler);
 
-            // Render the hint area at the bottom
-            self.render_ui_hints(f, chunks[3], input_handler);
+                // Render the hint area at the bottom
+                self.render_ui_hints(f, chunks[4], input_handler);
+            } else {
+                // Render log display area in the middle
+                self.render_logs(f, chunks[1]);
+
+                // Render the status bar below logs
+                self.render_enhanced_status_bar(f, chunks[2], input_handler);
+
+                // Render the hint area at the bottom
+                self.render_ui_hints(f, chunks[3], input_handler);
+            }
         }
     }
-}
 
-impl DisplayManager {
-    /// FIXED: Renamed and enhanced status bar rendering function 
-    fn render_enhanced_status_bar(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
-        use ratatui::widgets::{Block, Borders, Paragraph};
-        use ratatui::style::{Style, Modifier, Color};
-        use ratatui::text::{Line, Span};
+    /// Render the dedicated pod selector area (always visible when available)
+    fn render_pod_selector_area(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
+        if let Some(ref pod_selector) = self.pod_selector {
+            if pod_selector.is_expanded {
+                // Expanded mode - show full pod list with checkboxes
+                let items: Vec<ListItem> = pod_selector
+                    .available_pods
+                    .iter()
+                    .enumerate()
+                    .map(|(i, pod)| {
+                        let is_selected = i < pod_selector.selected_pods.len() && pod_selector.selected_pods[i];
+                        let checkbox = if is_selected { "☑" } else { "☐" };
+                        let pod_name = format!("{}/{}", pod.namespace, pod.name);
+                        
+                        let content = Line::from(vec![
+                            Span::styled(checkbox, Style::default().fg(if is_selected { Color::Green } else { Color::Gray })),
+                            Span::raw(" "),
+                            Span::styled(pod_name, Style::default().fg(Color::White)),
+                            Span::raw(" "),
+                            Span::styled(format!("({}c)", pod.containers.len()), Style::default().fg(Color::Cyan)),
+                        ]);
 
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(60), // Main status
-                Constraint::Percentage(40), // Memory and filter status
-            ])
-            .split(area);
+                        ListItem::new(content)
+                    })
+                    .collect();
 
-        // ENHANCED: Main status information with MAXIMUM VISIBILITY for macOS Terminal
-        let mode_text = if self.auto_scroll { "▶️ FOLLOW" } else { "⏸️ PAUSE" };
-        let mode_color = if self.auto_scroll { 
-            // Use brighter colors for Auto scheme (macOS Terminal)
-            match self.color_scheme {
-                ColorScheme::Auto => Color::LightGreen, // Bright ANSI green
-                _ => Color::Rgb(0, 255, 0) // RGB green for modern terminals
+                let mut list_state = ListState::default();
+                list_state.select(Some(pod_selector.cursor_position));
+
+                let selected_count = pod_selector.selected_count();
+                let total_count = pod_selector.available_pods.len();
+
+                let border_style = if input_handler.mode == InputMode::PodSelector {
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+
+                let list = List::new(items)
+                    .block(
+                        Block::default()
+                            .title(format!("📋 Pod Selector - {} ({}/{} selected) - Press 'p' to collapse", 
+                                         pod_selector.selector_pattern, selected_count, total_count))
+                            .title_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                            .borders(Borders::ALL)
+                            .border_style(border_style)
+                            .style(Style::default().bg(Color::Black))
+                    )
+                    .highlight_style(
+                        Style::default()
+                            .bg(Color::DarkGray)
+                            .add_modifier(Modifier::BOLD)
+                    )
+                    .highlight_symbol("► ");
+
+                f.render_stateful_widget(list, area, &mut list_state);
+            } else {
+                // Collapsed mode - show summary with expand option
+                let summary_text = pod_selector.get_summary_text();
+                let restart_indicator = if pod_selector.needs_log_restart {
+                    " ⚠️  [Changes pending - restart required]"
+                } else {
+                    ""
+                };
+
+                let border_style = if input_handler.mode == InputMode::PodSelector {
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+
+                let summary_spans = vec![
+                    Span::styled("📋 ", Style::default().fg(Color::Yellow)),
+                    Span::styled(summary_text, Style::default().fg(Color::White)),
+                    Span::styled(restart_indicator, Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                    Span::styled(" - Press 'p' to expand and edit", Style::default().fg(Color::Gray)),
+                ];
+
+                let summary_widget = Paragraph::new(Line::from(summary_spans))
+                    .block(Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(border_style)
+                        .title(Span::styled(" Pod Selector ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)))
+                        .style(Style::default().bg(Color::Black))
+                    )
+                    .style(Style::default().fg(Color::White).bg(Color::Black));
+
+                f.render_widget(summary_widget, area);
             }
-        } else { 
-            // Use brighter colors for Auto scheme (macOS Terminal)
-            match self.color_scheme {
-                ColorScheme::Auto => Color::LightYellow, // Bright ANSI yellow
-                _ => Color::Rgb(255, 255, 0) // RGB yellow for modern terminals
-            }
-        };
-
-        let scroll_info = format!("Line {}/{}", 
-            self.scroll_offset + 1, 
-            self.log_entries.len().max(1)
-        );
-
-        let selection_text = if let Some(ref selection) = self.hash_selection {
-            let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-            format!(" │ 📝 {} selected", lines_selected)
-        } else {
-            String::new()
-        };
-
-        // ENHANCED status line with maximum visibility
-        let main_status_spans = vec![
-            Span::styled("📊 ", Style::default().fg(Color::White)),
-            Span::styled(mode_text, Style::default().fg(mode_color).add_modifier(Modifier::BOLD)),
-            Span::styled(" │ ", Style::default().fg(Color::White)),
-            Span::styled(scroll_info, Style::default().fg(Color::White)),
-            Span::styled(selection_text, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ];
-
-        let main_status = Paragraph::new(Line::from(main_status_spans))
-            .block(Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::White))
-                .title(Span::styled(" Status ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)))
-            )
-            .style(Style::default().fg(Color::White).bg(Color::Black));
-
-        f.render_widget(main_status, chunks[0]);
-
-        // ENHANCED memory and filter status with maximum visibility for macOS Terminal
-        let memory_percent = self.get_memory_usage_percent();
-        let memory_color = if memory_percent >= 80.0 {
-            // Use brighter colors for Auto scheme (macOS Terminal)
-            match self.color_scheme {
-                ColorScheme::Auto => Color::LightRed, // Bright ANSI red
-                _ => Color::Rgb(255, 0, 0) // RGB red for modern terminals
-            }
-        } else if memory_percent >= 60.0 {
-            // Use brighter colors for Auto scheme (macOS Terminal)
-            match self.color_scheme {
-                ColorScheme::Auto => Color::LightYellow, // Bright ANSI yellow
-                _ => Color::Rgb(255, 255, 0) // RGB yellow for modern terminals
-            }
-        } else {
-            // Use brighter colors for Auto scheme (macOS Terminal)
-            match self.color_scheme {
-                ColorScheme::Auto => Color::LightGreen, // Bright ANSI green
-                _ => Color::Rgb(0, 255, 0) // RGB green for modern terminals
-            }
-        };
-
-        let memory_icon = if memory_percent >= 80.0 { "⚠️" } else { "💾" };
-
-        // Enhanced filter status with clear indicators
-        let filter_status = if !input_handler.include_input.is_empty() || !input_handler.exclude_input.is_empty() {
-            let include_active = !input_handler.include_input.is_empty();
-            let exclude_active = !input_handler.exclude_input.is_empty();
-            format!(" │ Filters: {}{}",
-                if include_active { "✅INC" } else { "" },
-                if exclude_active { "🚫EXC" } else { "" }
-            )
-        } else {
-            " │ Filters: None".to_string()
-        };
-
-        let memory_status_spans = vec![
-            Span::styled(format!("{} ", memory_icon), Style::default().fg(memory_color)),
-            Span::styled(
-                format!("Mem: {:.1}%", memory_percent), 
-                Style::default().fg(memory_color).add_modifier(Modifier::BOLD)
-            ),
-            Span::styled(filter_status, Style::default().fg(Color::Cyan)),
-        ];
-
-        let memory_status = Paragraph::new(Line::from(memory_status_spans))
-            .block(Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::White))
-                .title(Span::styled(" Memory & Filters ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)))
-            )
-            .style(Style::default().fg(Color::White).bg(Color::Black));
-
-        f.render_widget(memory_status, chunks[1]);
+        }
     }
 
     /// Render the filter input area at the top of the screen
@@ -1506,7 +1608,7 @@ impl DisplayManager {
         self.update_display_window(viewport_height);
 
         // Rebuild hash cache if needed
-        if !self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation) {
+        if (!self.hash_line_cache.is_valid(self.scroll_offset, self.terminal_width, self.cache_generation)) {
             self.hash_line_cache.rebuild(
                 &self.log_entries,
                 self.scroll_offset,
@@ -1557,7 +1659,7 @@ impl DisplayManager {
             let mut spans = Vec::new();
 
             // Timestamp span
-            if !time_part.is_empty() {
+            if (!time_part.is_empty()) {
                 spans.push(Span::styled(
                     time_part,
                     Style::default().fg(self.color_scheme.dim_text_color())
@@ -1755,4 +1857,273 @@ impl DisplayManager {
         // Render the popup
         f.render_widget(alert_message, popup_area);
     }
+
+    pub fn set_pod_selector(&mut self, pods: Vec<PodInfo>, selector_pattern: String) {
+        self.pod_selector = Some(PodSelectorState::new(pods, selector_pattern.clone()));
+        self.add_system_log(&format!("📋 Pod selector initialized with {} pods matching '{}'", 
+                                    self.pod_selector.as_ref().unwrap().available_pods.len(), 
+                                    selector_pattern));
+    }
+
+    pub fn toggle_pod_selector(&mut self) {
+        if let Some(ref mut pod_selector) = self.pod_selector {
+            pod_selector.is_expanded = !pod_selector.is_expanded;
+            if pod_selector.is_expanded {
+                self.add_system_log("📋 Pod selector opened - use arrow keys to navigate, space to toggle, enter to apply");
+            } else {
+                self.add_system_log("📋 Pod selector closed");
+            }
+        }
+    }
+
+    pub fn handle_pod_selector_up(&mut self) {
+        if let Some(ref mut pod_selector) = self.pod_selector {
+            pod_selector.move_cursor_up();
+        }
+    }
+
+    pub fn handle_pod_selector_down(&mut self) {
+        if let Some(ref mut pod_selector) = self.pod_selector {
+            pod_selector.move_cursor_down();
+        }
+    }
+
+    pub fn toggle_pod_selection(&mut self) {
+        if let Some(ref mut pod_selector) = self.pod_selector {
+            pod_selector.toggle_current_pod();
+            let selected_count = pod_selector.selected_count();
+            let total_count = pod_selector.available_pods.len();
+            self.add_system_log(&format!("📋 Pod selection updated: {}/{} pods selected", selected_count, total_count));
+        }
+    }
+
+    pub fn apply_pod_selection(&mut self) -> Vec<PodInfo> {
+        if let Some(ref mut pod_selector) = self.pod_selector {
+            pod_selector.is_expanded = false;
+            let selected_pods = pod_selector.get_selected_pods();
+            self.add_system_log(&format!("✅ Applied pod selection: {} pods selected for log streaming", selected_pods.len()));
+            selected_pods
+        } else {
+            vec![]
+        }
+    }
+
+    /// Render the pod selector overlay
+    pub fn render_pod_selector(&self, f: &mut Frame, area: Rect) {
+        if let Some(ref pod_selector) = self.pod_selector {
+            if (!pod_selector.is_expanded) {
+                return;
+            }
+
+            // Calculate popup area (centered, 60% width, 70% height)
+            let popup_area = centered_rect(60, 70, area);
+            
+            // Clear the background
+            f.render_widget(Clear, popup_area);
+
+            // Create the pod list items
+            let items: Vec<ListItem> = pod_selector
+                .available_pods
+                .iter()
+                .enumerate()
+                .map(|(i, pod)| {
+                    let is_selected = i < pod_selector.selected_pods.len() && pod_selector.selected_pods[i];
+                    let checkbox = if is_selected { "☑" } else { "☐" };
+                    let pod_name = format!("{}/{}", pod.namespace, pod.name);
+                    
+                    let content = Line::from(vec![
+                        Span::styled(checkbox, Style::default().fg(if is_selected { Color::Green } else { Color::Gray })),
+                        Span::raw(" "),
+                        Span::styled(pod_name, Style::default().fg(Color::White)),
+                        Span::raw(" "),
+                        Span::styled(format!("({})", pod.containers.len()), Style::default().fg(Color::Cyan)),
+                    ]);
+
+                    ListItem::new(content)
+                })
+                .collect();
+
+            let mut list_state = ListState::default();
+            list_state.select(Some(pod_selector.cursor_position));
+
+            let selected_count = pod_selector.selected_count();
+            let total_count = pod_selector.available_pods.len();
+
+            let list = List::new(items)
+                .block(
+                    Block::default()
+                        .title(format!("Pod Selector - Pattern: '{}' ({}/{} selected)", 
+                                     pod_selector.selector_pattern, selected_count, total_count))
+                        .title_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::White))
+                        .style(Style::default().bg(Color::Black))
+                )
+                .highlight_style(
+                    Style::default()
+                        .bg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD)
+                )
+                .highlight_symbol("► ");
+
+            f.render_stateful_widget(list, popup_area, &mut list_state);
+
+            // Render help text at the bottom of the popup
+            let help_area = Rect {
+                x: popup_area.x,
+                y: popup_area.y + popup_area.height.saturating_sub(3),
+                width: popup_area.width,
+                height: 3,
+            };
+
+            let help_text = Paragraph::new("↑/↓: Navigate  Space: Toggle  Enter: Apply  Esc: Cancel")
+                .style(Style::default().fg(Color::Gray))
+                .wrap(Wrap { trim: true })
+                .block(
+                    Block::default()
+                        .borders(Borders::TOP)
+                        .border_style(Style::default().fg(Color::Gray))
+                );
+            
+            f.render_widget(help_text, help_area);
+        }
+    }
+
+    /// FIXED: Renamed and enhanced status bar rendering function 
+    fn render_enhanced_status_bar(&self, f: &mut Frame, area: Rect, input_handler: &InputHandler) {
+        use ratatui::widgets::{Block, Borders, Paragraph};
+        use ratatui::style::{Style, Modifier, Color};
+        use ratatui::text::{Line, Span};
+
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(60), // Main status
+                Constraint::Percentage(40), // Memory and filter status
+            ])
+            .split(area);
+
+        // ENHANCED: Main status information with MAXIMUM VISIBILITY for macOS Terminal
+        let mode_text = if self.auto_scroll { "▶️ FOLLOW" } else { "⏸️ PAUSE" };
+        let mode_color = if self.auto_scroll { 
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightGreen, // Bright ANSI green
+                _ => Color::Rgb(0, 255, 0) // RGB green for modern terminals
+            }
+        } else { 
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightYellow, // Bright ANSI yellow
+                _ => Color::Rgb(255, 255, 0) // RGB yellow for modern terminals
+            }
+        };
+
+        let scroll_info = format!("Line {}/{}", 
+            self.scroll_offset + 1, 
+            self.log_entries.len().max(1)
+        );
+
+        let selection_text = if let Some(ref selection) = self.hash_selection {
+            let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
+            format!(" │ 📝 {} selected", lines_selected)
+        } else {
+            String::new()
+        };
+
+        // ENHANCED status line with maximum visibility
+        let main_status_spans = vec![
+            Span::styled("📊 ", Style::default().fg(Color::White)),
+            Span::styled(mode_text, Style::default().fg(mode_color).add_modifier(Modifier::BOLD)),
+            Span::styled(" │ ", Style::default().fg(Color::White)),
+            Span::styled(scroll_info, Style::default().fg(Color::White)),
+            Span::styled(selection_text, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ];
+
+        let main_status = Paragraph::new(Line::from(main_status_spans))
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::White))
+                .title(Span::styled(" Status ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)))
+            )
+            .style(Style::default().fg(Color::White).bg(Color::Black));
+
+        f.render_widget(main_status, chunks[0]);
+
+        // ENHANCED memory and filter status with maximum visibility for macOS Terminal
+        let memory_percent = self.get_memory_usage_percent();
+        let memory_color = if memory_percent >= 80.0 {
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightRed, // Bright ANSI red
+                _ => Color::Rgb(255, 0, 0) // RGB red for modern terminals
+            }
+        } else if memory_percent >= 60.0 {
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightYellow, // Bright ANSI yellow
+                _ => Color::Rgb(255, 255, 0) // RGB yellow for modern terminals
+            }
+        } else {
+            // Use brighter colors for Auto scheme (macOS Terminal)
+            match self.color_scheme {
+                ColorScheme::Auto => Color::LightGreen, // Bright ANSI green
+                _ => Color::Rgb(0, 255, 0) // RGB green for modern terminals
+            }
+        };
+
+        let memory_icon = if memory_percent >= 80.0 { "⚠️" } else { "💾" };
+
+        // Enhanced filter status with clear indicators
+        let filter_status = if !input_handler.include_input.is_empty() || !input_handler.exclude_input.is_empty() {
+            let include_active = !input_handler.include_input.is_empty();
+            let exclude_active = !input_handler.exclude_input.is_empty();
+            format!(" │ Filters: {}{}",
+                if include_active { "✅INC" } else { "" },
+                if exclude_active { "🚫EXC" } else { "" }
+            )
+        } else {
+            " │ Filters: None".to_string()
+        };
+
+        let memory_status_spans = vec![
+            Span::styled(format!("{} ", memory_icon), Style::default().fg(memory_color)),
+            Span::styled(
+                format!("Mem: {:.1}%", memory_percent), 
+                Style::default().fg(memory_color).add_modifier(Modifier::BOLD)
+            ),
+            Span::styled(filter_status, Style::default().fg(Color::Cyan)),
+        ];
+
+        let memory_status = Paragraph::new(Line::from(memory_status_spans))
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::White))
+                .title(Span::styled(" Memory & Filters ", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)))
+            )
+            .style(Style::default().fg(Color::White).bg(Color::Black));
+
+        f.render_widget(memory_status, chunks[1]);
+    }
+}
+
+/// Helper function to create a centered rectangle
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
