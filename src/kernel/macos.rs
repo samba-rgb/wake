@@ -331,7 +331,7 @@ pub fn macos_prefetch_cache_line(addr: *const u8) {
     }
     
     #[cfg(target_arch = "aarch64")]
-    unsafe {
+    {
         // Apple Silicon prefetch
        // std::arch::aarch64::_prefetch(addr, std::arch::aarch64::_PREFETCH_READ, std::arch::aarch64::_PREFETCH_LOCALITY3);
        let _ = addr;
