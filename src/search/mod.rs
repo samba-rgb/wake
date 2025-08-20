@@ -28,7 +28,7 @@ impl TfIdfSearcher {
             anyhow::bail!("No TF-IDF index available. Static commands file not found during build.");
         }
         
-        let index: TfIdfIndex = rmp_serde::from_slice(TFIDF_INDEX)
+        let index: TfIdfIndex = serde_json::from_slice(TFIDF_INDEX)
             .map_err(|e| anyhow::anyhow!("Failed to deserialize TF-IDF index: {}", e))?;
         
         Ok(TfIdfSearcher { index })
