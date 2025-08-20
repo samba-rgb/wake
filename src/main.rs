@@ -11,6 +11,7 @@ mod ui; // Add the UI module declaration
 mod config; // Add the config module declaration
 mod kernel; // Add the kernel module declaration
 mod templates; // Add the templates module declaration
+mod search; // Add the search module declaration
 
 use anyhow::Result;
 use tracing_appender;

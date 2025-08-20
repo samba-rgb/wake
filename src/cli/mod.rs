@@ -14,6 +14,7 @@ use kube::Api;
 use k8s_openapi::api::core::v1::Pod;
 use chrono::Local;
 use comfy_table::Table;
+use colored::Colorize;
 
 /// Prints WAKE in big text with dots
 fn print_wake_big_text() {
@@ -116,6 +117,9 @@ async fn run_script_in_pods(args: &Args) -> Result<()> {
 }
 
 pub async fn run(mut args: Args) -> Result<()> {
+    // Store command in history before execution (save early to prevent data loss)
+    store_command_in_history(&args)?;
+    
     if args.author {
         let author_path = std::path::Path::new("author.txt");
         if let Ok(content) = std::fs::read_to_string(author_path) {
@@ -124,6 +128,17 @@ pub async fn run(mut args: Args) -> Result<()> {
             println!("samba\nGitHub: https://github.com/samba-rgb\n");
         }
         return Ok(());
+    }
+
+    // Handle history command (--his flag)
+    if let Some(ref query) = args.history {
+        if query.is_empty() {
+            // Show command history (wake --his)
+            return handle_show_history().await;
+        } else {
+            // Search commands with TF-IDF (wake --his "query")
+            return handle_search_commands(query).await;
+        }
     }
 
     info!("=== CLI MODULE STARTING ===");
@@ -490,4 +505,207 @@ async fn handle_template_execution(args: &Args, template_name: &str) -> Result<(
     }
     
     Ok(())
+}
+
+/// Store command in history before execution
+fn store_command_in_history(args: &Args) -> Result<()> {
+    // Reconstruct the original command from args
+    let mut command_parts = vec!["wake".to_string()];
+    
+    // Add subcommands first
+    if let Some(ref cmd) = args.command {
+        match cmd {
+            crate::cli::args::Commands::SetConfig { key, value, path } => {
+                command_parts.push("setconfig".to_string());
+                command_parts.push(key.clone());
+                command_parts.push(value.clone());
+                if let Some(p) = path {
+                    command_parts.push("--path".to_string());
+                    command_parts.push(p.clone());
+                }
+            }
+            crate::cli::args::Commands::GetConfig { key } => {
+                command_parts.push("getconfig".to_string());
+                if let Some(k) = key {
+                    command_parts.push(k.clone());
+                }
+            }
+        }
+    } else {
+        // Add regular flags and arguments
+        if args.pod_selector != ".*" {
+            command_parts.push(args.pod_selector.clone());
+        }
+        
+        if args.container != ".*" {
+            command_parts.push("-c".to_string());
+            command_parts.push(args.container.clone());
+        }
+        
+        if args.namespace != "default" {
+            command_parts.push("-n".to_string());
+            command_parts.push(args.namespace.clone());
+        }
+        
+        if args.all_namespaces {
+            command_parts.push("-A".to_string());
+        }
+        
+        if let Some(ref include) = args.include {
+            command_parts.push("-i".to_string());
+            command_parts.push(include.clone());
+        }
+        
+        if let Some(ref exclude) = args.exclude {
+            command_parts.push("-e".to_string());
+            command_parts.push(exclude.clone());
+        }
+        
+        if args.ui {
+            command_parts.push("--ui".to_string());
+        }
+        
+        if let Some(ref output_file) = args.output_file {
+            command_parts.push("-w".to_string());
+            command_parts.push(output_file.display().to_string());
+        }
+        
+        if args.timestamps {
+            command_parts.push("-T".to_string());
+        }
+        
+        if let Some(ref template) = args.execute_template {
+            command_parts.push("--exec-template".to_string());
+            command_parts.push(template.clone());
+            for arg in &args.template_args {
+                command_parts.push(arg.clone());
+            }
+        }
+        
+        if args.list_templates {
+            command_parts.push("--list-templates".to_string());
+        }
+        
+        if let Some(ref history) = args.history {
+            command_parts.push("--his".to_string());
+            if !history.is_empty() {
+                command_parts.push(history.clone());
+            }
+        }
+    }
+    
+    let command_str = command_parts.join(" ");
+    
+    // Load config and add to history
+    let mut config = crate::config::Config::load().unwrap_or_default();
+    config.add_command_to_history(command_str);
+    
+    // Save config silently (without printing message)
+    let _ = config.save_silent();
+    
+    Ok(())
+}
+
+/// Handle showing command history (wake --his)
+async fn handle_show_history() -> Result<()> {
+    let config = crate::config::Config::load().unwrap_or_default();
+    let history = config.get_command_history();
+    
+    println!("📜 Wake Command History");
+    println!("=======================");
+    println!();
+    
+    if history.is_empty() {
+        println!("No commands found in history.");
+        println!();
+        println!("💡 Tips:");
+        println!("  • Command history is automatically stored when you run wake commands");
+        println!("  • History is limited to the last {} commands", config.history.max_entries);
+        println!("  • Use --his \"search query\" to find specific commands");
+        return Ok(());
+    }
+    
+    println!("Found {} command(s) in history:", history.len());
+    println!();
+    
+    // Show recent commands (limit to last 50 for display, in descending order - newest first)
+    let display_count = std::cmp::min(history.len(), 50);
+    for (i, entry) in history.iter().take(display_count).enumerate() {
+        let time_ago = format_time_ago(&entry.timestamp);
+        println!("{:3}. {} {}", i + 1, entry.command, 
+                 format!("({})", time_ago).as_str().dimmed());
+    }
+    
+    if history.len() > 50 {
+        println!();
+        println!("... (showing last 50 of {} total commands)", history.len());
+    }
+    
+    Ok(())
+}
+
+/// Handle searching commands with TF-IDF (wake --his "query")
+async fn handle_search_commands(query: &str) -> Result<()> {
+    use crate::search::TfIdfSearcher;
+    
+    // Initialize TF-IDF searcher
+    let searcher = match TfIdfSearcher::new() {
+        Ok(s) => s,
+        Err(e) => {
+            println!("❌ Search functionality not available: {}", e);
+            println!();
+            println!("💡 This might be because:");
+            println!("  • The static commands database wasn't built during compilation");
+            println!("  • Try rebuilding with: cargo build --release");
+            return Ok(());
+        }
+    };
+    
+    // Perform search
+    if let Some(result) = searcher.search(query) {
+        println!("🚀 Command: {}", result.command.green());
+        println!("📝 Description: {}", result.description);
+    } else {
+        println!("❌ No matching commands found for \"{}\"", query);
+        println!();
+        println!("💡 Try searching with different terms:");
+        println!("  • \"error\" instead of \"error logs\"");
+        println!("  • \"namespace\" instead of \"kube-system\""); 
+        println!("  • \"ui\" instead of \"interactive mode\"");
+        println!();
+        println!("📚 Available command categories:");
+        
+        // Show some example categories from the static commands
+        let all_commands = searcher.get_all_commands();
+        let mut categories: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        
+        for cmd in all_commands.iter().take(10) {
+            if cmd.command.contains("-i") { *categories.entry("filtering").or_insert(0) += 1; }
+            if cmd.command.contains("-n") { *categories.entry("namespaces").or_insert(0) += 1; }
+            if cmd.command.contains("--ui") { *categories.entry("ui mode").or_insert(0) += 1; }
+            if cmd.command.contains("-w") { *categories.entry("file output").or_insert(0) += 1; }
+        }
+        
+        for (category, _) in categories {
+            println!("  • {}", category);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Format time ago in human readable format
+fn format_time_ago(timestamp: &chrono::DateTime<chrono::Utc>) -> String {
+    let now = chrono::Utc::now();
+    let duration = now.signed_duration_since(*timestamp);
+    
+    if duration.num_days() > 0 {
+        format!("{} days ago", duration.num_days())
+    } else if duration.num_hours() > 0 {
+        format!("{} hours ago", duration.num_hours())
+    } else if duration.num_minutes() > 0 {
+        format!("{} minutes ago", duration.num_minutes())
+    } else {
+        "just now".to_string()
+    }
 }
