@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
+use bincode;
 
 // Include the generated TF-IDF index from build script
 include!(concat!(env!("OUT_DIR"), "/tfidf_index.rs"));
