@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
-use bincode;
 
 // Include the generated TF-IDF index from build script
 include!(concat!(env!("OUT_DIR"), "/tfidf_index.rs"));
@@ -29,7 +28,7 @@ impl TfIdfSearcher {
             anyhow::bail!("No TF-IDF index available. Static commands file not found during build.");
         }
         
-        let index: TfIdfIndex = bincode::deserialize(TFIDF_INDEX)
+        let index: TfIdfIndex = rmp_serde::from_slice(TFIDF_INDEX)
             .map_err(|e| anyhow::anyhow!("Failed to deserialize TF-IDF index: {}", e))?;
         
         Ok(TfIdfSearcher { index })

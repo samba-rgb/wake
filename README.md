@@ -277,6 +277,75 @@ wake --script-in ./dummy_script.sh --namespace apps --pod-selector 'nginx.*' --s
 
 This command runs `dummy_script.sh` in all pods in the `apps` namespace that match the `nginx.*` regex, and saves the output in the `./results` directory.
 
+## Command History and Search
+
+Wake automatically tracks your command history and provides intelligent search capabilities to help you find and reuse commands.
+
+### Command History
+
+```bash
+# Show your recent wake commands
+wake --his
+
+# The history shows:
+# - All wake commands you've run
+# - Timestamps showing when commands were executed
+# - Working directory where commands were run
+# - Limited to last 150 commands by default
+```
+
+### Intelligent Command Search
+
+Wake includes a TF-IDF (Term Frequency-Inverse Document Frequency) powered search engine that helps you find the right command syntax:
+
+```bash
+# Search for commands related to configuration
+wake --his "config"
+
+# Search for UI-related commands
+wake --his "ui mode"
+
+# Search for filtering examples
+wake --his "error logs"
+
+# Search for namespace commands
+wake --his "namespace"
+
+# Search for file output commands
+wake --his "save logs"
+```
+
+### Search Features
+
+- **Smart matching**: Finds commands based on meaning, not just exact text
+- **Contextual results**: Shows relevant commands with descriptions
+- **Example suggestions**: Provides related command categories when no exact match is found
+- **Built-in knowledge**: Includes hundreds of common wake command patterns
+
+### History Configuration
+
+The command history feature can be configured:
+
+```bash
+# History is enabled by default and stores up to 150 commands
+# Commands are automatically saved before execution
+# History persists across wake sessions
+
+# View current history settings
+wake getconfig
+
+# History is stored in your wake configuration file
+```
+
+## Smart Filter Management
+
+Wake intelligently handles filter changes:
+
+- **Old logs preserved** - Changing filters doesn't remove previously displayed logs
+- **Clear boundaries** - Visual markers show when filters were applied
+- **New logs only** - Filter changes only affect incoming logs
+- **Filter history** - Navigate through previously used patterns with arrow keys
+
 ## Next Steps
 
 The following enhancements are planned for future versions:
@@ -444,6 +513,7 @@ Options:
       --all-containers            Show logs from all containers in pods
       --script-in <PATH>          Path to a script to run in each selected pod (copied and executed as /tmp/wake-script.sh)
       --script-outdir <DIR>       Directory to save script output tar (overrides config)
+      --his [QUERY]               Show command history or search for commands (e.g., --his "error logs")
   -h, --help                      Print help
   -V, --version                   Print version
 ```
@@ -533,3 +603,4 @@ wake -r sts/database --all-containers
 ## License
 
 MIT License
+````

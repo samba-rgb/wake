@@ -194,8 +194,24 @@ pub struct Args {
     #[arg(long, hide = true, default_value_t = false)]
     pub author: bool,
 
-    /// Show command history or search commands
-    #[arg(long = "his", value_name = "QUERY", help = "Show command history or search for commands (e.g., --his \"error logs\")", num_args = 0..=1, default_missing_value = "")]
+    /// Show command history or search commands with intelligent TF-IDF powered search
+    /// Two modes:
+    /// 1. History mode: --his (no arguments) - Shows your recent wake commands with timestamps
+    /// 2. Search mode: --his "query" - Intelligent search for commands using keywords
+    /// 
+    /// Search Examples:
+    ///   --his "config"        # Find configuration commands
+    ///   --his "ui mode"       # Find UI-related commands  
+    ///   --his "error logs"    # Find error logging commands
+    ///   --his "namespace"     # Find namespace commands
+    ///   --his "save logs"     # Find file output commands
+    /// 
+    /// Features:
+    /// • Smart matching based on meaning, not just exact text
+    /// • Built-in knowledge of hundreds of wake command patterns
+    /// • Contextual suggestions when no exact matches found
+    /// • Command history automatically saved (last 150 commands)
+    #[arg(long = "his", value_name = "QUERY", help = "Show command history or search for commands with intelligent TF-IDF search (e.g., --his \"error logs\")", num_args = 0..=1, default_missing_value = "")]
     pub history: Option<String>,
 }
 
