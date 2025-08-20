@@ -32,8 +32,8 @@ pub static COMMANDS_COUNT: usize = 0;
     // Build TF-IDF index
     let index = build_tfidf_index(&commands);
     
-    // Serialize the index using rmp-serde (MessagePack) - cross-platform alternative to bincode
-    let serialized = rmp_serde::to_vec(&index).unwrap();
+    // Serialize the index using JSON - simple and cross-platform
+    let serialized = serde_json::to_vec(&index).unwrap();
     
     // Generate Rust code that includes the serialized index
     let generated_code = format!(
