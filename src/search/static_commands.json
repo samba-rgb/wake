@@ -1,0 +1,66 @@
+[
+  {
+    "command": "wake",
+    "description": "View logs from all pods in the default namespace with real-time streaming"
+  },
+  {
+    "command": "wake --help",
+    "description": "Show all available command options and usage examples for the wake tool"
+  },
+  {
+    "command": "wake setconfig autosave true",
+    "description": "Enable automatic saving of log output to timestamped files for persistence"
+  },
+  {
+    "command": "wake setconfig autosave true --path /logs",
+    "description": "Configure autosave with custom directory path for automatic log file storage"
+  },
+  {
+    "command": "wake getconfig",
+    "description": "Display all current wake configuration settings in a formatted table"
+  },
+  {
+    "command": "wake getconfig autosave",
+    "description": "Show only autosave configuration settings and current status"
+  },
+  {
+    "command": "wake --ui ",
+    "description": "Launch UI mode  with dynamic filtering capabilities"
+  },
+  {
+    "command": "wake --ui -w production.log",
+    "description": "Start UI mode while simultaneously saving logs to file for analysis"
+  },
+  {
+    "command": "wake -T",
+    "description": "Show timestamps in log output for temporal analysis and debugging"
+  },
+  {
+    "command": "wake -T -i error",
+    "description": "Display error logs with timestamps for chronological error tracking"
+  },
+  {
+    "command": "wake -A",
+    "description": "Monitor logs from all namespaces across the entire Kubernetes cluster"
+  },
+  {
+    "command": "wake --exec-template jfr --template-args 1234 30s",
+    "description": "Execute Java Flight Recorder template with process ID 1234 for 30 seconds profiling duration"
+  },
+  {
+    "command": "wake --exec-template heap-dump --template-args 1234",
+    "description": "Execute heap dump template with process ID 1234 to generate memory dump for analysis"
+  },
+  {
+    "command": "wake --exec-template thread-dump --template-args 1234",
+    "description": "Execute thread dump template with process ID 1234 to analyze thread states and deadlocks"
+  },
+  {
+    "command": "wake --script-in ./diagnostics.sh --namespace apps --pod-selector 'nginx.*' --script-outdir ./results",
+    "description": "Run diagnostics script on nginx pods in apps namespace and save results to specified directory"
+  },
+  {
+    "command": "wake --his \"config\"",
+    "description": "Find configuration commands for wake settings and preferences"
+  }
+]

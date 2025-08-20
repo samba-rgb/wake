@@ -193,6 +193,10 @@ pub struct Args {
     /// Hidden author flag (not shown in --help)
     #[arg(long, hide = true, default_value_t = false)]
     pub author: bool,
+
+    /// Show command history or search commands
+    #[arg(long = "his", value_name = "QUERY", help = "Show command history or search for commands (e.g., --his \"error logs\")", num_args = 0..=1, default_missing_value = "")]
+    pub history: Option<String>,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -288,6 +292,7 @@ impl Default for Args {
             script_in: None, // Default to None
             script_outdir: None, // Default to None
             author: false, // Default to false
+            history: None, // Default to None
         }
     }
 }

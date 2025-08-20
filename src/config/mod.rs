@@ -3,11 +3,14 @@ use std::path::PathBuf;
 use std::fs;
 use anyhow::{Result, Context, anyhow};
 use directories::ProjectDirs;
+use std::collections::VecDeque;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub autosave: AutosaveConfig,
     pub ui: UiConfig,
+    pub history: HistoryConfig,
     // Args defaultable fields
     pub pod_selector: Option<String>,
     pub container: Option<String>,
@@ -32,6 +35,20 @@ pub struct UiConfig {
     pub show_timestamps: bool, // Default timestamp display
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandHistoryEntry {
+    pub command: String,
+    pub timestamp: DateTime<Utc>,
+    pub working_directory: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryConfig {
+    pub enabled: bool,
+    pub max_entries: usize,
+    pub commands: VecDeque<CommandHistoryEntry>,
+}
+
 impl Default for AutosaveConfig {
     fn default() -> Self {
         Self {
@@ -47,6 +64,16 @@ impl Default for UiConfig {
             buffer_expansion: 10.0, // Default to 10x expansion
             theme: "auto".to_string(), // Auto-detect theme
             show_timestamps: false, // Don't show timestamps by default
+        }
+    }
+}
+
+impl Default for HistoryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_entries: 150,
+            commands: VecDeque::new(),
         }
     }
 }
@@ -95,6 +122,19 @@ impl Config {
             .context("Failed to write config file")?;
         
         println!("Configuration saved to: {}", config_path.display());
+        Ok(())
+    }
+    
+    /// Save configuration to file silently (without printing message)
+    pub fn save_silent(&self) -> Result<()> {
+        let config_path = Self::config_file_path()?;
+        
+        let content = toml::to_string_pretty(self)
+            .context("Failed to serialize config")?;
+        
+        fs::write(&config_path, content)
+            .context("Failed to write config file")?;
+        
         Ok(())
     }
     
@@ -355,5 +395,35 @@ impl Config {
         
         output.push_str("└─────────────────────────┴───────────────────────────────────────────┘\n");
         Ok(output)
+    }
+    
+    /// Add a command to history
+    pub fn add_command_to_history(&mut self, command: String) {
+        if !self.history.enabled {
+            return;
+        }
+        
+        let entry = CommandHistoryEntry {
+            command,
+            timestamp: Utc::now(),
+            working_directory: std::env::current_dir().ok().map(|p| p.display().to_string()),
+        };
+        
+        self.history.commands.push_back(entry);
+        
+        // Maintain max entries limit
+        while self.history.commands.len() > self.history.max_entries {
+            self.history.commands.pop_front();
+        }
+    }
+    
+    /// Get command history (oldest first, newest last)
+    pub fn get_command_history(&self) -> Vec<&CommandHistoryEntry> {
+        self.history.commands.iter().collect()
+    }
+    
+    /// Get command history count
+    pub fn get_history_count(&self) -> usize {
+        self.history.commands.len()
     }
 }
