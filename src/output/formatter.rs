@@ -1,6 +1,35 @@
 use crate::k8s::logs::LogEntry;
 use anyhow::{Result, anyhow};
 
+/// Normalize multiline log messages into single lines
+/// Replaces newlines with spaces and collapses multiple whitespaces
+fn normalize_message(message: &str) -> String {
+    // Replace all types of newlines and line separators with spaces
+    let normalized = message
+        .replace('\n', " ")
+        .replace('\r', " ")
+        .replace('\t', " ");
+    
+    // Collapse multiple consecutive spaces into single spaces
+    let mut result = String::new();
+    let mut prev_was_space = false;
+    
+    for ch in normalized.chars() {
+        if ch.is_whitespace() {
+            if !prev_was_space {
+                result.push(' ');
+                prev_was_space = true;
+            }
+        } else {
+            result.push(ch);
+            prev_was_space = false;
+        }
+    }
+    
+    // Trim leading and trailing whitespace
+    result.trim().to_string()
+}
+
 /// Trait for formatting log entries
 pub trait OutputFormatter: Send + Sync {
     /// Format a log entry according to the formatter's rules
@@ -38,12 +67,15 @@ impl OutputFormatter for TextFormatter {
             }
         }
         
+        // Normalize the message to convert multiline logs to single lines
+        let normalized_message = normalize_message(&entry.message);
+        
         // Add pod/container context and message
         output.push_str(&format!("[{}/{}/{}] {}", 
             entry.namespace,
             entry.pod_name,
             entry.container_name,
-            entry.message
+            normalized_message
         ));
         
         Ok(output)
@@ -72,11 +104,14 @@ impl OutputFormatter for JsonFormatter {
     fn format(&self, entry: &LogEntry) -> Result<String> {
         let timestamp = entry.timestamp.map(|ts| ts.to_rfc3339());
         
+        // Normalize the message to convert multiline logs to single lines
+        let normalized_message = normalize_message(&entry.message);
+        
         let json = serde_json::json!({
             "namespace": entry.namespace,
             "pod": entry.pod_name,
             "container": entry.container_name,
-            "message": entry.message,
+            "message": normalized_message,
             "timestamp": timestamp,
         });
 
@@ -98,7 +133,8 @@ impl RawFormatter {
 
 impl OutputFormatter for RawFormatter {
     fn format(&self, entry: &LogEntry) -> Result<String> {
-        Ok(entry.message.clone())
+        // Normalize the message to convert multiline logs to single lines
+        Ok(normalize_message(&entry.message))
     }
     
     fn format_name(&self) -> Option<String> {

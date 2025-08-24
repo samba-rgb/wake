@@ -129,6 +129,35 @@ impl Formatter {
         false
     }
 
+    /// Normalize multiline log messages into single lines
+    /// Replaces newlines with spaces and collapses multiple whitespaces
+    fn normalize_message(message: &str) -> String {
+        // Replace all types of newlines and line separators with spaces
+        let normalized = message
+            .replace('\n', " ")
+            .replace('\r', " ")
+            .replace('\t', " ");
+        
+        // Collapse multiple consecutive spaces into single spaces
+        let mut result = String::new();
+        let mut prev_was_space = false;
+        
+        for ch in normalized.chars() {
+            if ch.is_whitespace() {
+                if !prev_was_space {
+                    result.push(' ');
+                    prev_was_space = true;
+                }
+            } else {
+                result.push(ch);
+                prev_was_space = false;
+            }
+        }
+        
+        // Trim leading and trailing whitespace
+        result.trim().to_string()
+    }
+
     /// Formats a log entry based on the selected output format
     /// This method no longer includes filtering - filtering is handled by the filter manager
     #[allow(dead_code)]
@@ -142,12 +171,15 @@ impl Formatter {
         match &self.output_format {
             OutputFormat::Text => Some(self.format_text(entry)),
             OutputFormat::Json => Some(self.format_json(entry)),
-            OutputFormat::Raw => Some(entry.message.clone()),
+            OutputFormat::Raw => Some(Self::normalize_message(&entry.message)),
         }
     }
 
     /// Formats a log entry as colored text
     fn format_text(&self, entry: &LogEntry) -> String {
+        // Normalize the message to convert multiline logs to single lines
+        let normalized_message = Self::normalize_message(&entry.message);
+        
         if !self.colors_enabled {
             // Plain text format without colors
             let time_part = if self.show_timestamps {
@@ -160,7 +192,7 @@ impl Formatter {
                 String::new()
             };
             
-            return format!("{}{}/{} {}", time_part, entry.pod_name, entry.container_name, entry.message);
+            return format!("{}{}/{} {}", time_part, entry.pod_name, entry.container_name, normalized_message);
         }
 
         // Detect if we're on a light background
@@ -189,36 +221,36 @@ impl Formatter {
         };
 
         // Enhanced color coding for log levels with light/dark mode support
-        let message_with_level_color = if entry.message.contains("FATAL") || entry.message.contains("CRITICAL") {
-            entry.message.bright_red().bold().to_string()
-        } else if entry.message.contains("ERROR") || entry.message.contains("ERR") {
-            entry.message.bright_red().to_string()
-        } else if entry.message.contains("WARN") || entry.message.contains("WARNING") {
-            entry.message.bright_yellow().to_string()
-        } else if entry.message.contains("INFO") {
+        let message_with_level_color = if normalized_message.contains("FATAL") || normalized_message.contains("CRITICAL") {
+            normalized_message.bright_red().bold().to_string()
+        } else if normalized_message.contains("ERROR") || normalized_message.contains("ERR") {
+            normalized_message.bright_red().to_string()
+        } else if normalized_message.contains("WARN") || normalized_message.contains("WARNING") {
+            normalized_message.bright_yellow().to_string()
+        } else if normalized_message.contains("INFO") {
             if is_light_background {
                 // Dark blue for light backgrounds - good visibility
-                entry.message.blue().to_string()
+                normalized_message.blue().to_string()
             } else {
                 // Bright white for dark backgrounds
-                entry.message.bright_white().to_string()
+                normalized_message.bright_white().to_string()
             }
-        } else if entry.message.contains("DEBUG") || entry.message.contains("TRACE") {
+        } else if normalized_message.contains("DEBUG") || normalized_message.contains("TRACE") {
             if is_light_background {
                 // Dark cyan for light backgrounds
-                entry.message.cyan().to_string()
+                normalized_message.cyan().to_string()
             } else {
                 // Bright cyan for dark backgrounds
-                entry.message.bright_cyan().to_string()
+                normalized_message.bright_cyan().to_string()
             }
         } else {
             // Default message color based on background
             if is_light_background {
                 // Black text for light backgrounds - maximum visibility
-                entry.message.black().to_string()
+                normalized_message.black().to_string()
             } else {
                 // Bright white for dark backgrounds
-                entry.message.bright_white().to_string()
+                normalized_message.bright_white().to_string()
             }
         };
 
@@ -230,15 +262,18 @@ impl Formatter {
     fn format_json(&self, entry: &LogEntry) -> String {
         let timestamp = entry.timestamp.map(|ts| ts.to_rfc3339());
         
+        // Normalize the message to convert multiline logs to single lines
+        let normalized_message = Self::normalize_message(&entry.message);
+        
         let json = serde_json::json!({
             "namespace": entry.namespace,
             "pod": entry.pod_name,
             "container": entry.container_name,
-            "message": entry.message,
+            "message": normalized_message,
             "timestamp": timestamp,
         });
 
-        serde_json::to_string(&json).unwrap_or_else(|_| entry.message.clone())
+        serde_json::to_string(&json).unwrap_or_else(|_| normalized_message)
     }
 
     /// Gets a consistent color for a pod
