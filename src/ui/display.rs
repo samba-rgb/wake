@@ -137,6 +137,35 @@ impl HashLineCache {
         }
     }
 
+    /// Normalize multiline log messages into single lines for UI display
+    /// Replaces newlines with spaces and collapses multiple whitespaces
+    fn normalize_message_for_ui(message: &str) -> String {
+        // Replace all types of newlines and line separators with spaces
+        let normalized = message
+            .replace('\n', " ")
+            .replace('\r', " ")
+            .replace('\t', " ");
+        
+        // Collapse multiple consecutive spaces into single spaces
+        let mut result = String::new();
+        let mut prev_was_space = false;
+        
+        for ch in normalized.chars() {
+            if ch.is_whitespace() {
+                if !prev_was_space {
+                    result.push(' ');
+                    prev_was_space = true;
+                }
+            } else {
+                result.push(ch);
+                prev_was_space = false;
+            }
+        }
+        
+        // Trim leading and trailing whitespace
+        result.trim().to_string()
+    }
+
     /// Rebuild the entire cache based on current display state
     pub fn rebuild(&mut self,
                    log_entries: &VecDeque<LogEntry>,
@@ -235,7 +264,9 @@ impl HashLineCache {
             String::new()
         };
 
-        let clean_message = Self::strip_ansi_codes(&entry.message);
+        // Normalize the message to convert multiline logs to single lines
+        let normalized_message = Self::normalize_message_for_ui(&entry.message);
+        let clean_message = Self::strip_ansi_codes(&normalized_message);
         let clean_pod_name = Self::strip_ansi_codes(&entry.pod_name);
         let clean_container_name = Self::strip_ansi_codes(&entry.container_name);
 
@@ -1589,9 +1620,10 @@ impl DisplayManager {
             ));
 
             // Message span with log level detection
-            let message_color = self.detect_log_level_color(&entry.message);
+            let normalized_message = HashLineCache::normalize_message_for_ui(&entry.message);
+            let message_color = self.detect_log_level_color(&normalized_message);
             spans.push(Span::styled(
-                self.strip_ansi_codes(&entry.message),
+                self.strip_ansi_codes(&normalized_message),
                 Style::default().fg(message_color)
             ));
 
