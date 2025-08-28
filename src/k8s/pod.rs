@@ -120,6 +120,25 @@ pub async fn select_pods(
                 }
             }
             
+            // Ensure at least one container is selected
+            if containers.is_empty() {
+                warn!("Pod {} has no matching containers, skipping", pod_name);
+                continue;
+            }
+
+            // Log all container names for debugging
+            debug!("Pod {} has containers: {:?}", pod_name, containers);
+
+            // Log the container selection strategy
+            if containers.len() == 1 {
+                info!("Pod {}: Only one container available, selecting it by default", pod_name);
+            } else {
+                info!("Pod {}: Multiple containers available, applying selection strategy", pod_name);
+            }
+
+            // Log selected containers for debugging
+            debug!("Pod {} selected containers: {:?}", pod_name, containers);
+
             if !containers.is_empty() {
                 info!("Selected pod {} with {} containers", pod_name, containers.len());
                 selected_pods.push(PodInfo {
