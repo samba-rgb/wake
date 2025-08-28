@@ -66,12 +66,27 @@ pub async fn select_pods(
                 continue;
             }
             
-            // Get container names
+            // Preserve the order of containers as they appear in the pod spec
             let mut containers = Vec::new();
-            
-            // Check pod status for containers
+
+            // Start with containers from the spec to preserve their original order
+            if let Some(spec) = &pod.spec {
+                for c in &spec.containers {
+                    if is_plain_name(container_re) {
+                        if &c.name != container_re.as_str() {
+                            continue;
+                        }
+                    } else {
+                        if !container_re.is_match(&c.name) {
+                            continue;
+                        }
+                    }
+                    containers.push(c.name.clone());
+                }
+            }
+
+            // Add running containers from the status if not already added
             if let Some(status) = &pod.status {
-                // Add running containers
                 if let Some(container_statuses) = &status.container_statuses {
                     for cs in container_statuses {
                         if is_plain_name(container_re) {
@@ -83,10 +98,11 @@ pub async fn select_pods(
                                 continue;
                             }
                         }
-                        containers.push(cs.name.clone());
+                        if !containers.contains(&cs.name) {
+                            containers.push(cs.name.clone());
+                        }
                     }
                 }
-                // Also check init containers
                 if let Some(init_containers) = &status.init_container_statuses {
                     for cs in init_containers {
                         if is_plain_name(container_re) {
@@ -98,24 +114,9 @@ pub async fn select_pods(
                                 continue;
                             }
                         }
-                        containers.push(cs.name.clone());
-                    }
-                }
-            }
-            // If no containers found via status, try spec
-            if containers.is_empty() {
-                if let Some(spec) = &pod.spec {
-                    for c in &spec.containers {
-                        if is_plain_name(container_re) {
-                            if &c.name != container_re.as_str() {
-                                continue;
-                            }
-                        } else {
-                            if !container_re.is_match(&c.name) {
-                                continue;
-                            }
+                        if !containers.contains(&cs.name) {
+                            containers.push(cs.name.clone());
                         }
-                        containers.push(c.name.clone());
                     }
                 }
             }
