@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{info, debug, error};
+use tracing::{info, debug, error, warn};
 
 /// Represents a single log entry from a container
 #[derive(Debug, Clone)]
@@ -65,29 +65,41 @@ impl LogWatcher {
             if pod_info.containers.contains(&annotated_default) {
                 info!("LOG_WATCHER: Using annotated default container: {}", annotated_default);
                 return annotated_default;
+            } else {
+                warn!("LOG_WATCHER: Annotated default container '{}' not found in pod containers", annotated_default);
             }
         }
-        
+
         // Strategy 2: Use smart name-based heuristics
         if let Some(smart_default) = Self::get_smart_default_container(&pod_info.containers) {
             info!("LOG_WATCHER: Using smart name-based default: {}", smart_default);
             return smart_default;
+        } else {
+            debug!("LOG_WATCHER: No suitable container found using smart heuristics");
         }
-        
+
         // Strategy 3: Use namespace-wide container frequency analysis (only if multiple pods)
         if all_pods.len() > 1 {
             if let Some(frequent_default) = Self::get_most_common_container(all_pods) {
                 if pod_info.containers.contains(&frequent_default) {
                     info!("LOG_WATCHER: Using most common container in namespace: {}", frequent_default);
                     return frequent_default;
+                } else {
+                    warn!("LOG_WATCHER: Most common container '{}' not found in pod containers", frequent_default);
                 }
+            } else {
+                debug!("LOG_WATCHER: No common container found across namespace");
             }
         }
-        
+
         // Fallback: Use first container (current behavior - always works)
-        let first_container = pod_info.containers[0].clone();
-        info!("LOG_WATCHER: No clear default found, falling back to first container: {}", first_container);
-        first_container
+        if let Some(first_container) = pod_info.containers.first() {
+            info!("LOG_WATCHER: No clear default found, falling back to first container: {}", first_container);
+            return first_container.clone();
+        } else {
+            error!("LOG_WATCHER: No containers available in pod '{}', unable to determine default container", pod_info.name);
+            panic!("No containers available in pod '{}'", pod_info.name);
+        }
     }
     
     /// Check for kubectl.kubernetes.io/default-container annotation
