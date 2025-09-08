@@ -13,6 +13,7 @@ use crate::k8s::pod::select_pods;
 use kube::Api;
 use k8s_openapi::api::core::v1::Pod;
 use chrono::Local;
+use comfy_table::{Table as HelpTable, presets::UTF8_FULL as HELP_UTF8_FULL, ContentArrangement as HelpContentArrangement, Cell as HelpCell};
 use comfy_table::Table;
 use colored::Colorize;
 
@@ -38,6 +39,77 @@ fn is_default_run(args: &Args) -> bool {
     !args.all_namespaces &&
     args.resource.is_none() &&
     !args.list_containers
+}
+
+/// Prints a tabular help message
+fn print_tabular_help() {
+    let mut t = HelpTable::new();
+    t.load_preset(HELP_UTF8_FULL)
+        .set_content_arrangement(HelpContentArrangement::Dynamic)
+        .set_header(vec!["Argument", "Description"]);
+    let mut add = |arg: &str, desc: &str| {
+        t.add_row(vec![HelpCell::new(arg), HelpCell::new(desc)]);
+    };
+    add("POD_SELECTOR", "Pod selector regular expression (positional), default: .* ");
+    add("-c, --container <REGEX>", "Container selector regex, default: .* ");
+    add("-s, --sample <N>", "Randomly sample up to N matching pods (default: all)");
+    add("-L, --list-containers", "List all containers in matched pods (no streaming)");
+    add("--all-containers", "Show logs from all containers in pods");
+    add("-n, --namespace <NAME>", "Kubernetes namespace (default: current context)");
+    add("-A, --all-namespaces", "Show logs from all namespaces");
+    add("-k, --kubeconfig <PATH>", "Path to kubeconfig file");
+    add("-x, --context <NAME>", "Kubernetes context to use");
+    add("-t, --tail <LINES>", "Lines of logs to display from beginning (default: 10)");
+    add("-f, --follow [true|false]", "Follow logs (stream) default: true");
+    add("-i, --include <PATTERN>", "Include logs matching advanced pattern (&&, ||, !, quotes, regex)");
+    add("-e, --exclude <PATTERN>", "Exclude logs matching advanced pattern");
+    add("-T, --timestamps", "Show timestamps in logs");
+    add("-o, --output <FORMAT>", "Output format (text, json, raw), default: text");
+    add("-w, --output-file <FILE>", "Write logs to file (use with --ui for both file and UI)");
+    add("-r, --resource <KIND/NAME>", "Select pods by resource owner (deploy/foo, sts/bar, etc.)");
+    add("--exec-template <NAME>", "Execute predefined template (jfr, heap-dump, thread-dump)");
+    add("--template-args <ARGS>...", "Arguments to pass to the template");
+    add("--list-templates", "List available templates");
+    add("--template-output <DIR>", "Directory to save template outputs");
+    add("--since <DURATION>", "Show logs since duration (e.g., 5s, 2m, 3h)");
+    add("--threads <N>", "Threads for log filtering (default: 2x CPU cores)");
+    add("--ui", "Enable interactive UI mode with dynamic filtering");
+    add("--no-ui", "Disable UI and force CLI output");
+    add("--dev", "Enable development mode (internal logs)");
+    add("--buffer-size <N>", "Number of log entries to keep in memory (default: 20000)");
+    add("-v, --verbosity <LEVEL>", "Verbosity for internal debug output (default: 0)");
+    add("--script-in <PATH>", "Run a script in each selected pod and collect output");
+    add("--script-outdir <DIR>", "Directory to save script outputs (overrides config)");
+    add("--his [QUERY]", "Show command history or search saved commands using TF-IDF");
+    add("-h, --help", "Print this help");
+    add("-V, --version", "Print version");
+
+    println!("{}", t);
+
+    println!("\nExamples:");
+    println!("  wake -n kube-system \"kube-proxy\"                # Tail logs for kube-proxy in kube-system namespace");
+    println!("  wake -A -i \"error\"                           # Tail logs across all namespaces, including 'error'");
+    println!("  wake --ui -o json                                # Use interactive UI mode with JSON output");
+    println!("  wake --his \"config\"                           # Search command history for 'config'");
+
+    println!("\nConfiguration Commands:");
+    println!("  wake setconfig <key> <value> [--path <path>]      # Set a configuration key to a value");
+    println!("  wake getconfig [<key>]                           # Get the value of a configuration key or all keys");
+    // Examples
+    println!("  wake setconfig autosave true                      # Enable autosave with auto-generated filenames");
+    println!("  wake setconfig autosave true --path /var/logs     # Enable autosave with custom directory");
+    println!("  wake setconfig autosave false                     # Disable autosave");
+    println!("  wake setconfig ui-buffer-expansion 10             # Buffer grows 10x in pause mode for UI");
+    println!("  wake setconfig ui-buffer-expansion 5              # Buffer grows 5x in pause mode for UI");
+    println!("  wake setconfig script_outdir /tmp/wake-results    # Set default script output directory");
+    println!("  wake getconfig                                    # Show all configuration");
+    println!("  wake getconfig autosave                           # Show only autosave configuration");
+    println!("  wake getconfig ui-buffer-expansion                # Show only buffer expansion setting");
+
+    println!("\nTF-IDF Search Details:");
+    println!("  • Use --his \"query\" to search command history intelligently.");
+    println!("  • Example: wake --his \"error logs\" to find commands related to error logging.");
+    println!("  • Supports contextual suggestions when no exact matches are found.");
 }
 
 /// Run a script in all selected pods and collect outputs as a zip file
@@ -118,6 +190,12 @@ async fn run_script_in_pods(args: &Args) -> Result<()> {
 }
 
 pub async fn run(mut args: Args) -> Result<()> {
+    // Show custom tabular help and exit early
+    if args.help {
+        print_tabular_help();
+        return Ok(());
+    }
+
     // Store command in history before execution (save early to prevent data loss)
     store_command_in_history(&args)?;
     
