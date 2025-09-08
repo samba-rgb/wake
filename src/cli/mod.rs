@@ -238,6 +238,7 @@ pub async fn run(mut args: Args) -> Result<()> {
             args.all_namespaces,
             args.resource.as_deref(),
             container_regex.as_ref(),
+            args.sample,
         ).await;
     }
     
