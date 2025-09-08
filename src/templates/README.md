@@ -99,6 +99,22 @@ wake --exec-template thread-dump --template-args 1234
 3. Downloads the generated `.txt` file
 4. Cleans up temporary files from pods
 
+## Templates
+
+Templates in this project allow for dynamic and reusable configurations for various operations. Below are the details for using templates effectively.
+
+## Useful Args
+
+- `-c <container>`: Specify the container to target.
+- `-n <namespace>`: Define the namespace scope.
+- `-s <sample>`: Limit the number of samples.
+- `-i <include>`: Include specific patterns.
+- `-e <exclude>`: Exclude specific patterns.
+
+## Pod Selector
+
+Pod selectors can be used as positional arguments to filter pods based on regex patterns. The default is `.*` (all pods).
+
 ## Interactive UI
 
 The template system includes a powerful interactive UI that provides real-time monitoring of template execution:
