@@ -1,11 +1,15 @@
 [
   {
     "command": "wake",
-    "description": "View logs from all pods in the default namespace with real-time streaming"
+    "description": "Tail logs from all pods in the current/default namespace with real-time streaming (follow=true). Defaults: namespace=current context or 'default', container=.* , tail=10, output=text. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   },
   {
-    "command": "wake --help",
-    "description": "Show all available command options and usage examples for the wake tool"
+    "command": "wake POD_SELECTOR",
+    "description": "Filter pods by regex (positional). Example: 'nginx.*'. Default: .* (all pods). Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake -n <namespace> POD_SELECTOR",
+    "description": "Tail logs from pods matching POD_SELECTOR in a specific namespace. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   },
   {
     "command": "wake setconfig autosave true",
@@ -24,36 +28,36 @@
     "description": "Show only autosave configuration settings and current status"
   },
   {
-    "command": "wake --ui ",
-    "description": "Launch UI mode  with dynamic filtering capabilities"
+    "command": "wake --ui",
+    "description": "Launch UI mode with dynamic filtering. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   },
   {
     "command": "wake --ui -w production.log",
     "description": "Start UI mode while simultaneously saving logs to file for analysis"
   },
   {
-    "command": "wake -T",
-    "description": "Show timestamps in log output for temporal analysis and debugging"
+    "command": "wake -T POD_SELECTOR",
+    "description": "Show timestamps in output (adds time prefix to each log line). Default: off. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   },
   {
     "command": "wake -T -i error",
     "description": "Display error logs with timestamps for chronological error tracking"
   },
   {
-    "command": "wake -A",
-    "description": "Monitor logs from all namespaces across the entire Kubernetes cluster"
+    "command": "wake -A POD_SELECTOR",
+    "description": "Tail logs from all namespaces (cluster-wide) for matching pods. Defaults: container=.* , follow=true; combine with -i/-e for filtering. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   },
   {
     "command": "wake --exec-template jfr --template-args 1234 30s",
-    "description": "Execute Java Flight Recorder template with process ID 1234 for 30 seconds profiling duration"
+    "description": "Execute Java Flight Recorder template with process ID 1234 for 30 seconds profiling duration. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   },
   {
     "command": "wake --exec-template heap-dump --template-args 1234",
-    "description": "Execute heap dump template with process ID 1234 to generate memory dump for analysis"
+    "description": "Execute heap dump template with process ID 1234 to generate memory dump for analysis. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   },
   {
     "command": "wake --exec-template thread-dump --template-args 1234",
-    "description": "Execute thread dump template with process ID 1234 to analyze thread states and deadlocks"
+    "description": "Execute thread dump template with process ID 1234 to analyze thread states and deadlocks. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   },
   {
     "command": "wake --script-in ./diagnostics.sh --namespace apps --pod-selector 'nginx.*' --script-outdir ./results",
@@ -62,5 +66,45 @@
   {
     "command": "wake --his \"config\"",
     "description": "Find configuration commands for wake settings and preferences"
+  },
+  {
+    "command": "wake -c <container> POD_SELECTOR",
+    "description": "Select containers by regex within matched pods. Default: .* (all). Example: -c 'main|sidecar'. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake -s <N> POD_SELECTOR",
+    "description": "Randomly sample up to N matching pods to reduce load (N >= 1). Default: not set (use all matching pods). Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake -i '<pattern>' POD_SELECTOR",
+    "description": "Include filter using advanced syntax: &&, ||, !, quotes, regex. Examples: -i '\"info\" || \"error\"' ; -i '(warn || error) && !\"test\"'. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake -e '<pattern>' POD_SELECTOR",
+    "description": "Exclude filter using advanced syntax (same grammar as include). Examples: -e 'debug' ; -e 'trace || noisy'. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake -o <text|json|raw> POD_SELECTOR",
+    "description": "Set output format; text (human), json (structured), raw (verbatim). Default: text. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake -w <file> POD_SELECTOR",
+    "description": "Write logs to file; combine with --ui to show UI and save simultaneously. Default: not set; path is created if possible. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake --no-ui POD_SELECTOR",
+    "description": "Force CLI output (disable UI). Default: CLI is default when --ui is not provided. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake --dev POD_SELECTOR",
+    "description": "Enable development mode; print internal diagnostics and tracing. Default: off. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake -L POD_SELECTOR",
+    "description": "List all containers in matched pods and exit (no streaming). Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
+  },
+  {
+    "command": "wake --all-containers POD_SELECTOR",
+    "description": "Show logs from all containers in each matched pod (kubectl-like). Default: off. Useful args: -c <container>, -n <namespace>, -s <sample>, -i <include>, -e <exclude>. Pod selector: positional regex after namespace (default: .*)"
   }
 ]
