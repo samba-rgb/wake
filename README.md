@@ -277,6 +277,28 @@ wake --script-in ./dummy_script.sh --namespace apps --pod-selector 'nginx.*' --s
 
 This command runs `dummy_script.sh` in all pods in the `apps` namespace that match the `nginx.*` regex, and saves the output in the `./results` directory.
 
+## Sampling Pods
+
+Wake allows you to randomly sample a subset of matching pods using the `--sample` (or `-s`) flag. This is useful when dealing with a large number of pods and you want to limit the scope of log collection or script execution.
+
+### Usage Examples
+
+```bash
+# Sample 3 random pods matching the selector
+wake -n apps log-generator --sample 3
+
+# Sample 1 random pod from all namespaces
+wake -A --sample 1
+
+# Combine sampling with container selection
+wake -n kube-system "kube-proxy" -c "main" --sample 2
+```
+
+### Notes
+- The `--sample` flag accepts a positive integer value (e.g., `1`, `5`, `10`).
+- If not specified, Wake processes all matching pods by default.
+- Sampling is applied during both initial discovery and dynamic watch-based discovery, ensuring the total number of monitored pods does not exceed the specified sample size.
+
 ## Command History and Search
 
 Wake automatically tracks your command history and provides intelligent search capabilities to help you find and reuse commands.
@@ -514,6 +536,7 @@ Options:
       --script-in <PATH>          Path to a script to run in each selected pod (copied and executed as /tmp/wake-script.sh)
       --script-outdir <DIR>       Directory to save script output tar (overrides config)
       --his [QUERY]               Show command history or search for commands (e.g., --his "error logs")
+      --sample <NUMBER>           Randomly sample a subset of matching pods
   -h, --help                      Print help
   -V, --version                   Print version
 ```
