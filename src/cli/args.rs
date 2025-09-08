@@ -20,36 +20,28 @@ fn get_default_namespace() -> String {
     version, 
     about = "Advanced Kubernetes log tailing with intelligent filtering and interactive UI",
     long_about = "Wake is a powerful command-line tool for tailing logs from multiple Kubernetes pods and containers.\n\
-Features advanced pattern syntax with logical operators (&&, ||, !), interactive UI mode with dynamic filtering,\
-file output support, autosave configuration, and development mode for debugging. Supports advanced filtering patterns like:\n\
-  • Regex patterns: \"ERROR|WARN\"\n\
-  • Logical operations: '\"info\" && \"user\"' or '\"debug\" || \"error\"'\n\
-  • Negation: '!\"timeout\"'\n\
-  • Complex combinations: '(info || debug) && !\"noise\"'\n\
-  • Exact text matching: '\"exact phrase\"'\n\
-By default, Wake runs in CLI mode. Use --ui to enable interactive UI mode with real-time filter editing,\
-or --dev for detailed debugging information.\n\
+\nFeatures:\n\
+  | Feature                          | Description                                                                 |\n  |----------------------------------|-----------------------------------------------------------------------------|\n  | Regex patterns                   | \"ERROR|WARN\"                                                              |\n  | Logical operations               | \"info\" && \"user\" or \"debug\" || \"error\"                                |\n  | Negation                         | !\"timeout\"                                                                |\n  | Complex combinations             | \"(info || debug) && !\"noise\"\"                                          |\n  | Exact text matching              | \"exact phrase\"                                                            |\n\nBy default, Wake runs in CLI mode. Use --ui to enable interactive UI mode with real-time filter editing,\
+file output support, autosave configuration, and development mode for debugging.\n\
 ---\n\
-NEW: Run scripts in pods and collect output!\n\
-  --script-in <path>         Run a script in all selected pods and collect output.\n\
-  --script-outdir <dir>      Directory to save script output (default: timestamped dir in current location).\n\
-  Output for each pod is saved as <namespace>_<pod>.stdout.txt and <namespace>_<pod>.stderr.txt.\n\
-  You can set a default output directory with:\n\
-    wake setconfig script_outdir /path/to/dir\n\
----\n\
-Configuration Examples:\n\
+Examples:\n\
   wake setconfig autosave true                            # Enable autosave with auto-generated filenames\n\
-  wake setconfig autosave true --path \"/path/to/logs\"    # Enable autosave with custom path, file name generated will be wake_log_timestamp_{}.log\n\
+  wake setconfig autosave true --path \"/path/to/logs\"    # Enable autosave with custom path\n\
   wake setconfig autosave false                           # Disable autosave\n\
   wake setconfig ui-buffer-expansion 10                   # Set UI buffer expansion to 10x in pause mode\n\
   wake setconfig ui-buffer-expansion 5                    # Set UI buffer expansion to 5x in pause mode\n\
   wake getconfig                                          # Show all current configuration\n\
   wake getconfig autosave                                 # Show only autosave configuration\n\
-  wake getconfig ui-buffer-expansion                      # Show only buffer expansion setting"
+  wake getconfig ui-buffer-expansion                      # Show only buffer expansion setting",
+    disable_help_flag = true
 )]
 pub struct Args {
     #[command(subcommand)]
     pub command: Option<Commands>,
+
+    /// Print help in a tabular format and exit
+    #[arg(short = 'h', long = "help")]
+    pub help: bool,
 
     /// Pod selector regular expression
     #[arg(default_value = ".*")]
@@ -290,7 +282,8 @@ impl Args {
 impl Default for Args {
     fn default() -> Self {
         Self {
-            command: None,  // Add the missing command field
+            command: None,
+            help: false,
             pod_selector: ".*".to_string(),
             container: ".*".to_string(),
             sample: None, // default to no sampling
