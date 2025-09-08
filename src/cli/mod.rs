@@ -53,6 +53,7 @@ async fn run_script_in_pods(args: &Args) -> Result<()> {
         &container_regex,
         args.all_namespaces,
         args.resource.as_deref(),
+        args.sample,
     ).await?;
 
     let script_path = args.script_in.as_ref().expect("script_in should be Some");
@@ -457,6 +458,7 @@ async fn handle_template_execution(args: &Args, template_name: &str) -> Result<(
         &container_regex,
         args.all_namespaces,
         args.resource.as_deref(),
+        args.sample,
     ).await?;
     
     if pods.is_empty() {
@@ -540,6 +542,11 @@ fn store_command_in_history(args: &Args) -> Result<()> {
         if args.container != ".*" {
             command_parts.push("-c".to_string());
             command_parts.push(args.container.clone());
+        }
+        
+        if let Some(s) = args.sample {
+            command_parts.push("-s".to_string());
+            command_parts.push(s.to_string());
         }
         
         if args.namespace != "default" {

@@ -59,6 +59,20 @@ pub struct Args {
     #[arg(short, long, default_value = ".*")]
     pub container: String,
 
+    /// Limit processing to a random sample of matching pods (e.g., -s 1)
+    #[arg(short = 's', long = "sample", value_parser = |v: &str| {
+        v.parse::<usize>()
+            .map_err(|_| String::from("Sample value must be a positive integer"))
+            .and_then(|val| {
+                if val >= 1 {
+                    Ok(val)
+                } else {
+                    Err(String::from("Sample value must be at least 1"))
+                }
+            })
+    }, help = "Randomly sample up to N matching pods (default: all)")]
+    pub sample: Option<usize>,
+
     /// List all containers in matched pods (without streaming logs)
     #[arg(short = 'L', long)]
     pub list_containers: bool,
@@ -279,6 +293,7 @@ impl Default for Args {
             command: None,  // Add the missing command field
             pod_selector: ".*".to_string(),
             container: ".*".to_string(),
+            sample: None, // default to no sampling
             list_containers: false,
             all_containers: false,
             namespace: get_default_namespace(), // Use helper function to get default namespace

@@ -357,6 +357,7 @@ impl LogWatcher {
             &Regex::new(".*").unwrap(),
             args.all_namespaces,
             args.resource.as_deref(),
+            args.sample,
         ).await?;
         
         let mut new_pods_count = 0;
@@ -789,35 +790,51 @@ impl LogWatcher {
         
         let mut known_pods: HashSet<String> = HashSet::new();
         let mut pod_tasks: HashMap<String, tokio::task::JoinHandle<()>> = HashMap::new();
-        
+        let mut total_pods_count = 0; // Track total pods monitored
+
         // Initial pod discovery
         info!("WATCH_DISCOVERY: Starting initial pod discovery");
-        Self::discover_and_start_pods(&client, &args, &tx, &mut known_pods, &mut pod_tasks).await?;
-        
+        total_pods_count += Self::discover_and_start_pods(
+            &client, 
+            &args, 
+            &tx, 
+            &mut known_pods, 
+            &mut pod_tasks
+        ).await?;
+
+        // Enforce sample limit after initial discovery
+        if let Some(sample_limit) = args.sample {
+            if total_pods_count > sample_limit {
+                warn!("WATCH_DISCOVERY: Sample limit exceeded during initial discovery. Limiting to {} pods.", sample_limit);
+                Self::enforce_sample_limit(&mut known_pods, &mut pod_tasks, sample_limit).await;
+                total_pods_count = sample_limit;
+            }
+        }
+
         // Set up watch for pod events
         let namespace = if args.all_namespaces {
             None // Watch all namespaces
         } else {
             Some(args.namespace.clone())
         };
-        
+
         let pods_api: Api<Pod> = if let Some(ns) = &namespace {
             Api::namespaced(client.clone(), ns)
         } else {
             Api::all(client.clone())
         };
-        
+
         // Create watch stream with proper error handling
         let watch_config = watcher::Config::default()
             .timeout(290) // 290 seconds (under the 295s limit)
             .any_semantic();
-            
+
         let mut watch_stream = watcher(pods_api, watch_config)
             .default_backoff()
             .boxed();
-        
+
         info!("WATCH_DISCOVERY: Starting Kubernetes watch for pod events in namespace: {:?}", namespace);
-        
+
         // Process watch events
         while let Some(event) = watch_stream.next().await {
             match event {
@@ -831,6 +848,17 @@ impl LogWatcher {
                         pod
                     ).await {
                         error!("WATCH_DISCOVERY: Failed to handle pod applied event: {:?}", e);
+                    } else {
+                        total_pods_count += 1;
+
+                        // Enforce sample limit after adding a new pod
+                        if let Some(sample_limit) = args.sample {
+                            if total_pods_count > sample_limit {
+                                warn!("WATCH_DISCOVERY: Sample limit exceeded. Limiting to {} pods.", sample_limit);
+                                Self::enforce_sample_limit(&mut known_pods, &mut pod_tasks, sample_limit).await;
+                                total_pods_count = sample_limit;
+                            }
+                        }
                     }
                 }
                 Ok(Event::Deleted(pod)) => {
@@ -841,6 +869,8 @@ impl LogWatcher {
                         pod
                     ).await {
                         error!("WATCH_DISCOVERY: Failed to handle pod deleted event: {:?}", e);
+                    } else {
+                        total_pods_count -= 1;
                     }
                 }
                 Ok(Event::Restarted(pods)) => {
@@ -850,10 +880,23 @@ impl LogWatcher {
                     for (_, task) in pod_tasks.drain() {
                         task.abort();
                     }
-                    
+
                     // Rediscover all pods
-                    if let Err(e) = Self::discover_and_start_pods(&client, &args, &tx, &mut known_pods, &mut pod_tasks).await {
-                        error!("WATCH_DISCOVERY: Failed to rediscover pods after restart: {:?}", e);
+                    total_pods_count = Self::discover_and_start_pods(
+                        &client, 
+                        &args, 
+                        &tx, 
+                        &mut known_pods, 
+                        &mut pod_tasks
+                    ).await?;
+
+                    // Enforce sample limit after rediscovery
+                    if let Some(sample_limit) = args.sample {
+                        if total_pods_count > sample_limit {
+                            warn!("WATCH_DISCOVERY: Sample limit exceeded after restart. Limiting to {} pods.", sample_limit);
+                            Self::enforce_sample_limit(&mut known_pods, &mut pod_tasks, sample_limit).await;
+                            total_pods_count = sample_limit;
+                        }
                     }
                 }
                 Err(e) => {
@@ -861,7 +904,7 @@ impl LogWatcher {
                     // Continue watching despite errors
                 }
             }
-            
+
             // Periodic cleanup of finished tasks
             pod_tasks.retain(|pod_key, handle| {
                 if handle.is_finished() {
@@ -872,9 +915,28 @@ impl LogWatcher {
                 }
             });
         }
-        
+
         info!("WATCH_DISCOVERY: Watch stream ended");
         Ok(())
+    }
+
+    /// Enforce the sample limit by removing excess pods
+    async fn enforce_sample_limit(
+        known_pods: &mut HashSet<String>,
+        pod_tasks: &mut HashMap<String, tokio::task::JoinHandle<()>>,
+        sample_limit: usize,
+    ) {
+        let excess_count = known_pods.len().saturating_sub(sample_limit);
+        if excess_count > 0 {
+            let excess_pods: Vec<_> = known_pods.iter().take(excess_count).cloned().collect();
+            for pod_key in excess_pods {
+                known_pods.remove(&pod_key);
+                if let Some(task) = pod_tasks.remove(&pod_key) {
+                    task.abort();
+                    info!("WATCH_DISCOVERY: Stopped task for excess pod: {}", pod_key);
+                }
+            }
+        }
     }
     
     /// Handle a pod being applied (created or updated)

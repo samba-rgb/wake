@@ -32,6 +32,7 @@ pub async fn select_pods(
     container_re: &Regex,
     all_namespaces: bool,
     resource_query: Option<&str>,
+    sample: Option<usize>, // NEW: randomly sample up to N pods
 ) -> Result<Vec<PodInfo>> {
     let namespaces = if all_namespaces {
         get_all_namespaces(client).await?
@@ -155,6 +156,22 @@ pub async fn select_pods(
         }
     }
     
+    info!("Total matched pods before sampling: {}", selected_pods.len());
+
+    // Apply random sampling if requested
+    if let Some(n) = sample {
+        if n == 0 {
+            info!("Sample size 0 provided, returning no pods");
+            selected_pods.clear();
+        } else if selected_pods.len() > n {
+            info!("Sampling {} out of {} pods", n, selected_pods.len());
+            fastrand::shuffle(&mut selected_pods);
+            selected_pods.truncate(n);
+        } else {
+            info!("Requested sample {} >= available {}, taking all", n, selected_pods.len());
+        }
+    }
+
     info!("Total selected pods: {}", selected_pods.len());
     Ok(selected_pods)
 }
