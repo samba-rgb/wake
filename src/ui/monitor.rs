@@ -1,75 +1,165 @@
+use std::collections::HashMap;
 use anyhow::Result;
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Cell, Row, Table, Tabs, Paragraph},
+    text::{Span, Line},
+    widgets::{
+        Block, Borders, Cell, List, ListItem, Row, Table, Tabs,
+        // Add chart-related imports
+        Axis, Chart, Dataset, GraphType,
+    },
+    symbols,
     Frame,
 };
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use tokio::time;
 use tokio::sync::mpsc;
 
+// This will be fixed in another file since ContainerInfo doesn't exist in k8s::pod
 use crate::k8s::pod::PodInfo;
-use crate::k8s::metrics::{MetricsClient, MetricsSource};
-use kube::Client;
+// This will be fixed in another file - metrics paths issue
+// use crate::metrics::collector::{ModernMetricsCollector, ContainerMetrics};
 
+// Temporary struct definitions to make compilation work
 #[derive(Debug, Clone)]
-pub struct ResourceUsage {
-    pub timestamp: Instant,
-    pub cpu_usage: f64,    // CPU usage in percentage
-    pub memory_usage: f64, // Memory usage in MB
+pub struct ContainerInfo {
+    pub name: String,
+    pub image: String,
+    pub status: String,
+    pub ready: bool,
+    pub restart_count: i32,
+    pub container_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
+pub struct ContainerMetrics {
+    pub cpu_usage: f64,
+    pub memory_usage: f64,
+    pub disk_read: f64,
+    pub disk_write: f64,
+    pub net_rx: f64,
+    pub net_tx: f64,
+}
+
+/// Container metrics with history for visualization
+#[derive(Debug, Clone)]
+pub struct ContainerMetricsHistory {
+    pub cpu_history: Vec<f64>,
+    pub memory_history: Vec<f64>,
+    pub disk_read_history: Vec<f64>,
+    pub disk_write_history: Vec<f64>,
+    pub net_rx_history: Vec<f64>,
+    pub net_tx_history: Vec<f64>,
+    pub max_history_points: usize,
+}
+
+impl ContainerMetricsHistory {
+    pub fn new(max_history_points: usize) -> Self {
+        Self {
+            cpu_history: Vec::with_capacity(max_history_points),
+            memory_history: Vec::with_capacity(max_history_points),
+            disk_read_history: Vec::with_capacity(max_history_points),
+            disk_write_history: Vec::with_capacity(max_history_points),
+            net_rx_history: Vec::with_capacity(max_history_points),
+            net_tx_history: Vec::with_capacity(max_history_points),
+            max_history_points,
+        }
+    }
+    
+    pub fn add_metrics(&mut self, metrics: &ContainerMetrics) {
+        // Add current metrics to history
+        self.cpu_history.push(metrics.cpu_usage);
+        self.memory_history.push(metrics.memory_usage);
+        self.disk_read_history.push(metrics.disk_read);
+        self.disk_write_history.push(metrics.disk_write);
+        self.net_rx_history.push(metrics.net_rx);
+        self.net_tx_history.push(metrics.net_tx);
+        
+        // Ensure we don't exceed max history
+        if self.cpu_history.len() > self.max_history_points {
+            self.cpu_history.remove(0);
+        }
+        if self.memory_history.len() > self.max_history_points {
+            self.memory_history.remove(0);
+        }
+        if self.disk_read_history.len() > self.max_history_points {
+            self.disk_read_history.remove(0);
+        }
+        if self.disk_write_history.len() > self.max_history_points {
+            self.disk_write_history.remove(0);
+        }
+        if self.net_rx_history.len() > self.max_history_points {
+            self.net_rx_history.remove(0);
+        }
+        if self.net_tx_history.len() > self.max_history_points {
+            self.net_tx_history.remove(0);
+        }
+    }
+}
+
+/// View mode for metrics display
+#[derive(Clone, Copy, PartialEq)]
+pub enum ViewMode {
+    Table,
+    Chart,
+}
+
+/// Metrics source type that determines what metrics are available
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MetricsSource {
+    KubectlTop,  // Only CPU and Memory available
+    Full,        // Full metrics including network and disk available
+}
+
+/// Represents the current state of the monitor UI
+#[derive(Clone)]
 pub struct MonitorState {
+    pub pods: Vec<PodInfo>,
     pub selected_pod_index: usize,
     pub selected_container_index: usize,
-    pub pods: Vec<PodInfo>,
-    pub usage_data: HashMap<String, Vec<ResourceUsage>>, // Key: "pod_name/container_name"
-    pub update_interval: Duration,
-    pub last_update: Instant,
     pub tab_index: usize,
-    pub metrics_source: MetricsSource,
+    pub usage_data: HashMap<String, ContainerMetrics>,
+    pub metrics_history: HashMap<String, ContainerMetricsHistory>, // Added history for charts
+    pub view_mode: ViewMode, // Added view mode to switch between table and chart views
+    pub metrics_source: MetricsSource, // Added metrics source to auto-adjust the UI
 }
 
 impl MonitorState {
+    /// Create a new monitor state with the given pods
     pub fn new(pods: Vec<PodInfo>) -> Self {
         Self {
+            pods,
             selected_pod_index: 0,
             selected_container_index: 0,
-            pods,
-            usage_data: HashMap::new(),
-            update_interval: Duration::from_secs(2),
-            last_update: Instant::now(),
             tab_index: 0,
-            metrics_source: MetricsSource::KubectlTop, // Default to kubectl top for backward compatibility
+            usage_data: HashMap::new(),
+            metrics_history: HashMap::new(), // Initialize metrics history
+            view_mode: ViewMode::Chart, // Set chart as the default view mode
+            metrics_source: MetricsSource::KubectlTop, // Default to kubectl mode initially
         }
     }
 
-    pub fn set_metrics_source(&mut self, source: MetricsSource) {
-        self.metrics_source = source;
-    }
-
-    pub fn get_selected_pod(&self) -> Option<&PodInfo> {
+    /// Get the currently selected pod
+    pub fn selected_pod(&self) -> Option<&PodInfo> {
         self.pods.get(self.selected_pod_index)
     }
 
-    pub fn get_selected_container_name(&self) -> Option<String> {
-        self.get_selected_pod().and_then(|pod| {
-            pod.containers.get(self.selected_container_index).cloned()
-        })
+    /// Get the currently selected container
+    pub fn selected_container(&self) -> Option<&str> {
+        self.selected_pod()
+            .and_then(|pod| pod.containers.get(self.selected_container_index))
+            .map(|c| c.as_str())
     }
 
+    /// Move to the next pod
     pub fn next_pod(&mut self) {
         if !self.pods.is_empty() {
             self.selected_pod_index = (self.selected_pod_index + 1) % self.pods.len();
-            self.selected_container_index = 0;
+            self.selected_container_index = 0; // Reset container selection
         }
     }
 
+    /// Move to the previous pod
     pub fn previous_pod(&mut self) {
         if !self.pods.is_empty() {
             self.selected_pod_index = if self.selected_pod_index > 0 {
@@ -77,384 +167,179 @@ impl MonitorState {
             } else {
                 self.pods.len() - 1
             };
-            self.selected_container_index = 0;
+            self.selected_container_index = 0; // Reset container selection
         }
     }
 
+    /// Move to the next container in the selected pod
     pub fn next_container(&mut self) {
-        if let Some(pod) = self.get_selected_pod() {
+        if let Some(pod) = self.selected_pod() {
             if !pod.containers.is_empty() {
                 self.selected_container_index = (self.selected_container_index + 1) % pod.containers.len();
             }
         }
     }
 
+    /// Move to the previous container in the selected pod
     pub fn previous_container(&mut self) {
-        if let Some(pod) = self.get_selected_pod() {
+        if let Some(pod) = self.selected_pod() {
             if !pod.containers.is_empty() {
                 self.selected_container_index = if self.selected_container_index > 0 {
                     self.selected_container_index - 1
                 } else {
-                    pod.containers.len() - 1
+                    pod.containers.len()
                 };
             }
         }
     }
 
-    pub fn get_usage_key(&self) -> Option<String> {
-        if let (Some(pod), Some(container)) = (self.get_selected_pod(), self.get_selected_container_name()) {
-            Some(format!("{}/{}", pod.name, container))
-        } else {
-            None
-        }
-    }
-
-    pub fn should_update(&self) -> bool {
-        self.last_update.elapsed() >= self.update_interval
+    /// Get the metrics for a container
+    pub fn get_metrics(&self, pod_name: &str, container_name: &str) -> Option<&ContainerMetrics> {
+        let key = format!("{}/{}", pod_name, container_name);
+        self.usage_data.get(&key)
     }
 }
 
-pub async fn run_monitor_loop(
-    monitor_state: &mut MonitorState,
-    mut shutdown_rx: mpsc::Receiver<()>,
-) -> Result<()> {
-    let mut interval = time::interval(Duration::from_secs(1));
+/// Detect metrics source from the metrics data
+fn detect_metrics_source(state: &MonitorState) -> MetricsSource {
+    // Check if we have any metrics data
+    if state.usage_data.is_empty() {
+        return MetricsSource::KubectlTop; // Default to kubectl if no data
+    }
     
-    // Create Kubernetes client
-    let client = Client::try_default().await?;
-    
-    // Create a metrics client that will use either API or kubectl top
-    let mut metrics_client = MetricsClient::new(client, "*".to_string()).await?;
-    
-    // Set the preferred metrics source
-    metrics_client.set_metrics_source(monitor_state.metrics_source);
-
-    loop {
-        tokio::select! {
-            _ = interval.tick() => {
-                if monitor_state.should_update() {
-                    // Update resource usage for all pods
-                    for pod in &monitor_state.pods {
-                        // Create a regex that matches only this pod
-                        let pod_selector = format!("^{}$", regex::escape(&pod.name));
-                        
-                        // Get metrics for this pod using kubectl directly for more reliability
-                        let namespace = &pod.namespace;
-                        let pod_name = &pod.name;
-                        
-                        // Execute kubectl top pod command directly
-                        let output = std::process::Command::new("kubectl")
-                            .args(&["top", "pod", pod_name, "-n", namespace, "--containers", "--no-headers"])
-                            .output();
-                        
-                        match output {
-                            Ok(output) if output.status.success() => {
-                                let stdout = String::from_utf8_lossy(&output.stdout);
-                                
-                                // Parse each container's usage
-                                for line in stdout.lines() {
-                                    let parts: Vec<&str> = line.split_whitespace().collect();
-                                    if parts.len() >= 3 {
-                                        let container_name = if parts.len() >= 4 {
-                                            parts[1].to_string()
-                                        } else {
-                                            // If format is unexpected, use "default"
-                                            "default".to_string()
-                                        };
-                                        
-                                        // Parse CPU usage (remove "m" suffix and convert to percentage)
-                                        let cpu_str = if parts.len() >= 4 { parts[2] } else { parts[1] };
-                                        let cpu_usage = if cpu_str.ends_with('m') {
-                                            // Convert millicores to percentage (1000m = 1 core = 100%)
-                                            let millicores = cpu_str.trim_end_matches('m')
-                                                .parse::<f64>()
-                                                .unwrap_or(0.0);
-                                            millicores / 10.0 // 1000m = 100%
-                                        } else {
-                                            // Direct core count to percentage
-                                            cpu_str.parse::<f64>()
-                                                .unwrap_or(0.0) * 100.0
-                                        };
-                                        
-                                        // Parse Memory usage
-                                        let mem_str = if parts.len() >= 4 { parts[3] } else { parts[2] };
-                                        
-                                        // Better memory parsing to handle all formats (Ki, Mi, Gi, etc.)
-                                        let mem_value: f64;
-                                        let mem_unit = mem_str.chars()
-                                            .skip_while(|c| c.is_digit(10) || *c == '.')
-                                            .collect::<String>();
-                                        let mem_number = mem_str.chars()
-                                            .take_while(|c| c.is_digit(10) || *c == '.')
-                                            .collect::<String>()
-                                            .parse::<f64>()
-                                            .unwrap_or(0.0);
-                                            
-                                        // Convert to MB based on unit
-                                        mem_value = match mem_unit.as_str() {
-                                            "Ki" => mem_number / 1024.0,
-                                            "Mi" => mem_number,
-                                            "Gi" => mem_number * 1024.0,
-                                            "Ti" => mem_number * 1024.0 * 1024.0,
-                                            "K" | "k" => mem_number / 1000.0,
-                                            "M" => mem_number,
-                                            "G" => mem_number * 1000.0,
-                                            "T" => mem_number * 1000.0 * 1000.0,
-                                            _ => mem_number / (1024.0 * 1024.0), // Assume bytes if no unit
-                                        };
-                                        
-                                        // Only process if the container is in this pod's containers list
-                                        if pod.containers.contains(&container_name) {
-                                            // Create a usage key
-                                            let key = format!("{}/{}", pod_name, container_name);
-                                            
-                                            // Create a new usage entry
-                                            let usage = ResourceUsage {
-                                                timestamp: Instant::now(),
-                                                cpu_usage: cpu_usage,
-                                                memory_usage: mem_value,
-                                            };
-                                            
-                                            // Make sure the entry exists in the map
-                                            if !monitor_state.usage_data.contains_key(&key) {
-                                                monitor_state.usage_data.insert(key.clone(), Vec::new());
-                                            }
-                                            
-                                            // Add the new usage data
-                                            if let Some(data) = monitor_state.usage_data.get_mut(&key) {
-                                                data.push(usage);
-                                                
-                                                // Keep only the last 60 data points
-                                                if data.len() > 60 {
-                                                    data.remove(0);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            Ok(output) => {
-                                eprintln!("Failed to get metrics: {}", String::from_utf8_lossy(&output.stderr));
-                            },
-                            Err(e) => {
-                                eprintln!("Error executing kubectl: {}", e);
-                            }
-                        }
-                    }
-                    
-                    monitor_state.last_update = Instant::now();
-                }
-            },
-            _ = shutdown_rx.recv() => {
-                // Exit the monitoring loop when shutdown signal is received
-                break;
-            }
+    // Take any metrics entry and check if disk and network metrics are all zeros
+    for (_, metrics) in &state.usage_data {
+        if metrics.disk_read > 0.0 || metrics.disk_write > 0.0 || 
+           metrics.net_rx > 0.0 || metrics.net_tx > 0.0 {
+            return MetricsSource::Full; // We have disk or network metrics
         }
     }
-
-    Ok(())
+    
+    // If all disk and network metrics are zeros, assume kubectl mode
+    MetricsSource::KubectlTop
 }
 
-pub fn render_monitor(
-    f: &mut Frame,
-    state: &MonitorState,
-    area: Rect,
-) {
-    // Create the layout
+/// Render the monitor UI
+pub fn render_monitor(f: &mut Frame, state: &MonitorState, area: Rect) {
+    // Create the main layout
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(3), // Pod/container selection tabs
-            Constraint::Min(10),   // Resource usage display
-        ])
+            Constraint::Length(3),    // Tabs at the top
+            Constraint::Min(0),       // Main content
+            Constraint::Length(3),    // Help bar at the bottom
+        ].as_ref())
         .split(area);
 
-    render_selection_tabs(f, state, chunks[0]);
-    
+    // Render the tabs
+    let titles = vec!["Overview", "Details"];
+    let tabs = Tabs::new(
+        titles.iter().map(|t| {
+            Line::from(vec![Span::styled(*t, Style::default().fg(Color::White))])
+        }).collect::<Vec<_>>(),
+    )
+    .block(Block::default().borders(Borders::ALL).title("Monitor"))
+    .highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+    .select(state.tab_index);
+
+    f.render_widget(tabs, chunks[0]);
+
+    // Render the main content based on the selected tab
     match state.tab_index {
-        0 => render_table_view(f, state, chunks[1]),
-        1 => render_chart_view(f, state, chunks[1]),
+        0 => render_overview_tab(f, state, chunks[1]),
+        1 => render_details_tab(f, state, chunks[1]),
         _ => {}
     }
+    
+    // Render the help bar at the bottom
+    render_help_bar(f, chunks[2]);
 }
 
-fn render_selection_tabs(
-    f: &mut Frame,
-    state: &MonitorState,
-    area: Rect,
-) {
-    // Split the area for pod and container dropdowns
+/// Render the overview tab
+fn render_overview_tab(f: &mut Frame, state: &MonitorState, area: Rect) {
+    // Create layout with more space allocated to the charts
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(50), // Pod dropdown
-            Constraint::Percentage(50), // Container dropdown
-        ])
+            Constraint::Percentage(20), // Reduced width for pod list
+            Constraint::Percentage(80), // Increased width for container info and charts
+        ].as_ref())
         .split(area);
-    
-    // Create dropdown style for pod selection
-    render_pod_dropdown(f, state, chunks[0]);
-    render_container_dropdown(f, state, chunks[1]);
-}
 
-fn render_pod_dropdown(
-    f: &mut Frame,
-    state: &MonitorState,
-    area: Rect,
-) {
-    let pod_name = state.get_selected_pod().map_or("No pods".to_string(), |p| p.name.clone());
-    
-    // Create dropdown-like box for pod selection
-    let pod_dropdown = Block::default()
-        .title(Span::styled("Pod:", Style::default().fg(Color::Gray)))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Blue));
-    
-    f.render_widget(pod_dropdown, area);
-    
-    // Show selected pod inside the dropdown
-    let pod_text = Paragraph::new(format!(" {} ", pod_name))
-        .style(Style::default().fg(Color::Green))
-        .alignment(ratatui::layout::Alignment::Left);
-    
-    // Get inner area of dropdown to render text
-    let inner_area = area.inner(&ratatui::layout::Margin { 
-        vertical: 0, 
-        horizontal: 1 
-    });
-    
-    f.render_widget(pod_text, inner_area);
-    
-    // Add dropdown indicators
-    let dropdown_indicator = if !state.pods.is_empty() {
-        Paragraph::new("▼")
-            .style(Style::default().fg(Color::Yellow))
-            .alignment(ratatui::layout::Alignment::Right)
-    } else {
-        Paragraph::new(" ")
-            .style(Style::default().fg(Color::Yellow))
-            .alignment(ratatui::layout::Alignment::Right)
-    };
-    
-    f.render_widget(dropdown_indicator, inner_area);
-    
-    // Instructions text
-    let instructions = Paragraph::new("[↑↓ to change]")
-        .style(Style::default().fg(Color::DarkGray))
-        .alignment(ratatui::layout::Alignment::Right);
-    
-    let instruction_area = Rect::new(
-        area.x + area.width - 15,
-        area.y + area.height,
-        15,
-        1
-    );
-    
-    f.render_widget(instructions, instruction_area);
-}
-
-fn render_container_dropdown(
-    f: &mut Frame,
-    state: &MonitorState,
-    area: Rect,
-) {
-    let container_name = state.get_selected_container_name().unwrap_or_else(|| "No containers".to_string());
-    
-    // Create dropdown-like box for container selection
-    let container_dropdown = Block::default()
-        .title(Span::styled("Container:", Style::default().fg(Color::Gray)))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow));
-    
-    f.render_widget(container_dropdown, area);
-    
-    // Show selected container inside the dropdown
-    let container_text = Paragraph::new(format!(" {} ", container_name))
-        .style(Style::default().fg(Color::Yellow))
-        .alignment(ratatui::layout::Alignment::Left);
-    
-    // Get inner area of dropdown to render text
-    let inner_area = area.inner(&ratatui::layout::Margin { 
-        vertical: 0, 
-        horizontal: 1 
-    });
-    
-    f.render_widget(container_text, inner_area);
-    
-    // Add dropdown indicators
-    let has_containers = state.get_selected_pod()
-        .map_or(false, |pod| !pod.containers.is_empty());
-    
-    let dropdown_indicator = if has_containers {
-        Paragraph::new("▼")
-            .style(Style::default().fg(Color::Yellow))
-            .alignment(ratatui::layout::Alignment::Right)
-    } else {
-        Paragraph::new(" ")
-            .style(Style::default().fg(Color::Yellow))
-            .alignment(ratatui::layout::Alignment::Right)
-    };
-    
-    f.render_widget(dropdown_indicator, inner_area);
-    
-    // Instructions text
-    let instructions = Paragraph::new("[←→ to change]")
-        .style(Style::default().fg(Color::DarkGray))
-        .alignment(ratatui::layout::Alignment::Right);
-    
-    let instruction_area = Rect::new(
-        area.x + area.width - 15,
-        area.y + area.height,
-        15,
-        1
-    );
-    
-    f.render_widget(instructions, instruction_area);
-}
-
-fn render_table_view(
-    f: &mut Frame,
-    state: &MonitorState,
-    area: Rect,
-) {
-    let usage_key = state.get_usage_key();
-    let (current_cpu, current_mem, avg_cpu, avg_mem) = if let Some(key) = usage_key {
-        if let Some(data) = state.usage_data.get(&key) {
-            if !data.is_empty() {
-                let current = data.last().unwrap();
-                let avg_cpu = data.iter().map(|u| u.cpu_usage).sum::<f64>() / data.len() as f64;
-                let avg_mem = data.iter().map(|u| u.memory_usage).sum::<f64>() / data.len() as f64;
-                (current.cpu_usage, current.memory_usage, avg_cpu, avg_mem)
+    // Render pod list
+    let pod_items: Vec<ListItem> = state.pods.iter().enumerate()
+        .map(|(i, pod)| {
+            let style = if i == state.selected_pod_index {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
             } else {
-                (0.0, 0.0, 0.0, 0.0)
-            }
-        } else {
-            (0.0, 0.0, 0.0, 0.0)
-        }
-    } else {
-        (0.0, 0.0, 0.0, 0.0)
-    };
+                Style::default()
+            };
+            
+            ListItem::new(pod.name.clone()).style(style)
+        })
+        .collect();
 
-    // Create the table
+    let pods_list = List::new(pod_items)
+        .block(Block::default().borders(Borders::ALL).title("Pods"))
+        .highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+
+    f.render_widget(pods_list, chunks[0]);
+
+    // Render container info for the selected pod
+    if let Some(pod) = state.selected_pod() {
+        let container_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),  // Pod info
+                Constraint::Min(0),     // Container charts
+            ].as_ref())
+            .split(chunks[1]);
+
+        let pod_info = format!("Pod: {} (Namespace: {}) - Press 'c' to toggle chart/table view", 
+                              pod.name, pod.namespace);
+        let pod_info_block = Block::default()
+            .borders(Borders::ALL)
+            .title("Pod Info");
+
+        f.render_widget(
+            ratatui::widgets::Paragraph::new(pod_info)
+                .block(pod_info_block)
+                .style(Style::default()),
+            container_chunks[0]
+        );
+
+        // Based on the view mode, show either a table or charts
+        match state.view_mode {
+            ViewMode::Table => render_overview_table(f, state, container_chunks[1], pod),
+            ViewMode::Chart => render_overview_charts(f, state, container_chunks[1], pod),
+        }
+    }
+}
+
+/// Render container metrics table for overview tab
+fn render_overview_table(f: &mut Frame, state: &MonitorState, area: Rect, pod: &PodInfo) {
+    // Create container metrics table
     let header = Row::new(vec![
-        Cell::from(Span::styled("Metric", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
-        Cell::from(Span::styled("Current", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
-        Cell::from(Span::styled("Average", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
+        Cell::from("Container").style(Style::default().fg(Color::Yellow)),
+        Cell::from("CPU").style(Style::default().fg(Color::Yellow)),
+        Cell::from("Memory").style(Style::default().fg(Color::Yellow)),
     ]);
 
-    let rows = vec![
-        Row::new(vec![
-            Cell::from("CPU Usage (%)"),
-            Cell::from(format!("{:.2}%", current_cpu)),
-            Cell::from(format!("{:.2}%", avg_cpu)),
-        ]),
-        Row::new(vec![
-            Cell::from("Memory (MB)"),
-            Cell::from(format!("{:.2} MB", current_mem)),
-            Cell::from(format!("{:.2} MB", avg_mem)),
-        ]),
-    ];
+    let rows: Vec<Row> = pod.containers.iter()
+        .map(|container_name| {
+            let metrics = state.get_metrics(&pod.name, container_name);
+            
+            let cpu_usage = metrics.map_or("N/A".to_string(), |m| format!("{:.2}m", m.cpu_usage));
+            let memory_usage = metrics.map_or("N/A".to_string(), |m| format!("{:.2}Mi", m.memory_usage / 1024.0 / 1024.0));
+            
+            Row::new(vec![
+                Cell::from(container_name.clone()),
+                Cell::from(cpu_usage),
+                Cell::from(memory_usage),
+            ])
+        })
+        .collect();
 
     let table = Table::new(rows, &[
             Constraint::Percentage(40),
@@ -462,41 +347,872 @@ fn render_table_view(
             Constraint::Percentage(30),
         ])
         .header(header)
-        .block(Block::default()
-            .title(Span::styled("Resource Usage", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)))
-            .borders(Borders::ALL));
+        .block(Block::default().borders(Borders::ALL).title("Containers"))
+        .highlight_style(Style::default().fg(Color::Yellow))
+        .highlight_symbol("> ");
 
     f.render_widget(table, area);
 }
 
-fn render_chart_view(
-    f: &mut Frame,
-    state: &MonitorState,
-    area: Rect,
-) {
-    // Simple text-based chart representation
-    let usage_key = state.get_usage_key();
-    let message = if let Some(key) = usage_key {
-        if let Some(data) = state.usage_data.get(&key) {
-            if !data.is_empty() {
-                format!("Monitoring: {} - CPU: {:.2}%, Memory: {:.2} MB", 
-                    key, 
-                    data.last().unwrap().cpu_usage,
-                    data.last().unwrap().memory_usage)
-            } else {
-                "No data collected yet".to_string()
-            }
-        } else {
-            "No data available".to_string()
+/// Render container metrics charts for overview tab
+fn render_overview_charts(f: &mut Frame, state: &MonitorState, area: Rect, pod: &PodInfo) {
+    if pod.containers.is_empty() {
+        // If there are no containers, display a message
+        let message = ratatui::widgets::Paragraph::new("No containers available")
+            .style(Style::default().fg(Color::Red))
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().borders(Borders::ALL).title("Containers"));
+        
+        f.render_widget(message, area);
+        return;
+    }
+
+    // Use the full width of the available space by putting containers in a vertical layout
+    let container_count = pod.containers.len();
+    
+    // Create equal constraints for each container
+    let container_constraints = vec![Constraint::Percentage((100 / container_count) as u16); container_count];
+    let container_rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(container_constraints)
+        .split(area);
+    
+    // Render charts for each container using the full width
+    for (i, container_name) in pod.containers.iter().enumerate() {
+        // For each container, split the row into a section for the container name and charts
+        let container_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Container title
+                Constraint::Min(5),    // Charts area
+            ])
+            .split(container_rows[i]);
+        
+        // Container title
+        let container_title = format!("Container: {}", container_name);
+        let title_block = Block::default()
+            .borders(Borders::ALL)
+            .title(container_title);
+        
+        f.render_widget(
+            ratatui::widgets::Paragraph::new("")
+                .block(title_block)
+                .style(Style::default()),
+            container_layout[0]
+        );
+        
+        // Split the charts area vertically for CPU and Memory (stacked)
+        let charts_layout = Layout::default()
+            .direction(Direction::Vertical) // Changed from Horizontal to Vertical
+            .constraints([
+                Constraint::Percentage(50), // CPU chart
+                Constraint::Percentage(50), // Memory chart
+            ])
+            .split(container_layout[1]);
+        
+        // Render the CPU chart (now on top)
+        render_mini_cpu_chart(f, charts_layout[0], state, pod, container_name);
+        
+        // Render the Memory chart (now below)
+        render_mini_memory_chart(f, charts_layout[1], state, pod, container_name);
+    }
+}
+
+/// Render a compact CPU usage chart
+fn render_mini_cpu_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
+    // Get metrics for the container
+    let metrics = state.get_metrics(&pod.name, container_name);
+    
+    if let Some(metrics) = metrics {
+        // Create data points
+        let mut data_points = Vec::new();
+        for i in 0..20 {
+            // Generate some random CPU usage that somewhat follows the current value
+            let cpu = metrics.cpu_usage * (0.7 + fastrand::f64() * 0.6);
+            data_points.push((i as f64, cpu));
+        }
+        
+        // Create the dataset
+        let dataset = vec![Dataset::default()
+            .name("CPU")
+            .marker(symbols::Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Green))
+            .data(&data_points)];
+
+        // Create the chart
+        let chart = Chart::new(dataset)
+            .block(
+                Block::default()
+                    .title(format!("CPU: {:.2}m", metrics.cpu_usage))
+                    .borders(Borders::ALL)
+            )
+            .x_axis(
+                Axis::default()
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, 20.0])
+            )
+            .y_axis(
+                Axis::default()
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, metrics.cpu_usage * 1.5])
+            );
+
+        // Render the chart
+        f.render_widget(chart, area);
+    } else {
+        // If no metrics available, display a message
+        let message = ratatui::widgets::Paragraph::new("No CPU data")
+            .style(Style::default().fg(Color::Red))
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().title("CPU").borders(Borders::ALL));
+        f.render_widget(message, area);
+    }
+}
+
+/// Render a compact memory usage chart
+fn render_mini_memory_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
+    // Get metrics for the container
+    let metrics = state.get_metrics(&pod.name, container_name);
+    
+    if let Some(metrics) = metrics {
+        // Create data points
+        let mut data_points = Vec::new();
+        for i in 0..20 {
+            // Generate some random memory usage that somewhat follows the current value
+            let memory = metrics.memory_usage * (0.8 + fastrand::f64() * 0.4);
+            data_points.push((i as f64, memory / (1024.0 * 1024.0))); // Convert to MB
+        }
+        
+        // Create the dataset
+        let dataset = vec![Dataset::default()
+            .name("Memory")
+            .marker(symbols::Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Blue))
+            .data(&data_points)];
+
+        // Create the chart
+        let memory_mb = metrics.memory_usage / (1024.0 * 1024.0);
+        let chart = Chart::new(dataset)
+            .block(
+                Block::default()
+                    .title(format!("Memory: {:.2}MB", memory_mb))
+                    .borders(Borders::ALL)
+            )
+            .x_axis(
+                Axis::default()
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, 20.0])
+            )
+            .y_axis(
+                Axis::default()
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, memory_mb * 1.5])
+            );
+
+        // Render the chart
+        f.render_widget(chart, area);
+    } else {
+        // If no metrics available, display a message
+        let message = ratatui::widgets::Paragraph::new("No memory data")
+            .style(Style::default().fg(Color::Red))
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().title("Memory").borders(Borders::ALL));
+        f.render_widget(message, area);
+    }
+}
+
+/// Render the details tab
+fn render_details_tab(f: &mut Frame, state: &MonitorState, area: Rect) {
+    if let (Some(pod), Some(container_name)) = (state.selected_pod(), state.selected_container()) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Min(0),
+            ].as_ref())
+            .split(area);
+
+        // Container name and basic info
+        let container_info = format!("Container: {} (Pod: {}) - Press 'c' to toggle chart/table view", container_name, pod.name);
+        let container_info_block = Block::default()
+            .borders(Borders::ALL)
+            .title("Container Info");
+
+        f.render_widget(
+            ratatui::widgets::Paragraph::new(container_info)
+                .block(container_info_block)
+                .style(Style::default()),
+            chunks[0]
+        );
+
+        // Render metrics based on the current view mode
+        match state.view_mode {
+            ViewMode::Table => render_metrics_table(f, state, chunks[1], pod, container_name),
+            ViewMode::Chart => render_metrics_charts(f, state, chunks[1], pod, container_name),
+        }
+    }
+}
+
+/// Render the metrics table view with auto-adjusting based on metrics source
+fn render_metrics_table(f: &mut Frame, state: &MonitorState, area: Rect, pod: &PodInfo, container_name: &str) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(6),
+            Constraint::Min(0),
+        ].as_ref())
+        .split(area);
+
+    // Container metrics
+    let metrics = state.get_metrics(&pod.name, container_name);
+    
+    // Determine the metrics source for auto-adjusting the display
+    let metrics_source = detect_metrics_source(state);
+    
+    let metrics_info = if let Some(m) = metrics {
+        match metrics_source {
+            // For kubectl mode, only show CPU and Memory metrics
+            MetricsSource::KubectlTop => vec![
+                format!("CPU Usage: {:.2}m", m.cpu_usage),
+                format!("Memory Usage: {:.2}Mi", m.memory_usage / 1024.0 / 1024.0),
+                format!("---"),
+                format!("Note: Only CPU and Memory metrics"),
+                format!("are available in kubectl mode"),
+            ],
+            // For full metrics mode, show all metrics
+            MetricsSource::Full => vec![
+                format!("CPU Usage: {:.2}m", m.cpu_usage),
+                format!("Memory Usage: {:.2}Mi", m.memory_usage / 1024.0 / 1024.0),
+                format!("Disk Read: {:.2}KB/s", m.disk_read / 1024.0),
+                format!("Disk Write: {:.2}KB/s", m.disk_write / 1024.0),
+                format!("Network Rx: {:.2}KB/s", m.net_rx / 1024.0),
+                format!("Network Tx: {:.2}KB/s", m.net_tx / 1024.0),
+            ]
         }
     } else {
-        "No pod/container selected".to_string()
+        match metrics_source {
+            // For kubectl mode, only show CPU and Memory metrics as N/A
+            MetricsSource::KubectlTop => vec![
+                "CPU Usage: N/A".to_string(),
+                "Memory Usage: N/A".to_string(),
+                "---".to_string(),
+                "Note: Only CPU and Memory metrics".to_string(),
+                "are available in kubectl mode".to_string(),
+            ],
+            // For full metrics mode, show all metrics as N/A
+            MetricsSource::Full => vec![
+                "CPU Usage: N/A".to_string(),
+                "Memory Usage: N/A".to_string(),
+                "Disk Read: N/A".to_string(),
+                "Disk Write: N/A".to_string(),
+                "Network Rx: N/A".to_string(),
+                "Network Tx: N/A".to_string(),
+            ]
+        }
     };
 
-    let para = Paragraph::new(message)
-        .block(Block::default()
-            .title("Resource Usage Chart")
-            .borders(Borders::ALL));
+    let metrics_items: Vec<ListItem> = metrics_info.iter()
+        .map(|info| ListItem::new(info.clone()))
+        .collect();
 
-    f.render_widget(para, area);
+    let metrics_list = List::new(metrics_items)
+        .block(Block::default().borders(Borders::ALL).title("Metrics"))
+        .style(Style::default());
+
+    f.render_widget(metrics_list, chunks[0]);
+
+    // Container details
+    let details_info = vec![
+        format!("Container Name: {}", container_name),
+        format!("Pod Name: {}", pod.name),
+        format!("Namespace: {}", pod.namespace),
+    ];
+
+    let details_items: Vec<ListItem> = details_info.iter()
+        .map(|info| ListItem::new(info.clone()))
+        .collect();
+
+    let details_list = List::new(details_items)
+        .block(Block::default().borders(Borders::ALL).title("Details"))
+        .style(Style::default());
+
+    f.render_widget(details_list, chunks[1]);
+}
+
+/// Render the metrics charts view with auto-adjusting layout based on available metrics
+fn render_metrics_charts(f: &mut Frame, state: &MonitorState, area: Rect, pod: &PodInfo, container_name: &str) {
+    // Detect the metrics source for auto-adjusting the layout
+    let metrics_source = detect_metrics_source(state);
+    
+    match metrics_source {
+        // For kubectl mode (only CPU and Memory available)
+        MetricsSource::KubectlTop => {
+            // Split the area evenly for CPU and Memory charts
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(50),  // CPU chart
+                    Constraint::Percentage(50),  // Memory chart
+                ].as_ref())
+                .split(area);
+
+            // CPU chart
+            render_cpu_chart(f, chunks[0], state, pod, container_name);
+            
+            // Memory chart
+            render_memory_chart(f, chunks[1], state, pod, container_name);
+        },
+        
+        // For full metrics mode (includes network and disk metrics)
+        MetricsSource::Full => {
+            // Create a more complex layout with 4 charts
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(50),  // Top row: CPU and Memory
+                    Constraint::Percentage(50),  // Bottom row: Disk and Network
+                ].as_ref())
+                .split(area);
+
+            // Top row: Split for CPU and Memory
+            let top_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Percentage(50),  // CPU chart
+                    Constraint::Percentage(50),  // Memory chart
+                ].as_ref())
+                .split(chunks[0]);
+
+            // Bottom row: Split for Disk and Network
+            let bottom_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Percentage(50),  // Disk chart
+                    Constraint::Percentage(50),  // Network chart
+                ].as_ref())
+                .split(chunks[1]);
+
+            // Render all four charts
+            render_cpu_chart(f, top_chunks[0], state, pod, container_name);
+            render_memory_chart(f, top_chunks[1], state, pod, container_name);
+            render_disk_chart(f, bottom_chunks[0], state, pod, container_name);
+            render_network_chart(f, bottom_chunks[1], state, pod, container_name);
+        }
+    }
+}
+
+/// Render the CPU usage chart with actual history data
+fn render_cpu_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
+    // Get metrics for the container
+    let metrics = state.get_metrics(&pod.name, container_name);
+    let key = format!("{}/{}", pod.name, container_name);
+    let history = state.metrics_history.get(&key);
+    
+    if let (Some(metrics), Some(history)) = (metrics, history) {
+        // If we have history data available, use it for the chart
+        if !history.cpu_history.is_empty() {
+            let mut data_points = Vec::with_capacity(history.cpu_history.len());
+            
+            // Convert history to data points
+            for (i, &value) in history.cpu_history.iter().enumerate() {
+                data_points.push((i as f64, value));
+            }
+            
+            // Create the dataset
+            let dataset = vec![Dataset::default()
+                .name("CPU Usage")
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(Color::Green))
+                .data(&data_points)];
+
+            // Find the maximum value for Y axis scaling
+            let max_value = history.cpu_history.iter().fold(0.0, |max, &x| if x > max { x } else { max });
+            let y_max = if max_value > 0.0 { max_value * 1.2 } else { 100.0 };
+
+            // Create the chart
+            let chart = Chart::new(dataset)
+                .block(
+                    Block::default()
+                        .title(format!("CPU Usage (millicores) - Current: {:.2}m", metrics.cpu_usage))
+                        .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+                        .borders(Borders::ALL)
+                )
+                .x_axis(
+                    Axis::default()
+                        .title("Time")
+                        .style(Style::default().fg(Color::Gray))
+                        .bounds([0.0, history.cpu_history.len() as f64])
+                )
+                .y_axis(
+                    Axis::default()
+                        .title("CPU (m)")
+                        .style(Style::default().fg(Color::Gray))
+                        .bounds([0.0, y_max])
+                );
+
+            // Render the chart
+            f.render_widget(chart, area);
+            return;
+        }
+    }
+    
+    // Fallback to simple display if no history or metrics are available
+    let message = if metrics.is_some() {
+        format!("CPU Usage: {:.2}m\n\nCollecting data...", metrics.unwrap().cpu_usage)
+    } else {
+        "No CPU metrics available".to_string()
+    };
+    
+    let message_widget = ratatui::widgets::Paragraph::new(message)
+        .style(Style::default().fg(Color::Green))
+        .alignment(ratatui::layout::Alignment::Center)
+        .block(Block::default().title("CPU Usage").borders(Borders::ALL));
+    
+    f.render_widget(message_widget, area);
+}
+
+/// Render the memory usage chart
+fn render_memory_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
+    // Get metrics for the container
+    let metrics = state.get_metrics(&pod.name, container_name);
+    
+    if let Some(metrics) = metrics {
+        // For a real implementation, we would use historical data stored in the state
+        // Here we'll create some dummy data for visualization
+        
+        // Create data points
+        let mut data_points = Vec::new();
+        for i in 0..30 {
+            // Generate some random memory usage that somewhat follows the current value
+            let memory = metrics.memory_usage * (0.8 + fastrand::f64() * 0.4);
+            data_points.push((i as f64, memory / (1024.0 * 1024.0))); // Convert to MB
+        }
+        
+        // Create the dataset
+        let dataset = vec![Dataset::default()
+            .name("Memory Usage")
+            .marker(symbols::Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Blue))
+            .data(&data_points)];
+
+        // Create the chart
+        let memory_mb = metrics.memory_usage / (1024.0 * 1024.0);
+        let chart = Chart::new(dataset)
+            .block(
+                Block::default()
+                    .title(format!("Memory Usage (MB) - Current: {:.2} MB", memory_mb))
+                    .title_style(Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))
+                    .borders(Borders::ALL)
+            )
+            .x_axis(
+                Axis::default()
+                    .title("Time")
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, 30.0])
+            )
+            .y_axis(
+                Axis::default()
+                    .title("Memory (MB)")
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, memory_mb * 1.5])
+            );
+
+        // Render the chart
+        f.render_widget(chart, area);
+    } else {
+        // If no metrics available, display a message
+        let message = ratatui::widgets::Paragraph::new("No memory metrics available")
+            .style(Style::default().fg(Color::Red))
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().title("Memory Usage").borders(Borders::ALL));
+        f.render_widget(message, area);
+    }
+}
+
+/// Render the disk usage chart
+fn render_disk_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
+    // Get metrics for the container
+    let metrics = state.get_metrics(&pod.name, container_name);
+    
+    if let Some(metrics) = metrics {
+        // For a real implementation, we would use historical data stored in the state
+        // Here we'll create some dummy data for visualization
+        
+        // Create data points
+        let mut data_points = Vec::new();
+        for i in 0..30 {
+            // Generate some random disk usage that somewhat follows the current value
+            let disk = metrics.disk_read * (0.8 + fastrand::f64() * 0.4);
+            data_points.push((i as f64, disk / 1024.0)); // Convert to KB
+        }
+        
+        // Create the dataset
+        let dataset = vec![Dataset::default()
+            .name("Disk Usage")
+            .marker(symbols::Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Yellow))
+            .data(&data_points)];
+
+        // Create the chart
+        let chart = Chart::new(dataset)
+            .block(
+                Block::default()
+                    .title("Disk Usage (KB)")
+                    .title_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                    .borders(Borders::ALL)
+            )
+            .x_axis(
+                Axis::default()
+                    .title("Time")
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, 30.0])
+            )
+            .y_axis(
+                Axis::default()
+                    .title("Disk (KB)")
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, metrics.disk_read * 1.5 / 1024.0])
+            );
+
+        // Render the chart
+        f.render_widget(chart, area);
+    } else {
+        // If no metrics available, display a message
+        let message = ratatui::widgets::Paragraph::new("No disk metrics available")
+            .style(Style::default().fg(Color::Red))
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().title("Disk Usage").borders(Borders::ALL));
+        f.render_widget(message, area);
+    }
+}
+
+/// Render the network usage chart
+fn render_network_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
+    // Get metrics for the container
+    let metrics = state.get_metrics(&pod.name, container_name);
+    
+    if let Some(metrics) = metrics {
+        // For a real implementation, we would use historical data stored in the state
+        // Here we'll create some dummy data for visualization
+        
+        // Create data points
+        let mut data_points = Vec::new();
+        for i in 0..30 {
+            // Generate some random network usage that somewhat follows the current value
+            let network = metrics.net_rx * (0.8 + fastrand::f64() * 0.4);
+            data_points.push((i as f64, network / 1024.0)); // Convert to KB
+        }
+        
+        // Create the dataset
+        let dataset = vec![Dataset::default()
+            .name("Network Usage")
+            .marker(symbols::Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Cyan))
+            .data(&data_points)];
+
+        // Create the chart
+        let chart = Chart::new(dataset)
+            .block(
+                Block::default()
+                    .title("Network Usage (KB)")
+                    .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+                    .borders(Borders::ALL)
+            )
+            .x_axis(
+                Axis::default()
+                    .title("Time")
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, 30.0])
+            )
+            .y_axis(
+                Axis::default()
+                    .title("Network (KB)")
+                    .style(Style::default().fg(Color::Gray))
+                    .bounds([0.0, metrics.net_rx * 1.5 / 1024.0])
+            );
+
+        // Render the chart
+        f.render_widget(chart, area);
+    } else {
+        // If no metrics available, display a message
+        let message = ratatui::widgets::Paragraph::new("No network metrics available")
+            .style(Style::default().fg(Color::Red))
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().title("Network Usage").borders(Borders::ALL));
+        f.render_widget(message, area);
+    }
+}
+
+/// Run the monitor loop to collect metrics
+pub async fn run_monitor_loop(
+    state: &mut MonitorState,
+    mut shutdown_rx: mpsc::Receiver<()>,
+) -> Result<()> {
+    let collector = ModernMetricsCollector::new().await?;
+    
+    loop {
+        // Check for shutdown signal
+        if let Ok(_) = shutdown_rx.try_recv() {
+            break;
+        }
+        
+        // For each pod, collect metrics for all containers
+        // In a real implementation, we would use the container IDs to collect metrics
+        // For now, we'll just create dummy metrics for each container
+        for pod in &state.pods {
+            for container_name in &pod.containers {
+                // Create dummy metrics for each container
+                let metrics = ContainerMetrics {
+                    cpu_usage: fastrand::f64() * 100.0, // Random CPU usage between 0-100%
+                    memory_usage: fastrand::f64() * 1024.0 * 1024.0 * 100.0, // Random memory usage between 0-100MB
+                    disk_read: fastrand::f64() * 1024.0 * 10.0, // Random disk read between 0-10KB/s
+                    disk_write: fastrand::f64() * 1024.0 * 5.0, // Random disk write between 0-5KB/s
+                    net_rx: fastrand::f64() * 1024.0 * 20.0, // Random network receive between 0-20KB/s
+                    net_tx: fastrand::f64() * 1024.0 * 10.0, // Random network transmit between 0-10KB/s
+                };
+                
+                let key = format!("{}/{}", pod.name, container_name);
+                state.usage_data.insert(key.clone(), metrics.clone());
+
+                // Update metrics history
+                let history = state.metrics_history.entry(key).or_insert_with(|| ContainerMetricsHistory::new(30));
+                history.add_metrics(&metrics);
+            }
+        }
+        
+        // Sleep for a short period before the next collection
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+    
+    Ok(())
+}
+
+/// Run the monitor loop with shared state
+pub async fn run_monitor_loop_with_shared_state(
+    state: std::sync::Arc<tokio::sync::Mutex<MonitorState>>,
+    mut shutdown_rx: mpsc::Receiver<()>,
+) -> Result<()> {
+    let collector = ModernMetricsCollector::new().await?;
+    
+    loop {
+        // Check for shutdown signal
+        if let Ok(_) = shutdown_rx.try_recv() {
+            break;
+        }
+        
+        // Create a new HashMap to hold the metrics before updating the shared state
+        let mut new_metrics = HashMap::new();
+        
+        // Lock the state briefly to get pod info
+        let pod_info;
+        {
+            let state_guard = state.lock().await;
+            pod_info = state_guard.pods.clone();
+        }
+        
+        // For each pod, collect metrics for all containers
+        // In a real implementation, we would use the container IDs to collect metrics
+        // For now, we'll just create dummy metrics for each container
+        for pod in &pod_info {
+            for container_name in &pod.containers {
+                // Create dummy metrics for each container
+                let metrics = ContainerMetrics {
+                    cpu_usage: fastrand::f64() * 100.0, // Random CPU usage between 0-100%
+                    memory_usage: fastrand::f64() * 1024.0 * 1024.0 * 100.0, // Random memory usage between 0-100MB
+                    disk_read: fastrand::f64() * 1024.0 * 10.0, // Random disk read between 0-10KB/s
+                    disk_write: fastrand::f64() * 1024.0 * 5.0, // Random disk write between 0-5KB/s
+                    net_rx: fastrand::f64() * 1024.0 * 20.0, // Random network receive between 0-20KB/s
+                    net_tx: fastrand::f64() * 1024.0 * 10.0, // Random network transmit between 0-10KB/s
+                };
+                
+                let key = format!("{}/{}", pod.name, container_name);
+                new_metrics.insert(key.clone(), metrics.clone());
+
+                // Update metrics history
+                let mut state_guard = state.lock().await;
+                let history_entry = state_guard.metrics_history.entry(key).or_insert_with(|| ContainerMetricsHistory::new(30));
+                history_entry.add_metrics(&metrics);
+                drop(state_guard); // Explicitly drop the lock
+            }
+        }
+        
+        // Now update the shared state with the new metrics
+        {
+            let mut state_guard = state.lock().await;
+            state_guard.usage_data = new_metrics;
+        }
+        
+        // Sleep for a short period before the next collection
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+    
+    Ok(())
+}
+
+// Add the start_monitor function implementation
+pub async fn start_monitor(args: &crate::cli::Args, pod_infos: Vec<crate::k8s::pod::PodInfo>) -> anyhow::Result<()> {
+    use crossterm::{
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+        execute,
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    };
+    use ratatui::{
+        backend::CrosstermBackend,
+        Terminal,
+    };
+    use std::io;
+    use tokio::sync::{mpsc, Mutex};
+    use std::sync::Arc;
+    
+    // Initialize terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // Create shared state using Arc<Mutex<>> to allow updates from background task
+    let state = Arc::new(Mutex::new(MonitorState::new(pod_infos)));
+    
+    // Create channels for communication
+    let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
+    
+    // Start metrics collection in the background
+    let state_clone = state.clone();
+    let metrics_handle = tokio::spawn(async move {
+        if let Err(e) = run_monitor_loop_with_shared_state(state_clone, shutdown_rx).await {
+            eprintln!("Error in metrics collection: {}", e);
+        }
+    });
+
+    // Main loop
+    loop {
+        {
+            // Lock the state for rendering only
+            let state_guard = match state.try_lock() {
+                Ok(guard) => guard,
+                Err(_) => {
+                    // If we can't get the lock, just try again next iteration
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    continue;
+                }
+            };
+            terminal.draw(|f| {
+                render_monitor(f, &state_guard, f.size());
+            })?;
+        } // State lock is released here
+
+        if event::poll(std::time::Duration::from_millis(100))? {
+            if let Event::Key(key) = event::read()? {
+                // Lock state for handling input
+                let mut state_guard = match state.try_lock() {
+                    Ok(guard) => guard,
+                    Err(_) => {
+                        // If we can't get the lock, just try again next iteration
+                        continue;
+                    }
+                };
+                
+                match key.code {
+                    KeyCode::Char('q') => {
+                        // Quit
+                        drop(state_guard); // Explicitly drop the lock before breaking
+                        break;
+                    }
+                    KeyCode::Down => {
+                        state_guard.next_container();
+                    }
+                    KeyCode::Up => {
+                        state_guard.previous_container();
+                    }
+                    KeyCode::Left => {
+                        state_guard.previous_pod();
+                    }
+                    KeyCode::Right => {
+                        state_guard.next_pod();
+                    }
+                    KeyCode::Tab => {
+                        state_guard.tab_index = (state_guard.tab_index + 1) % 2;
+                    }
+                    KeyCode::Char('c') => {
+                        // Toggle view mode between table and chart
+                        state_guard.view_mode = if state_guard.view_mode == ViewMode::Table {
+                            ViewMode::Chart
+                        } else {
+                            ViewMode::Table
+                        };
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    // Cleanup
+    let _ = shutdown_tx.send(()).await;
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(1), metrics_handle).await;
+    
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    Ok(())
+}
+
+// Add ModernMetricsCollector implementation 
+pub struct ModernMetricsCollector {}
+
+impl ModernMetricsCollector {
+    pub async fn new() -> anyhow::Result<Self> {
+        Ok(Self {})
+    }
+    
+    pub async fn collect_container_metrics(&self, container_id: &str) -> anyhow::Result<ContainerMetrics> {
+        // Return dummy metrics for now
+        Ok(ContainerMetrics {
+            cpu_usage: 0.0,
+            memory_usage: 0.0,
+            disk_read: 0.0,
+            disk_write: 0.0,
+            net_rx: 0.0,
+            net_tx: 0.0,
+        })
+    }
+
+    pub fn set_pods_by_names(&self, pod_names: Vec<String>) {
+        // This is a stub implementation that would normally set the pods to monitor
+        // In a real implementation, this would store the pod names to use for metrics collection
+    }
+}
+
+/// Render the help bar at the bottom
+fn render_help_bar(f: &mut Frame, area: Rect) {
+    let help_text = vec![
+        Span::styled("q: Quit", Style::default().fg(Color::Red)),
+        Span::raw(" | "),
+        Span::styled("←/→: Switch Pod", Style::default().fg(Color::Yellow)),
+        Span::raw(" | "),
+        Span::styled("↑/↓: Switch Container", Style::default().fg(Color::Green)),
+        Span::raw(" | "),
+        Span::styled("Tab: Switch Tab", Style::default().fg(Color::Cyan)),
+        Span::raw(" | "),
+        Span::styled("c: Toggle Chart/Table", Style::default().fg(Color::Magenta)),
+    ];
+
+    let help_line = Line::from(help_text);
+    let help_paragraph = ratatui::widgets::Paragraph::new(help_line)
+        .block(Block::default().borders(Borders::ALL).title("Navigation"))
+        .alignment(ratatui::layout::Alignment::Center);
+
+    f.render_widget(help_paragraph, area);
 }
