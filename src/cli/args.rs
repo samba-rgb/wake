@@ -196,6 +196,14 @@ pub struct Args {
     #[arg(long = "script-outdir", value_name = "DIR", help = "Directory to save script output tar (overrides config)")]
     pub script_outdir: Option<PathBuf>,
 
+    /// Monitor CPU and memory usage with top-like display
+    #[arg(short = 'm', long = "monitor", help = "Monitor CPU and memory usage with a top-like display")]
+    pub monitor: bool,
+
+    /// Select metrics source (api or kubectl)
+    #[arg(long = "metrics-source", help = "Select metrics source: 'api' (metrics.k8s.io API) or 'kubectl' (kubectl top command)", value_parser = ["api", "kubectl"], default_value = "kubectl")]
+    pub metrics_source: String,
+
     /// Hidden author flag (not shown in --help)
     #[arg(long, hide = true, default_value_t = false)]
     pub author: bool,
@@ -317,6 +325,8 @@ impl Default for Args {
             script_outdir: None, // Default to None
             author: false, // Default to false
             history: None, // Default to None
+            monitor: false, // Default to false
+            metrics_source: "kubectl".to_string(), // Default to kubectl
         }
     }
 }

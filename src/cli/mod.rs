@@ -246,6 +246,13 @@ pub async fn run(mut args: Args) -> Result<()> {
     if args.script_in.is_some() {
         return run_script_in_pods(&args).await;
     }
+    
+    // Handle monitor mode (-m flag)
+    if args.monitor {
+        info!("CLI: Monitor mode (-m) enabled");
+        return handle_monitor_mode(&args).await;
+    }
+    
     // Resolve namespace based on context if specified
     if let Some(ref context_name) = args.context {
         info!("CLI: Context specified: {}", context_name);
@@ -347,6 +354,17 @@ pub async fn run(mut args: Args) -> Result<()> {
     }
     
     info!("=== CLI MODULE COMPLETED ===");
+    Ok(())
+}
+
+/// Handle monitor mode
+async fn handle_monitor_mode(args: &Args) -> Result<()> {
+    info!("CLI: Starting monitor mode...");
+    
+    // Use the existing pod selection mechanism
+    crate::ui::run_with_monitor_ui(args.clone()).await?;
+    
+    info!("CLI: Monitor mode completed");
     Ok(())
 }
 
