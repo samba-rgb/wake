@@ -367,35 +367,26 @@ fn render_overview_charts(f: &mut Frame, state: &MonitorState, area: Rect, pod: 
         return;
     }
 
-    // Use the full width of the available space by putting containers in a vertical layout
-    let container_count = pod.containers.len();
-    
-    // Create equal constraints for each container
-    let container_constraints = vec![Constraint::Percentage((100 / container_count) as u16); container_count];
-    let container_rows = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(container_constraints)
-        .split(area);
-    
-    // Render charts for each container using the full width
-    for (i, container_name) in pod.containers.iter().enumerate() {
-        // For each container, split the row into a section for the container name and charts
+    // Get the selected container
+    if let Some(container_name) = state.selected_container() {
+        // Create a layout for the selected container with title and charts
         let container_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3), // Container title
+                Constraint::Length(3), // Container title and navigation hint
                 Constraint::Min(5),    // Charts area
             ])
-            .split(container_rows[i]);
+            .split(area);
         
-        // Container title
-        let container_title = format!("Container: {}", container_name);
+        // Container title with navigation hints
+        let container_title = format!("Container: {} (↑/↓ to change)", container_name);
         let title_block = Block::default()
             .borders(Borders::ALL)
             .title(container_title);
         
         f.render_widget(
-            ratatui::widgets::Paragraph::new("")
+            ratatui::widgets::Paragraph::new("Press ↑/↓ to navigate between containers")
+                .alignment(ratatui::layout::Alignment::Center)
                 .block(title_block)
                 .style(Style::default()),
             container_layout[0]
@@ -403,7 +394,7 @@ fn render_overview_charts(f: &mut Frame, state: &MonitorState, area: Rect, pod: 
         
         // Split the charts area vertically for CPU and Memory (stacked)
         let charts_layout = Layout::default()
-            .direction(Direction::Vertical) // Changed from Horizontal to Vertical
+            .direction(Direction::Vertical)
             .constraints([
                 Constraint::Percentage(50), // CPU chart
                 Constraint::Percentage(50), // Memory chart
@@ -415,6 +406,14 @@ fn render_overview_charts(f: &mut Frame, state: &MonitorState, area: Rect, pod: 
         
         // Render the Memory chart (now below)
         render_mini_memory_chart(f, charts_layout[1], state, pod, container_name);
+    } else {
+        // No container selected
+        let message = ratatui::widgets::Paragraph::new("No container selected")
+            .style(Style::default().fg(Color::Red))
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().borders(Borders::ALL).title("Containers"));
+        
+        f.render_widget(message, area);
     }
 }
 
