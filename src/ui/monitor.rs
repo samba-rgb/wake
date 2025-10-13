@@ -138,50 +138,106 @@ pub async fn run_monitor_loop(
                         // Create a regex that matches only this pod
                         let pod_selector = format!("^{}$", regex::escape(&pod.name));
                         
-                        // Convert PodInfo to Pod objects for the metrics client
-                        // We only need empty Pod objects with the correct metadata.name
-                        let mut k8s_pods = Vec::new();
-                        let k8s_pod = k8s_openapi::api::core::v1::Pod {
-                            metadata: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
-                                name: Some(pod.name.clone()),
-                                namespace: Some(pod.namespace.clone()),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        };
-                        k8s_pods.push(k8s_pod);
+                        // Get metrics for this pod using kubectl directly for more reliability
+                        let namespace = &pod.namespace;
+                        let pod_name = &pod.name;
                         
-                        // Get metrics for this pod using the constructed Pod object
-                        if let Ok(pod_metrics) = metrics_client.get_pod_metrics(&pod_selector, &k8s_pods).await {
-                            if let Some(metrics) = pod_metrics.get(&pod.name) {
-                                for container_name in &pod.containers {
-                                    // Get container metrics
-                                    let key = format!("{}/{}", pod.name, container_name);
-                                    
-                                    // Create a new usage entry
-                                    let usage = ResourceUsage {
-                                        timestamp: Instant::now(),
-                                        // Convert CPU to percentage (0-100)
-                                        cpu_usage: metrics.cpu.usage_value * 100.0,
-                                        // Memory already in MB in the ResourceMetrics struct
-                                        memory_usage: metrics.memory.usage_value / (1024.0 * 1024.0),
-                                    };
-                                    
-                                    // Make sure the entry exists in the map
-                                    if !monitor_state.usage_data.contains_key(&key) {
-                                        monitor_state.usage_data.insert(key.clone(), Vec::new());
-                                    }
-                                    
-                                    // Add the new usage data
-                                    if let Some(data) = monitor_state.usage_data.get_mut(&key) {
-                                        data.push(usage);
+                        // Execute kubectl top pod command directly
+                        let output = std::process::Command::new("kubectl")
+                            .args(&["top", "pod", pod_name, "-n", namespace, "--containers", "--no-headers"])
+                            .output();
+                        
+                        match output {
+                            Ok(output) if output.status.success() => {
+                                let stdout = String::from_utf8_lossy(&output.stdout);
+                                
+                                // Parse each container's usage
+                                for line in stdout.lines() {
+                                    let parts: Vec<&str> = line.split_whitespace().collect();
+                                    if parts.len() >= 3 {
+                                        let container_name = if parts.len() >= 4 {
+                                            parts[1].to_string()
+                                        } else {
+                                            // If format is unexpected, use "default"
+                                            "default".to_string()
+                                        };
                                         
-                                        // Keep only the last 60 data points
-                                        if data.len() > 60 {
-                                            data.remove(0);
+                                        // Parse CPU usage (remove "m" suffix and convert to percentage)
+                                        let cpu_str = if parts.len() >= 4 { parts[2] } else { parts[1] };
+                                        let cpu_usage = if cpu_str.ends_with('m') {
+                                            // Convert millicores to percentage (1000m = 1 core = 100%)
+                                            let millicores = cpu_str.trim_end_matches('m')
+                                                .parse::<f64>()
+                                                .unwrap_or(0.0);
+                                            millicores / 10.0 // 1000m = 100%
+                                        } else {
+                                            // Direct core count to percentage
+                                            cpu_str.parse::<f64>()
+                                                .unwrap_or(0.0) * 100.0
+                                        };
+                                        
+                                        // Parse Memory usage
+                                        let mem_str = if parts.len() >= 4 { parts[3] } else { parts[2] };
+                                        
+                                        // Better memory parsing to handle all formats (Ki, Mi, Gi, etc.)
+                                        let mem_value: f64;
+                                        let mem_unit = mem_str.chars()
+                                            .skip_while(|c| c.is_digit(10) || *c == '.')
+                                            .collect::<String>();
+                                        let mem_number = mem_str.chars()
+                                            .take_while(|c| c.is_digit(10) || *c == '.')
+                                            .collect::<String>()
+                                            .parse::<f64>()
+                                            .unwrap_or(0.0);
+                                            
+                                        // Convert to MB based on unit
+                                        mem_value = match mem_unit.as_str() {
+                                            "Ki" => mem_number / 1024.0,
+                                            "Mi" => mem_number,
+                                            "Gi" => mem_number * 1024.0,
+                                            "Ti" => mem_number * 1024.0 * 1024.0,
+                                            "K" | "k" => mem_number / 1000.0,
+                                            "M" => mem_number,
+                                            "G" => mem_number * 1000.0,
+                                            "T" => mem_number * 1000.0 * 1000.0,
+                                            _ => mem_number / (1024.0 * 1024.0), // Assume bytes if no unit
+                                        };
+                                        
+                                        // Only process if the container is in this pod's containers list
+                                        if pod.containers.contains(&container_name) {
+                                            // Create a usage key
+                                            let key = format!("{}/{}", pod_name, container_name);
+                                            
+                                            // Create a new usage entry
+                                            let usage = ResourceUsage {
+                                                timestamp: Instant::now(),
+                                                cpu_usage: cpu_usage,
+                                                memory_usage: mem_value,
+                                            };
+                                            
+                                            // Make sure the entry exists in the map
+                                            if !monitor_state.usage_data.contains_key(&key) {
+                                                monitor_state.usage_data.insert(key.clone(), Vec::new());
+                                            }
+                                            
+                                            // Add the new usage data
+                                            if let Some(data) = monitor_state.usage_data.get_mut(&key) {
+                                                data.push(usage);
+                                                
+                                                // Keep only the last 60 data points
+                                                if data.len() > 60 {
+                                                    data.remove(0);
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                            },
+                            Ok(output) => {
+                                eprintln!("Failed to get metrics: {}", String::from_utf8_lossy(&output.stderr));
+                            },
+                            Err(e) => {
+                                eprintln!("Error executing kubectl: {}", e);
                             }
                         }
                     }
@@ -228,24 +284,133 @@ fn render_selection_tabs(
     state: &MonitorState,
     area: Rect,
 ) {
+    // Split the area for pod and container dropdowns
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(50), // Pod dropdown
+            Constraint::Percentage(50), // Container dropdown
+        ])
+        .split(area);
+    
+    // Create dropdown style for pod selection
+    render_pod_dropdown(f, state, chunks[0]);
+    render_container_dropdown(f, state, chunks[1]);
+}
+
+fn render_pod_dropdown(
+    f: &mut Frame,
+    state: &MonitorState,
+    area: Rect,
+) {
     let pod_name = state.get_selected_pod().map_or("No pods".to_string(), |p| p.name.clone());
+    
+    // Create dropdown-like box for pod selection
+    let pod_dropdown = Block::default()
+        .title(Span::styled("Pod:", Style::default().fg(Color::Gray)))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Blue));
+    
+    f.render_widget(pod_dropdown, area);
+    
+    // Show selected pod inside the dropdown
+    let pod_text = Paragraph::new(format!(" {} ", pod_name))
+        .style(Style::default().fg(Color::Green))
+        .alignment(ratatui::layout::Alignment::Left);
+    
+    // Get inner area of dropdown to render text
+    let inner_area = area.inner(&ratatui::layout::Margin { 
+        vertical: 0, 
+        horizontal: 1 
+    });
+    
+    f.render_widget(pod_text, inner_area);
+    
+    // Add dropdown indicators
+    let dropdown_indicator = if !state.pods.is_empty() {
+        Paragraph::new("▼")
+            .style(Style::default().fg(Color::Yellow))
+            .alignment(ratatui::layout::Alignment::Right)
+    } else {
+        Paragraph::new(" ")
+            .style(Style::default().fg(Color::Yellow))
+            .alignment(ratatui::layout::Alignment::Right)
+    };
+    
+    f.render_widget(dropdown_indicator, inner_area);
+    
+    // Instructions text
+    let instructions = Paragraph::new("[↑↓ to change]")
+        .style(Style::default().fg(Color::DarkGray))
+        .alignment(ratatui::layout::Alignment::Right);
+    
+    let instruction_area = Rect::new(
+        area.x + area.width - 15,
+        area.y + area.height,
+        15,
+        1
+    );
+    
+    f.render_widget(instructions, instruction_area);
+}
+
+fn render_container_dropdown(
+    f: &mut Frame,
+    state: &MonitorState,
+    area: Rect,
+) {
     let container_name = state.get_selected_container_name().unwrap_or_else(|| "No containers".to_string());
     
-    let titles = vec![
-        Line::from(vec![
-            Span::styled("Pod: ", Style::default().fg(Color::Gray)),
-            Span::styled(&pod_name, Style::default().fg(Color::Green)),
-            Span::raw(" | "),
-            Span::styled("Container: ", Style::default().fg(Color::Gray)),
-            Span::styled(&container_name, Style::default().fg(Color::Yellow)),
-        ]),
-    ];
+    // Create dropdown-like box for container selection
+    let container_dropdown = Block::default()
+        .title(Span::styled("Container:", Style::default().fg(Color::Gray)))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow));
     
-    let view_tabs = Tabs::new(titles)
-        .block(Block::default().borders(Borders::BOTTOM))
-        .select(0);
+    f.render_widget(container_dropdown, area);
     
-    f.render_widget(view_tabs, area);
+    // Show selected container inside the dropdown
+    let container_text = Paragraph::new(format!(" {} ", container_name))
+        .style(Style::default().fg(Color::Yellow))
+        .alignment(ratatui::layout::Alignment::Left);
+    
+    // Get inner area of dropdown to render text
+    let inner_area = area.inner(&ratatui::layout::Margin { 
+        vertical: 0, 
+        horizontal: 1 
+    });
+    
+    f.render_widget(container_text, inner_area);
+    
+    // Add dropdown indicators
+    let has_containers = state.get_selected_pod()
+        .map_or(false, |pod| !pod.containers.is_empty());
+    
+    let dropdown_indicator = if has_containers {
+        Paragraph::new("▼")
+            .style(Style::default().fg(Color::Yellow))
+            .alignment(ratatui::layout::Alignment::Right)
+    } else {
+        Paragraph::new(" ")
+            .style(Style::default().fg(Color::Yellow))
+            .alignment(ratatui::layout::Alignment::Right)
+    };
+    
+    f.render_widget(dropdown_indicator, inner_area);
+    
+    // Instructions text
+    let instructions = Paragraph::new("[←→ to change]")
+        .style(Style::default().fg(Color::DarkGray))
+        .alignment(ratatui::layout::Alignment::Right);
+    
+    let instruction_area = Rect::new(
+        area.x + area.width - 15,
+        area.y + area.height,
+        15,
+        1
+    );
+    
+    f.render_widget(instructions, instruction_area);
 }
 
 fn render_table_view(
