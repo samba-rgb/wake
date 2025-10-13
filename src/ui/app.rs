@@ -840,9 +840,33 @@ pub async fn run_monitor_app(args: Args) -> Result<()> {
                         info!("Monitor: Quit requested by user");
                         break;
                     },
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        // Select previous pod
+                        monitor_state.previous_pod();
+                        info!("Monitor: Selected previous pod, index: {}", monitor_state.selected_pod_index);
+                    },
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        // Select next pod
+                        monitor_state.next_pod();
+                        info!("Monitor: Selected next pod, index: {}", monitor_state.selected_pod_index);
+                    },
+                    KeyCode::Left | KeyCode::Char('h') => {
+                        // Select previous container
+                        monitor_state.previous_container();
+                        info!("Monitor: Selected previous container, index: {}", monitor_state.selected_container_index);
+                    },
+                    KeyCode::Right | KeyCode::Char('l') => {
+                        // Select next container
+                        monitor_state.next_container();
+                        info!("Monitor: Selected next container, index: {}", monitor_state.selected_container_index);
+                    },
+                    KeyCode::Tab => {
+                        // Toggle between table and chart view
+                        monitor_state.tab_index = (monitor_state.tab_index + 1) % 2;
+                        info!("Monitor: Toggled view mode to {}", if monitor_state.tab_index == 0 { "Table" } else { "Chart" });
+                    },
                     _ => {
-                        // Ignore other keystrokes for now
-                        // Could add more key handlers here for monitor UI navigation
+                        // Ignore other key events
                     }
                 }
             }
@@ -896,7 +920,7 @@ async fn get_pod_resource_usage(
     
     // Use kubectl top pod to get resource usage
     let output = Command::new("kubectl")
-        .args(&["top", "pod", pod_name, "-n", namespace, "--containers"])
+        .args(&["top", "pod", pod_name, "-n", namespace, "--containers", "--no-headers"])
         .output()?;
     
     if !output.status.success() {
@@ -909,46 +933,72 @@ async fn get_pod_resource_usage(
     let output_str = String::from_utf8_lossy(&output.stdout);
     let mut container_resources = Vec::new();
     
-    // Skip the header line and parse each container's usage
-    for line in output_str.lines().skip(1) {
+    // Parse each container's usage - improved parsing logic
+    for line in output_str.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() >= 4 {
-            // Format: POD_NAME CONTAINER_NAME CPU MEMORY
-            let container_name = parts[1].to_string();
+        if parts.len() >= 3 { // At minimum need pod, container, CPU, and memory
+            let container_name = if parts.len() >= 4 {
+                parts[1].to_string()
+            } else {
+                "default".to_string()
+            };
             
             // Parse CPU usage (remove "m" suffix and convert to percentage)
-            let cpu_str = parts[2].to_lowercase();
+            let cpu_str = if parts.len() >= 4 { parts[2] } else { parts[1] };
             let cpu_usage = if cpu_str.ends_with('m') {
-                // Convert millicores to percentage
-                let millicores = cpu_str.trim_end_matches('m').parse::<f64>().unwrap_or(0.0);
-                millicores / 10.0
+                // Convert millicores to percentage (1000m = 1 core = 100%)
+                let millicores = cpu_str.trim_end_matches('m')
+                    .parse::<f64>()
+                    .unwrap_or(0.0);
+                millicores / 10.0 // 1000m = 100%
             } else {
-                // Direct percentage
-                cpu_str.parse::<f64>().unwrap_or(0.0) * 100.0
+                // Direct core count to percentage
+                cpu_str.parse::<f64>()
+                    .unwrap_or(0.0) * 100.0
             };
             
             // Parse Memory usage
-            let mem_str = parts[3].to_lowercase();
-            let mem_value = mem_str.chars()
+            let mem_str = if parts.len() >= 4 { parts[3] } else { parts[2] };
+            
+            // Better memory parsing to handle all formats (Ki, Mi, Gi, etc.)
+            let mem_value: f64;
+            let mem_unit = mem_str.chars()
+                .skip_while(|c| c.is_digit(10) || *c == '.')
+                .collect::<String>();
+            let mem_number = mem_str.chars()
                 .take_while(|c| c.is_digit(10) || *c == '.')
                 .collect::<String>()
                 .parse::<f64>()
                 .unwrap_or(0.0);
-            
-            // Convert to MB
-            let mem_usage = if mem_str.ends_with("ki") {
-                mem_value / 1024.0 // KiB to MB
-            } else if mem_str.ends_with("mi") {
-                mem_value // Already MB
-            } else if mem_str.ends_with("gi") {
-                mem_value * 1024.0 // GiB to MB
-            } else {
-                mem_value / (1024.0 * 1024.0) // Bytes to MB
+                
+            // Convert to MB based on unit
+            mem_value = match mem_unit.as_str() {
+                "Ki" => mem_number / 1024.0,
+                "Mi" => mem_number,
+                "Gi" => mem_number * 1024.0,
+                "Ti" => mem_number * 1024.0 * 1024.0,
+                "K" | "k" => mem_number / 1000.0,
+                "M" => mem_number,
+                "G" => mem_number * 1000.0,
+                "T" => mem_number * 1000.0 * 1000.0,
+                _ => mem_number / (1024.0 * 1024.0), // Assume bytes if no unit
             };
             
-            container_resources.push((container_name, (cpu_usage, mem_usage)));
+            // Debug logging to trace the values
+            debug!(
+                "Parsed container metrics: {} - CPU: {} ({}%), Memory: {} ({}MB)",
+                container_name, cpu_str, cpu_usage, mem_str, mem_value
+            );
+            
+            container_resources.push((container_name, (cpu_usage, mem_value)));
         }
     }
+    
+    // Log the results for debugging
+    info!(
+        "Retrieved resource usage for pod {}: {} containers with data", 
+        pod_name, container_resources.len()
+    );
     
     Ok(container_resources)
 }
