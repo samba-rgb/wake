@@ -8,19 +8,48 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 use crate::k8s::pod::Pod;
+use crate::metrics::timeseries::TimeSeries;
 
 /// Structure to hold metrics data for a pod/container
 #[derive(Debug, Clone)]
 pub struct MetricsData {
     pub timestamp: DateTime<Utc>,
-    pub cpu_usage: f64, // CPU usage in cores
-    pub memory_usage: f64, // Memory usage in bytes
+    pub pod_name: String,
+    pub container_name: String,
+    pub cpu_usage: f64,    // CPU usage in percentage (0-100)
+    pub memory_usage: f64, // Memory usage in MB
 }
 
-/// Structure for metrics time series
+/// Container metrics with time series data
 #[derive(Debug, Clone)]
-pub struct MetricsTimeSeries {
-    pub data: Vec<(DateTime<Utc>, f64, f64)>, // (timestamp, cpu_usage, memory_usage)
+pub struct ContainerMetrics {
+    pub cpu_series: TimeSeries<f64>,
+    pub memory_series: TimeSeries<f64>,
+}
+
+impl ContainerMetrics {
+    /// Create a new container metrics with default buffer size of 1000
+    pub fn new(container_name: &str) -> Self {
+        Self {
+            cpu_series: TimeSeries::new(&format!("{}-cpu", container_name), 1000),
+            memory_series: TimeSeries::new(&format!("{}-memory", container_name), 1000),
+        }
+    }
+    
+    /// Add a data point to the container metrics
+    pub fn add_point(&mut self, timestamp: DateTime<Utc>, cpu: f64, memory: f64) {
+        self.cpu_series.add_point(timestamp, cpu);
+        self.memory_series.add_point(timestamp, memory);
+    }
+}
+
+/// Metrics collection maps as per your design
+#[derive(Debug, Clone, Default)]
+pub struct MetricsMaps {
+    // pod_name -> container_name -> metrics
+    pub cpu_map: HashMap<String, HashMap<String, TimeSeries<f64>>>,
+    pub memory_map: HashMap<String, HashMap<String, TimeSeries<f64>>>,
+    pub last_update: DateTime<Utc>,
 }
 
 /// Metrics summary for the UI
@@ -45,6 +74,12 @@ impl Default for MetricsSummary {
             timestamp: Utc::now(),
         }
     }
+}
+
+/// Simple time series for metrics data
+#[derive(Debug, Clone)]
+pub struct MetricsTimeSeries {
+    pub data: Vec<(DateTime<Utc>, f64, f64)>, // timestamp, CPU, memory
 }
 
 /// Client for collecting metrics from Kubernetes
@@ -385,5 +420,259 @@ fn parse_k8s_memory(mem_str: &str) -> f64 {
         "G" => value * 1000.0 * 1000.0 * 1000.0,
         "T" => value * 1000.0 * 1000.0 * 1000.0 * 1000.0,
         _ => value, // Assume bytes if no unit
+    }
+}
+
+/// Modern metrics collector that tracks container-level metrics
+pub struct ModernMetricsCollector {
+    metrics_maps: Arc<Mutex<MetricsMaps>>,
+    pods: Arc<Mutex<Vec<Pod>>>,
+    collection_active: Arc<Mutex<bool>>,
+}
+
+impl ModernMetricsCollector {
+    pub fn new() -> Self {
+        Self {
+            metrics_maps: Arc::new(Mutex::new(MetricsMaps::default())),
+            pods: Arc::new(Mutex::new(Vec::new())),
+            collection_active: Arc::new(Mutex::new(false)),
+        }
+    }
+    
+    /// Set the pods to monitor
+    pub fn set_pods(&self, pods: Vec<Pod>) {
+        let mut pods_guard = self.pods.lock().unwrap();
+        *pods_guard = pods;
+    }
+    
+    /// Get the current metrics maps
+    pub fn get_metrics_maps(&self) -> MetricsMaps {
+        let metrics_guard = self.metrics_maps.lock().unwrap();
+        metrics_guard.clone()
+    }
+    
+    /// Start collecting container-level metrics with cancellation support
+    pub async fn start_collection(
+        &self,
+        namespace: String,
+        pod_selector: String,
+        container_selector: String,
+        interval_secs: u64,
+        cancellation_token: CancellationToken,
+    ) -> Result<mpsc::Receiver<MetricsData>> {
+        let (tx, rx) = mpsc::channel::<MetricsData>(100);
+        
+        // Set collection_active to true
+        {
+            let mut active_guard = self.collection_active.lock().unwrap();
+            *active_guard = true;
+        }
+        
+        // Clone the necessary Arc pointers for the collection task
+        let metrics_maps = self.metrics_maps.clone();
+        let pods = self.pods.clone();
+        let collection_active = self.collection_active.clone();
+        
+        // Start the metrics collection loop
+        tokio::spawn(async move {
+            info!("Starting container-level metrics collection for namespace={} pods={} containers={}",
+                 namespace, pod_selector, container_selector);
+            
+            // Collection loop
+            let interval = Duration::from_secs(interval_secs.max(1)); // Minimum 1 second
+            let mut last_collection = tokio::time::Instant::now();
+            
+            while !cancellation_token.is_cancelled() {
+                // Only collect if interval has elapsed
+                if last_collection.elapsed() >= interval {
+                    // Check if collection is still active
+                    {
+                        let active_guard = collection_active.lock().unwrap();
+                        if !*active_guard {
+                            break;
+                        }
+                    }
+                    
+                    // Get pod list
+                    let pod_list = {
+                        let pods_guard = pods.lock().unwrap();
+                        pods_guard.clone()
+                    };
+                    
+                    // Timestamp for this collection
+                    let timestamp = Utc::now();
+                    
+                    // Collect container-level metrics
+                    for pod in pod_list.iter() {
+                        match Self::collect_container_metrics(&namespace, &pod.name).await {
+                            Ok(container_metrics) => {
+                                // Update metrics maps
+                                let mut metrics_guard = metrics_maps.lock().unwrap();
+                                
+                                for (container_name, (cpu, memory)) in container_metrics {
+                                    // Insert into CPU map
+                                    let pod_cpu_map = metrics_guard.cpu_map
+                                        .entry(pod.name.clone())
+                                        .or_insert_with(HashMap::new);
+                                    
+                                    let container_cpu_series = pod_cpu_map
+                                        .entry(container_name.clone())
+                                        .or_insert_with(|| TimeSeries::new(&format!("{}-{}-cpu", pod.name, container_name), 1000));
+                                    
+                                    container_cpu_series.add_point(timestamp, cpu);
+                                    
+                                    // Insert into Memory map
+                                    let pod_mem_map = metrics_guard.memory_map
+                                        .entry(pod.name.clone())
+                                        .or_insert_with(HashMap::new);
+                                    
+                                    let container_mem_series = pod_mem_map
+                                        .entry(container_name.clone())
+                                        .or_insert_with(|| TimeSeries::new(&format!("{}-{}-memory", pod.name, container_name), 1000));
+                                    
+                                    container_mem_series.add_point(timestamp, memory);
+                                    
+                                    // Send the metrics data to the channel
+                                    let data = MetricsData {
+                                        timestamp,
+                                        pod_name: pod.name.clone(),
+                                        container_name,
+                                        cpu_usage: cpu,
+                                        memory_usage: memory,
+                                    };
+                                    
+                                    if tx.try_send(data).is_err() {
+                                        debug!("Failed to send container metrics data to channel");
+                                    }
+                                }
+                                
+                                // Update last update timestamp
+                                metrics_guard.last_update = timestamp;
+                            }
+                            Err(e) => {
+                                warn!("Failed to collect metrics for pod {}: {}", pod.name, e);
+                            }
+                        }
+                    }
+                    
+                    // Update last collection time
+                    last_collection = tokio::time::Instant::now();
+                }
+                
+                // Sleep to prevent high CPU usage
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+            
+            // When the loop exits, set collection_active to false
+            {
+                let mut active_guard = collection_active.lock().unwrap();
+                *active_guard = false;
+            }
+            
+            info!("Container metrics collection task completed");
+        });
+        
+        Ok(rx)
+    }
+    
+    /// Collect metrics for all containers in a pod
+    pub async fn collect_container_metrics(namespace: &str, pod_name: &str) -> Result<Vec<(String, (f64, f64))>> {
+        use std::process::Command;
+        
+        // Use kubectl top pod to get container-level metrics
+        let output = Command::new("kubectl")
+            .args(&["top", "pod", pod_name, "-n", namespace, "--containers", "--no-headers"])
+            .output()?;
+        
+        if !output.status.success() {
+            return Err(anyhow!(
+                "Failed to get pod resource usage: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+        
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        let mut container_resources = Vec::new();
+        
+        // Parse each container's usage with fixed parsing logic
+        for line in output_str.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 4 { // Need pod, container, CPU, and memory
+                let container_name = parts[1].to_string();
+                
+                // Parse CPU usage (remove "m" suffix and convert to percentage)
+                let cpu_str = parts[2];
+                let cpu_usage = if cpu_str.ends_with('m') {
+                    // Convert millicores to percentage (1000m = 1 core = 100%)
+                    let millicores = match cpu_str.trim_end_matches('m').parse::<f64>() {
+                        Ok(mc) => mc,
+                        Err(_) => {
+                            warn!("Failed to parse CPU millicores: {}", cpu_str);
+                            0.0
+                        }
+                    };
+                    millicores / 10.0 // 1000m = 100%
+                } else {
+                    // Direct core count to percentage
+                    match cpu_str.parse::<f64>() {
+                        Ok(c) => c * 100.0, // Convert cores to percentage
+                        Err(_) => {
+                            warn!("Failed to parse CPU cores: {}", cpu_str);
+                            0.0
+                        }
+                    }
+                };
+                
+                // Parse Memory usage
+                let mem_str = parts[3];
+                
+                // Extract numeric part and unit separately
+                let mem_value: f64;
+                let mem_unit = mem_str.chars()
+                    .skip_while(|c| c.is_digit(10) || *c == '.')
+                    .collect::<String>();
+                
+                let mem_number = match mem_str.chars()
+                    .take_while(|c| c.is_digit(10) || *c == '.')
+                    .collect::<String>()
+                    .parse::<f64>() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        warn!("Failed to parse memory value: {}", mem_str);
+                        0.0
+                    }
+                };
+                    
+                // Convert to MB based on unit
+                mem_value = match mem_unit.as_str() {
+                    "Ki" => mem_number / 1024.0,
+                    "Mi" => mem_number,
+                    "Gi" => mem_number * 1024.0,
+                    "Ti" => mem_number * 1024.0 * 1024.0,
+                    "K" | "k" => mem_number / 1000.0,
+                    "M" => mem_number,
+                    "G" => mem_number * 1000.0,
+                    "T" => mem_number * 1000.0 * 1000.0,
+                    _ => mem_number / (1024.0 * 1024.0), // Assume bytes if no unit
+                };
+                
+                // Log the parsed values for debugging
+                debug!(
+                    "Container metrics: {} - CPU: {}% ({}), Memory: {}MB ({})",
+                    container_name, cpu_usage, cpu_str, mem_value, mem_str
+                );
+                
+                container_resources.push((container_name, (cpu_usage, mem_value)));
+            }
+        }
+        
+        // If no containers were found, log a warning
+        if container_resources.is_empty() {
+            warn!("No container metrics found for pod {}", pod_name);
+        } else {
+            info!("Collected metrics for {} containers in pod {}", container_resources.len(), pod_name);
+        }
+        
+        Ok(container_resources)
     }
 }
