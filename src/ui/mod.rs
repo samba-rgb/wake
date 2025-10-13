@@ -3,6 +3,8 @@ pub mod input;
 pub mod display;
 pub mod filter_manager;
 pub mod template_ui;
+pub mod monitor;
+pub mod monitor_ui;
 
 use anyhow::Result;
 use crate::cli::Args;
@@ -17,4 +19,8 @@ pub async fn run_with_ui(
     args: Args,
 ) -> Result<()> {
     app::run_app(log_stream, args).await
+}
+
+pub async fn run_with_monitor_ui(args: Args) -> Result<()> {
+    app::run_monitor_app(args).await
 }

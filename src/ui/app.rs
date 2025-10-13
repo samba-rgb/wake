@@ -155,7 +155,7 @@ pub async fn run_app(
         0, // No buffer for retroactive filtering - only apply to new logs
     )?;
 
-    // Configure file output mode if file writer is present
+    // Configure file output mode if file_writer is present
     if file_writer.is_some() {
         display_manager.set_file_output_mode(true);
         info!("UI: File output mode enabled - logs will be saved to file");
@@ -736,4 +736,219 @@ pub async fn run_app(
 
     info!("=== UI APP COMPLETED ===");
     Ok(())
+}
+
+pub async fn run_monitor_app(args: Args) -> Result<()> {
+    info!("=== STARTING MONITOR APP ===");
+    info!("Monitor: Args - namespace: {}, pod_selector: {}, container: {}", 
+          args.namespace, args.pod_selector, args.container);
+    
+    // Setup terminal
+    info!("Monitor: Setting up terminal...");
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, crossterm::cursor::SetCursorStyle::DefaultUserShape)?;
+    
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // Initialize Kubernetes client
+    info!("Monitor: Creating Kubernetes client...");
+    let client = crate::k8s::client::create_client(&args).await?;
+    
+    // Get pod regex
+    let pod_regex = args.pod_regex()?;
+    let container_regex = args.container_regex()?;
+    
+    // Select pods
+    info!("Monitor: Selecting pods...");
+    let pods = crate::k8s::pod::select_pods(
+        &client,
+        &args.namespace,
+        &pod_regex,
+        &container_regex,
+        args.all_namespaces,
+        args.resource.as_deref(),
+        args.sample,
+    ).await?;
+    
+    if pods.is_empty() {
+        // Clean up terminal before showing error
+        disable_raw_mode()?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
+        terminal.show_cursor()?;
+        
+        eprintln!("❌ No pods found matching the criteria.");
+        eprintln!("   Namespace: {}", args.namespace);
+        eprintln!("   Pod selector: {}", args.pod_selector);
+        eprintln!("   Container: {}", args.container);
+        return Ok(());
+    }
+    
+    info!("Monitor: Found {} matching pods", pods.len());
+    
+    // Determine the metrics source based on CLI arguments
+    let metrics_source = match args.metrics_source.as_str() {
+        "api" => {
+            info!("Monitor: Using metrics.k8s.io API as metrics source");
+            crate::k8s::metrics::MetricsSource::Api
+        },
+        "kubectl" => {
+            info!("Monitor: Using kubectl top command as metrics source");
+            crate::k8s::metrics::MetricsSource::KubectlTop
+        },
+        _ => {
+            // This should never happen due to clap validation, but handle it just in case
+            warn!("Monitor: Unknown metrics source '{}', defaulting to kubectl", args.metrics_source);
+            crate::k8s::metrics::MetricsSource::KubectlTop
+        }
+    };
+    
+    // Create the monitor state with the selected metrics source
+    let mut monitor_state = crate::ui::monitor::MonitorState::new(pods.clone());
+    monitor_state.set_metrics_source(metrics_source);
+    
+    // Set up channels for shutdown
+    let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>(1);
+    
+    // Clone monitor_state for the tokio task to fix ownership issue
+    let mut monitor_state_clone = monitor_state.clone();
+    
+    // Start the monitor loop in a separate task
+    let monitor_handle = tokio::spawn(async move {
+        match crate::ui::monitor::run_monitor_loop(&mut monitor_state_clone, shutdown_rx).await {
+            Ok(_) => info!("Monitor loop completed successfully"),
+            Err(e) => error!("Monitor loop error: {}", e),
+        }
+    });
+
+    // Handle rendering and user input
+    let mut last_render = std::time::Instant::now();
+    let render_interval = Duration::from_millis(100); // 10 FPS for monitoring
+
+    loop {
+        // Check for input events
+        if event::poll(Duration::from_millis(100))? {
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Esc => {
+                        info!("Monitor: Quit requested by user");
+                        break;
+                    },
+                    _ => {
+                        // Ignore other keystrokes for now
+                        // Could add more key handlers here for monitor UI navigation
+                    }
+                }
+            }
+        }
+
+        // Render UI at controlled intervals
+        if last_render.elapsed() >= render_interval {
+            terminal.draw(|f| {
+                crate::ui::monitor::render_monitor(f, &monitor_state, f.size());
+            })?;
+            last_render = std::time::Instant::now();
+        }
+    }
+
+    // Signal the monitor loop to shut down
+    let _ = shutdown_tx.send(()).await;
+    
+    // Wait for the monitor loop to complete (with timeout)
+    match tokio::time::timeout(Duration::from_secs(1), monitor_handle).await {
+        Ok(result) => {
+            if let Err(e) = result {
+                error!("Monitor handle join error: {:?}", e);
+            }
+            info!("Monitor loop completed within timeout");
+        },
+        Err(_) => {
+            warn!("Monitor loop did not complete within timeout, proceeding with cleanup");
+        }
+    };
+
+    // Clean up terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+    
+    info!("=== MONITOR APP COMPLETED ===");
+    Ok(())
+}
+
+// Helper function to get pod resource usage from kubectl top
+async fn get_pod_resource_usage(
+    client: &kube::Client,
+    namespace: &str,
+    pod_name: &str,
+) -> Result<Vec<(String, (f64, f64))>> {
+    use std::process::Command;
+    
+    // Use kubectl top pod to get resource usage
+    let output = Command::new("kubectl")
+        .args(&["top", "pod", pod_name, "-n", namespace, "--containers"])
+        .output()?;
+    
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "Failed to get pod resource usage: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    let mut container_resources = Vec::new();
+    
+    // Skip the header line and parse each container's usage
+    for line in output_str.lines().skip(1) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 4 {
+            // Format: POD_NAME CONTAINER_NAME CPU MEMORY
+            let container_name = parts[1].to_string();
+            
+            // Parse CPU usage (remove "m" suffix and convert to percentage)
+            let cpu_str = parts[2].to_lowercase();
+            let cpu_usage = if cpu_str.ends_with('m') {
+                // Convert millicores to percentage
+                let millicores = cpu_str.trim_end_matches('m').parse::<f64>().unwrap_or(0.0);
+                millicores / 10.0
+            } else {
+                // Direct percentage
+                cpu_str.parse::<f64>().unwrap_or(0.0) * 100.0
+            };
+            
+            // Parse Memory usage
+            let mem_str = parts[3].to_lowercase();
+            let mem_value = mem_str.chars()
+                .take_while(|c| c.is_digit(10) || *c == '.')
+                .collect::<String>()
+                .parse::<f64>()
+                .unwrap_or(0.0);
+            
+            // Convert to MB
+            let mem_usage = if mem_str.ends_with("ki") {
+                mem_value / 1024.0 // KiB to MB
+            } else if mem_str.ends_with("mi") {
+                mem_value // Already MB
+            } else if mem_str.ends_with("gi") {
+                mem_value * 1024.0 // GiB to MB
+            } else {
+                mem_value / (1024.0 * 1024.0) // Bytes to MB
+            };
+            
+            container_resources.push((container_name, (cpu_usage, mem_usage)));
+        }
+    }
+    
+    Ok(container_resources)
 }
