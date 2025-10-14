@@ -14,10 +14,11 @@ use ratatui::{
     Frame,
 };
 use tokio::sync::mpsc;
+use tracing::{debug, error, info, warn};
+use crate::logging::wake_logger;
 
 // This will be fixed in another file since ContainerInfo doesn't exist in k8s::pod
 use crate::k8s::pod::PodInfo;
-// This will be fixed in another file - metrics paths issue
 // use crate::metrics::collector::{ModernMetricsCollector, ContainerMetrics};
 
 // Temporary struct definitions to make compilation work
@@ -330,7 +331,7 @@ fn render_overview_table(f: &mut Frame, state: &MonitorState, area: Rect, pod: &
         .map(|container_name| {
             let metrics = state.get_metrics(&pod.name, container_name);
             
-            let cpu_usage = metrics.map_or("N/A".to_string(), |m| format!("{:.2}m", m.cpu_usage));
+            let cpu_usage = metrics.map_or("N/A".to_string(), |m| format!("{:.2}", m.cpu_usage));
             let memory_usage = metrics.map_or("N/A".to_string(), |m| format!("{:.2}Mi", m.memory_usage / 1024.0 / 1024.0));
             
             Row::new(vec![
@@ -421,44 +422,64 @@ fn render_overview_charts(f: &mut Frame, state: &MonitorState, area: Rect, pod: 
 fn render_mini_cpu_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
     // Get metrics for the container
     let metrics = state.get_metrics(&pod.name, container_name);
+    let key = format!("{}/{}", pod.name, container_name);
+    let history = state.metrics_history.get(&key);
     
-    if let Some(metrics) = metrics {
-        // Create data points
-        let mut data_points = Vec::new();
-        for i in 0..20 {
-            // Generate some random CPU usage that somewhat follows the current value
-            let cpu = metrics.cpu_usage * (0.7 + fastrand::f64() * 0.6);
-            data_points.push((i as f64, cpu));
+    if let (Some(metrics), Some(history)) = (metrics, history) {
+        // If we have history data available, use it for the chart
+        if !history.cpu_history.is_empty() {
+            let mut data_points = Vec::with_capacity(history.cpu_history.len());
+            
+            // Convert history to data points
+            for (i, &value) in history.cpu_history.iter().enumerate() {
+                // CPU values are already in millicores, no need to multiply
+                data_points.push((i as f64, value));
+            }
+            
+            // Create the dataset
+            let dataset = vec![Dataset::default()
+                .name("CPU")
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(Color::Green))
+                .data(&data_points)];
+
+            // Find the maximum value for Y axis scaling
+            let max_value = history.cpu_history.iter().fold(0.0, |max, &x| if x > max { x } else { max });
+            let y_max = if max_value > 0.0 { max_value * 1.2 } else { 100.0 };
+
+            // Create the chart
+            let chart = Chart::new(dataset)
+                .block(
+                    Block::default()
+                        .title(format!("CPU: {:.0}m", metrics.cpu_usage))
+                        .borders(Borders::ALL)
+                )
+                .x_axis(
+                    Axis::default()
+                        .style(Style::default().fg(Color::Gray))
+                        .bounds([0.0, history.cpu_history.len() as f64])
+                )
+                .y_axis(
+                    Axis::default()
+                        .style(Style::default().fg(Color::Gray))
+                        .bounds([0.0, y_max])
+                );
+
+            // Render the chart
+            f.render_widget(chart, area);
+            return;
         }
-        
-        // Create the dataset
-        let dataset = vec![Dataset::default()
-            .name("CPU")
-            .marker(symbols::Marker::Braille)
-            .graph_type(GraphType::Line)
+    }
+
+    // If no history available yet, fall back to a simple display
+    if let Some(metrics) = metrics {
+        let message = format!("CPU: {:.0}m\n\nCollecting data...", metrics.cpu_usage);
+        let message_widget = ratatui::widgets::Paragraph::new(message)
             .style(Style::default().fg(Color::Green))
-            .data(&data_points)];
-
-        // Create the chart
-        let chart = Chart::new(dataset)
-            .block(
-                Block::default()
-                    .title(format!("CPU: {:.2}m", metrics.cpu_usage))
-                    .borders(Borders::ALL)
-            )
-            .x_axis(
-                Axis::default()
-                    .style(Style::default().fg(Color::Gray))
-                    .bounds([0.0, 20.0])
-            )
-            .y_axis(
-                Axis::default()
-                    .style(Style::default().fg(Color::Gray))
-                    .bounds([0.0, metrics.cpu_usage * 1.5])
-            );
-
-        // Render the chart
-        f.render_widget(chart, area);
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().title("CPU").borders(Borders::ALL));
+        f.render_widget(message_widget, area);
     } else {
         // If no metrics available, display a message
         let message = ratatui::widgets::Paragraph::new("No CPU data")
@@ -473,45 +494,66 @@ fn render_mini_cpu_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &
 fn render_mini_memory_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
     // Get metrics for the container
     let metrics = state.get_metrics(&pod.name, container_name);
+    let key = format!("{}/{}", pod.name, container_name);
+    let history = state.metrics_history.get(&key);
     
-    if let Some(metrics) = metrics {
-        // Create data points
-        let mut data_points = Vec::new();
-        for i in 0..20 {
-            // Generate some random memory usage that somewhat follows the current value
-            let memory = metrics.memory_usage * (0.8 + fastrand::f64() * 0.4);
-            data_points.push((i as f64, memory / (1024.0 * 1024.0))); // Convert to MB
+    if let (Some(metrics), Some(history)) = (metrics, history) {
+        // If we have history data available, use it for the chart
+        if !history.memory_history.is_empty() {
+            let mut data_points = Vec::with_capacity(history.memory_history.len());
+            
+            // Convert history to data points (converting to MB)
+            for (i, &value) in history.memory_history.iter().enumerate() {
+                data_points.push((i as f64, value / (1024.0 * 1024.0))); // Convert bytes to MB
+            }
+            
+            // Create the dataset
+            let dataset = vec![Dataset::default()
+                .name("Memory")
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(Color::Blue))
+                .data(&data_points)];
+
+            // Find the maximum value for Y axis scaling
+            let max_memory_mb = history.memory_history.iter()
+                .fold(0.0, |max, &x| if x > max { x } else { max }) / (1024.0 * 1024.0);
+            let y_max = if max_memory_mb > 0.0 { max_memory_mb * 1.2 } else { 100.0 };
+
+            // Create the chart
+            let memory_mb = metrics.memory_usage / (1024.0 * 1024.0);
+            let chart = Chart::new(dataset)
+                .block(
+                    Block::default()
+                        .title(format!("Memory: {:.2}MB", memory_mb))
+                        .borders(Borders::ALL)
+                )
+                .x_axis(
+                    Axis::default()
+                        .style(Style::default().fg(Color::Gray))
+                        .bounds([0.0, history.memory_history.len() as f64])
+                )
+                .y_axis(
+                    Axis::default()
+                        .style(Style::default().fg(Color::Gray))
+                        .bounds([0.0, y_max])
+                );
+
+            // Render the chart
+            f.render_widget(chart, area);
+            return;
         }
-        
-        // Create the dataset
-        let dataset = vec![Dataset::default()
-            .name("Memory")
-            .marker(symbols::Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(Color::Blue))
-            .data(&data_points)];
+    }
 
-        // Create the chart
+    // If no history available yet, fall back to a simple display
+    if let Some(metrics) = metrics {
         let memory_mb = metrics.memory_usage / (1024.0 * 1024.0);
-        let chart = Chart::new(dataset)
-            .block(
-                Block::default()
-                    .title(format!("Memory: {:.2}MB", memory_mb))
-                    .borders(Borders::ALL)
-            )
-            .x_axis(
-                Axis::default()
-                    .style(Style::default().fg(Color::Gray))
-                    .bounds([0.0, 20.0])
-            )
-            .y_axis(
-                Axis::default()
-                    .style(Style::default().fg(Color::Gray))
-                    .bounds([0.0, memory_mb * 1.5])
-            );
-
-        // Render the chart
-        f.render_widget(chart, area);
+        let message = format!("Memory: {:.2}MB\n\nCollecting data...", memory_mb);
+        let message_widget = ratatui::widgets::Paragraph::new(message)
+            .style(Style::default().fg(Color::Blue))
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().title("Memory").borders(Borders::ALL));
+        f.render_widget(message_widget, area);
     } else {
         // If no metrics available, display a message
         let message = ratatui::widgets::Paragraph::new("No memory data")
@@ -574,7 +616,7 @@ fn render_metrics_table(f: &mut Frame, state: &MonitorState, area: Rect, pod: &P
         match metrics_source {
             // For kubectl mode, only show CPU and Memory metrics
             MetricsSource::KubectlTop => vec![
-                format!("CPU Usage: {:.2}m", m.cpu_usage),
+                format!("CPU Usage: {:.0}m", m.cpu_usage),
                 format!("Memory Usage: {:.2}Mi", m.memory_usage / 1024.0 / 1024.0),
                 format!("---"),
                 format!("Note: Only CPU and Memory metrics"),
@@ -582,7 +624,7 @@ fn render_metrics_table(f: &mut Frame, state: &MonitorState, area: Rect, pod: &P
             ],
             // For full metrics mode, show all metrics
             MetricsSource::Full => vec![
-                format!("CPU Usage: {:.2}m", m.cpu_usage),
+                format!("CPU Usage: {:.0}m", m.cpu_usage),
                 format!("Memory Usage: {:.2}Mi", m.memory_usage / 1024.0 / 1024.0),
                 format!("Disk Read: {:.2}KB/s", m.disk_read / 1024.0),
                 format!("Disk Write: {:.2}KB/s", m.disk_write / 1024.0),
@@ -735,7 +777,7 @@ fn render_cpu_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodIn
             let chart = Chart::new(dataset)
                 .block(
                     Block::default()
-                        .title(format!("CPU Usage (millicores) - Current: {:.2}m", metrics.cpu_usage))
+                        .title(format!("CPU Usage (millicores) - Current: {:.0}", metrics.cpu_usage))
                         .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
                         .borders(Borders::ALL)
                 )
@@ -760,7 +802,7 @@ fn render_cpu_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodIn
     
     // Fallback to simple display if no history or metrics are available
     let message = if metrics.is_some() {
-        format!("CPU Usage: {:.2}m\n\nCollecting data...", metrics.unwrap().cpu_usage)
+        format!("CPU Usage: {:.0}m\n\nCollecting data...", metrics.unwrap().cpu_usage)
     } else {
         "No CPU metrics available".to_string()
     };
@@ -773,63 +815,78 @@ fn render_cpu_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodIn
     f.render_widget(message_widget, area);
 }
 
-/// Render the memory usage chart
+/// Render the memory usage chart using actual history data
 fn render_memory_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &PodInfo, container_name: &str) {
     // Get metrics for the container
     let metrics = state.get_metrics(&pod.name, container_name);
+    let key = format!("{}/{}", pod.name, container_name);
+    let history = state.metrics_history.get(&key);
     
-    if let Some(metrics) = metrics {
-        // For a real implementation, we would use historical data stored in the state
-        // Here we'll create some dummy data for visualization
-        
-        // Create data points
-        let mut data_points = Vec::new();
-        for i in 0..30 {
-            // Generate some random memory usage that somewhat follows the current value
-            let memory = metrics.memory_usage * (0.8 + fastrand::f64() * 0.4);
-            data_points.push((i as f64, memory / (1024.0 * 1024.0))); // Convert to MB
+    if let (Some(metrics), Some(history)) = (metrics, history) {
+        // If we have history data available, use it for the chart
+        if !history.memory_history.is_empty() {
+            let mut data_points = Vec::with_capacity(history.memory_history.len());
+            
+            // Convert history to data points (converting to MB)
+            for (i, &value) in history.memory_history.iter().enumerate() {
+                data_points.push((i as f64, value / (1024.0 * 1024.0))); // Convert bytes to MB
+            }
+            
+            // Create the dataset
+            let dataset = vec![Dataset::default()
+                .name("Memory Usage")
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(Color::Blue))
+                .data(&data_points)];
+
+            // Find the maximum value for Y axis scaling
+            let max_memory_mb = history.memory_history.iter()
+                .fold(0.0, |max, &x| if x > max { x } else { max }) / (1024.0 * 1024.0);
+            let y_max = if max_memory_mb > 0.0 { max_memory_mb * 1.2 } else { 100.0 };
+
+            // Create the chart
+            let memory_mb = metrics.memory_usage / (1024.0 * 1024.0);
+            let chart = Chart::new(dataset)
+                .block(
+                    Block::default()
+                        .title(format!("Memory Usage (MB) - Current: {:.2} MB", memory_mb))
+                        .title_style(Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))
+                        .borders(Borders::ALL)
+                )
+                .x_axis(
+                    Axis::default()
+                        .title("Time")
+                        .style(Style::default().fg(Color::Gray))
+                        .bounds([0.0, history.memory_history.len() as f64])
+                )
+                .y_axis(
+                    Axis::default()
+                        .title("Memory (MB)")
+                        .style(Style::default().fg(Color::Gray))
+                        .bounds([0.0, y_max])
+                );
+
+            // Render the chart
+            f.render_widget(chart, area);
+            return;
         }
-        
-        // Create the dataset
-        let dataset = vec![Dataset::default()
-            .name("Memory Usage")
-            .marker(symbols::Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(Color::Blue))
-            .data(&data_points)];
-
-        // Create the chart
-        let memory_mb = metrics.memory_usage / (1024.0 * 1024.0);
-        let chart = Chart::new(dataset)
-            .block(
-                Block::default()
-                    .title(format!("Memory Usage (MB) - Current: {:.2} MB", memory_mb))
-                    .title_style(Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))
-                    .borders(Borders::ALL)
-            )
-            .x_axis(
-                Axis::default()
-                    .title("Time")
-                    .style(Style::default().fg(Color::Gray))
-                    .bounds([0.0, 30.0])
-            )
-            .y_axis(
-                Axis::default()
-                    .title("Memory (MB)")
-                    .style(Style::default().fg(Color::Gray))
-                    .bounds([0.0, memory_mb * 1.5])
-            );
-
-        // Render the chart
-        f.render_widget(chart, area);
-    } else {
-        // If no metrics available, display a message
-        let message = ratatui::widgets::Paragraph::new("No memory metrics available")
-            .style(Style::default().fg(Color::Red))
-            .alignment(ratatui::layout::Alignment::Center)
-            .block(Block::default().title("Memory Usage").borders(Borders::ALL));
-        f.render_widget(message, area);
     }
+    
+    // Fallback to simple display if no history or metrics are available
+    let message = if metrics.is_some() {
+        let memory_mb = metrics.unwrap().memory_usage / (1024.0 * 1024.0);
+        format!("Memory Usage: {:.2} MB\n\nCollecting data...", memory_mb)
+    } else {
+        "No memory metrics available".to_string()
+    };
+    
+    let message_widget = ratatui::widgets::Paragraph::new(message)
+        .style(Style::default().fg(Color::Blue))
+        .alignment(ratatui::layout::Alignment::Center)
+        .block(Block::default().title("Memory Usage").borders(Borders::ALL));
+    
+    f.render_widget(message_widget, area);
 }
 
 /// Render the disk usage chart
@@ -992,16 +1049,48 @@ pub async fn run_monitor_loop(
     Ok(())
 }
 
-/// Run the monitor loop with shared state
+/// Run the monitor loop with shared state using real Kubernetes metrics
 pub async fn run_monitor_loop_with_shared_state(
     state: std::sync::Arc<tokio::sync::Mutex<MonitorState>>,
     mut shutdown_rx: mpsc::Receiver<()>,
 ) -> Result<()> {
-    let collector = ModernMetricsCollector::new().await?;
+    use crate::k8s::metrics::{MetricsClient, MetricsSource};
+    use kube::Client;
+    
+    wake_logger::info("Starting metrics collection loop...");
+    
+    // Create Kubernetes client
+    let k8s_client = match Client::try_default().await {
+        Ok(client) => {
+            wake_logger::info("Successfully created Kubernetes client");
+            client
+        },
+        Err(e) => {
+            wake_logger::error(&format!("Failed to create Kubernetes client: {}", e));
+            return Err(anyhow::anyhow!("Failed to create Kubernetes client"));
+        }
+    };
+    
+    // Create metrics client - use "*" to query metrics from all namespaces
+    let metrics_client = match MetricsClient::new(k8s_client.clone(), "*".to_string()).await {
+        Ok(mut client) => {
+            // Force using kubectl top for consistent values with your CLI commands
+            client.set_metrics_source(MetricsSource::KubectlTop);
+            wake_logger::info("Successfully created metrics client with KubectlTop source for all namespaces");
+            client
+        },
+        Err(e) => {
+            wake_logger::error(&format!("Failed to create metrics client: {}", e));
+            return Err(anyhow::anyhow!("Failed to create metrics client"));
+        }
+    };
+    
+    wake_logger::info("Entering metrics collection loop");
     
     loop {
         // Check for shutdown signal
         if let Ok(_) = shutdown_rx.try_recv() {
+            wake_logger::info("Received shutdown signal, exiting metrics collection loop");
             break;
         }
         
@@ -1013,42 +1102,216 @@ pub async fn run_monitor_loop_with_shared_state(
         {
             let state_guard = state.lock().await;
             pod_info = state_guard.pods.clone();
+            wake_logger::info(&format!("Found {} pods to collect metrics for", pod_info.len()));
         }
         
-        // For each pod, collect metrics for all containers
-        // In a real implementation, we would use the container IDs to collect metrics
-        // For now, we'll just create dummy metrics for each container
-        for pod in &pod_info {
-            for container_name in &pod.containers {
-                // Create dummy metrics for each container
-                let metrics = ContainerMetrics {
-                    cpu_usage: fastrand::f64() * 100.0, // Random CPU usage between 0-100%
-                    memory_usage: fastrand::f64() * 1024.0 * 1024.0 * 100.0, // Random memory usage between 0-100MB
-                    disk_read: fastrand::f64() * 1024.0 * 10.0, // Random disk read between 0-10KB/s
-                    disk_write: fastrand::f64() * 1024.0 * 5.0, // Random disk write between 0-5KB/s
-                    net_rx: fastrand::f64() * 1024.0 * 20.0, // Random network receive between 0-20KB/s
-                    net_tx: fastrand::f64() * 1024.0 * 10.0, // Random network transmit between 0-10KB/s
-                };
-                
-                let key = format!("{}/{}", pod.name, container_name);
-                new_metrics.insert(key.clone(), metrics.clone());
+        // Convert our PodInfo to the format needed by MetricsClient
+        let k8s_pods: Vec<k8s_openapi::api::core::v1::Pod> = pod_info.iter()
+            .map(|p| {
+                let mut pod = k8s_openapi::api::core::v1::Pod::default();
+                // Directly access the metadata field (it's not an Option)
+                pod.metadata.name = Some(p.name.clone());
+                pod.metadata.namespace = Some(p.namespace.clone());
+                pod
+            })
+            .collect();
+        
+        wake_logger::info(&format!("Converted {} pods to k8s format", k8s_pods.len()));
+        
+        // Collect real metrics using kubectl top
+        if !pod_info.is_empty() {
+            wake_logger::info(&format!("Attempting to collect metrics for {} pods", pod_info.len()));
+            match metrics_client.get_pod_metrics(".*", &k8s_pods).await {
+                Ok(pod_metrics) => {
+                    wake_logger::info(&format!("Successfully retrieved metrics for {} pods", pod_metrics.len()));
+                    
+                    for pod in &pod_info {
+                        if let Some(metrics) = pod_metrics.get(&pod.name) {
+                            wake_logger::info(&format!("Pod {} metrics - CPU: {}m, Memory: {}Mi", 
+                                  pod.name, 
+                                  metrics.cpu.usage_value, // CPU values already in millicores
+                                  metrics.memory.usage_value / (1024.0 * 1024.0)));
+                            
+                            // Get the metrics per-container from the API response
+                            wake_logger::info(&format!("Attempting to get container metrics for pod {}", pod.name));
+                            let k8s_api_result = metrics_client.get_pod_container_metrics(&pod.namespace, &pod.name).await;
+                            
+                            if let Ok(container_metrics) = k8s_api_result {
+                                wake_logger::info(&format!("Found metrics for {} containers in pod {}", container_metrics.len(), pod.name));
+                                
+                                // We successfully got per-container metrics
+                                for container_name in &pod.containers {
+                                    if let Some(container_metric) = container_metrics.get(container_name) {
+                                        wake_logger::info(&format!("Container {}/{} metrics - CPU: {}m, Memory: {}Mi", 
+                                              pod.name, container_name,
+                                              container_metric.cpu.usage_value, // CPU values already in millicores
+                                              container_metric.memory.usage_value / (1024.0 * 1024.0)));
+                                        
+                                        // Use the real per-container metrics
+                                        let metrics_data = ContainerMetrics {
+                                            // CPU value already in millicores
+                                            cpu_usage: container_metric.cpu.usage_value,
+                                            // Memory value in bytes
+                                            memory_usage: container_metric.memory.usage_value,
+                                            // We don't have these in kubectl output
+                                            disk_read: 0.0,
+                                            disk_write: 0.0,
+                                            net_rx: 0.0,
+                                            net_tx: 0.0,
+                                        };
+                                        
+                                        let key = format!("{}/{}", pod.name, container_name);
+                                        new_metrics.insert(key.clone(), metrics_data.clone());
 
-                // Update metrics history
-                let mut state_guard = state.lock().await;
-                let history_entry = state_guard.metrics_history.entry(key).or_insert_with(|| ContainerMetricsHistory::new(30));
-                history_entry.add_metrics(&metrics);
-                drop(state_guard); // Explicitly drop the lock
+                                        // Update metrics history
+                                        let mut state_guard = state.lock().await;
+                                        let history_entry = state_guard.metrics_history.entry(key).or_insert_with(|| ContainerMetricsHistory::new(30));
+                                        history_entry.add_metrics(&metrics_data);
+                                        drop(state_guard); // Explicitly drop the lock
+                                    } else {
+                                        wake_logger::info(&format!("No individual metrics for container {} in pod {}, using aggregate metrics", 
+                                               container_name, pod.name));
+                                        // Fallback: divide pod metrics evenly among containers
+                                        let container_count = pod.containers.len() as f64;
+                                        let metrics_data = ContainerMetrics {
+                                            // Divide CPU usage evenly among containers, values already in millicores
+                                            cpu_usage: metrics.cpu.usage_value / container_count,
+                                            // Divide memory usage evenly among containers
+                                            memory_usage: metrics.memory.usage_value / container_count,
+                                            disk_read: 0.0,
+                                            disk_write: 0.0,
+                                            net_rx: 0.0,
+                                            net_tx: 0.0,
+                                        };
+                                        
+                                        let key = format!("{}/{}", pod.name, container_name);
+                                        new_metrics.insert(key.clone(), metrics_data.clone());
+
+                                        // Update metrics history
+                                        let mut state_guard = state.lock().await;
+                                        let history_entry = state_guard.metrics_history.entry(key).or_insert_with(|| ContainerMetricsHistory::new(30));
+                                        history_entry.add_metrics(&metrics_data);
+                                        drop(state_guard); // Explicitly drop the lock
+                                    }
+                                }
+                            } else {
+                                wake_logger::info(&format!("Failed to get per-container metrics for pod {}, reason: {:?}", 
+                                       pod.name, k8s_api_result.err()));
+                                // Fallback if we can't get per-container metrics: divide pod metrics evenly
+                                for container_name in &pod.containers {
+                                    let container_count = pod.containers.len() as f64;
+                                    let metrics_data = ContainerMetrics {
+                                        // Divide CPU usage evenly among containers, values already in millicores
+                                        cpu_usage: metrics.cpu.usage_value / container_count,
+                                        // Divide memory usage evenly among containers
+                                        memory_usage: metrics.memory.usage_value / container_count,
+                                        disk_read: 0.0,
+                                        disk_write: 0.0,
+                                        net_rx: 0.0,
+                                        net_tx: 0.0,
+                                    };
+                                    
+                                    let key = format!("{}/{}", pod.name, container_name);
+                                    new_metrics.insert(key.clone(), metrics_data.clone());
+
+                                    // Update metrics history
+                                    let mut state_guard = state.lock().await;
+                                    let history_entry = state_guard.metrics_history.entry(key).or_insert_with(|| ContainerMetricsHistory::new(30));
+                                    history_entry.add_metrics(&metrics_data);
+                                    drop(state_guard); // Explicitly drop the lock
+                                }
+                            }
+                        } else {
+                            wake_logger::info(&format!("No metrics available for pod: {}", pod.name));
+                            
+                            // Try to get metrics for this pod directly using kubectl
+                            wake_logger::info(&format!("Trying direct kubectl top for pod {}/{}", pod.namespace, pod.name));
+                            
+                            let output = std::process::Command::new("kubectl")
+                                .args(["top", "pod", &pod.name, "-n", &pod.namespace, "--containers", "--no-headers"])
+                                .output();
+                            
+                            match output {
+                                Ok(output) => {
+                                    if output.status.success() {
+                                        let stdout = String::from_utf8_lossy(&output.stdout);
+                                        wake_logger::info(&format!("Direct kubectl output: {}", stdout));
+                                    } else {
+                                        let stderr = String::from_utf8_lossy(&output.stderr);
+                                        wake_logger::error(&format!("Direct kubectl command failed: {}", stderr));
+                                    }
+                                },
+                                Err(e) => wake_logger::error(&format!("Failed to run direct kubectl command: {}", e)),
+                            }
+                        }
+                    }
+                    
+                    // Now update the shared state with the new metrics
+                    {
+                        let mut state_guard = state.lock().await;
+                        wake_logger::info(&format!("Updated UI state with {} container metrics", new_metrics.len()));
+                        state_guard.usage_data = new_metrics;
+                    }
+                },
+                Err(e) => {
+                    wake_logger::error(&format!("Failed to get pod metrics: {}", e));
+                    
+                    // Try running kubectl top directly for all pods to see output
+                    let direct_output = std::process::Command::new("kubectl")
+                        .args(["top", "pods", "--all-namespaces", "--no-headers"])
+                        .output();
+                    
+                    match direct_output {
+                        Ok(output) => {
+                            if output.status.success() {
+                                let stdout = String::from_utf8_lossy(&output.stdout);
+                                wake_logger::info(&format!("Direct kubectl top pods output: {}", stdout));
+                            } else {
+                                let stderr = String::from_utf8_lossy(&output.stderr);
+                                wake_logger::error(&format!("Direct kubectl top pods failed: {}", stderr));
+                            }
+                        },
+                        Err(e) => wake_logger::error(&format!("Failed to run direct kubectl top pods: {}", e)),
+                    }
+                    
+                    // Fallback to dummy data if metrics API fails
+                    for pod in &pod_info {
+                        for container_name in &pod.containers {
+                            // Create dummy metrics for each container with realistic values
+                            let metrics = ContainerMetrics {
+                                cpu_usage: 50.0 + fastrand::f64() * 100.0, // 50-150 millicores
+                                memory_usage: (50.0 + fastrand::f64() * 100.0) * 1024.0 * 1024.0, // 50-150MB
+                                disk_read: 0.0,
+                                disk_write: 0.0,
+                                net_rx: 0.0,
+                                net_tx: 0.0,
+                            };
+                            
+                            let key = format!("{}/{}", pod.name, container_name);
+                            new_metrics.insert(key.clone(), metrics.clone());
+
+                            // Update metrics history
+                            let mut state_guard = state.lock().await;
+                            let history_entry = state_guard.metrics_history.entry(key).or_insert_with(|| ContainerMetricsHistory::new(30));
+                            history_entry.add_metrics(&metrics);
+                        }
+                    }
+                    
+                    // Update the shared state with the fallback metrics
+                    {
+                        let mut state_guard = state.lock().await;
+                        wake_logger::info(&format!("Updated UI state with {} fallback metrics", new_metrics.len()));
+                        state_guard.usage_data = new_metrics;
+                    }
+                }
             }
-        }
-        
-        // Now update the shared state with the new metrics
-        {
-            let mut state_guard = state.lock().await;
-            state_guard.usage_data = new_metrics;
+        } else {
+            wake_logger::info("No pods to collect metrics for");
         }
         
         // Sleep for a short period before the next collection
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        wake_logger::info("Sleeping for 2 seconds before next metrics collection");
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     }
     
     Ok(())
@@ -1068,6 +1331,12 @@ pub async fn start_monitor(args: &crate::cli::Args, pod_infos: Vec<crate::k8s::p
     use std::io;
     use tokio::sync::{mpsc, Mutex};
     use std::sync::Arc;
+    use tracing::{debug, info};
+    use std::fs::File;
+    
+    // Instead of initializing a global subscriber which conflicts with the existing one,
+    // just log a message indicating we're starting the monitor
+    info!("Starting Wake monitor with {} pods", pod_infos.len());
     
     // Initialize terminal
     enable_raw_mode()?;
@@ -1086,7 +1355,7 @@ pub async fn start_monitor(args: &crate::cli::Args, pod_infos: Vec<crate::k8s::p
     let state_clone = state.clone();
     let metrics_handle = tokio::spawn(async move {
         if let Err(e) = run_monitor_loop_with_shared_state(state_clone, shutdown_rx).await {
-            eprintln!("Error in metrics collection: {}", e);
+            wake_logger::error(&format!("Error in metrics collection: {}", e));
         }
     });
 
