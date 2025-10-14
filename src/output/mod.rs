@@ -1,10 +1,27 @@
 pub mod formatter;
+pub mod web;
+pub mod factory;
 
 use crate::cli::Args;
 use crate::k8s::logs::LogEntry;
 use colored::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::path::PathBuf;
+
+pub use web::{WebOutputHandler, WebLogEntry};
+pub use factory::{LogOutput, OutputFactory, LogDecisionMaker};
+
+/// Different output modes supported by Wake
+#[derive(Debug)]
+pub enum OutputMode {
+    Terminal,
+    File(PathBuf),
+    Web(WebOutputHandler),
+    TerminalAndFile(PathBuf),
+    TerminalAndWeb(WebOutputHandler),
+    FileAndWeb(PathBuf, WebOutputHandler),
+}
 
 /// Formatter for log entries
 pub struct Formatter {

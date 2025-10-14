@@ -81,6 +81,7 @@ fn print_tabular_help() {
     add("--script-in <PATH>", "Run a script in each selected pod and collect output");
     add("--script-outdir <DIR>", "Directory to save script outputs (overrides config)");
     add("--his [QUERY]", "Show command history or search saved commands using TF-IDF");
+    add("--web", "Send filtered logs to web endpoint via HTTP (configure with 'wake setconfig web.*')");
     add("-h, --help", "Print this help");
     add("-V, --version", "Print version");
 
@@ -91,6 +92,32 @@ fn print_tabular_help() {
     println!("  wake -A -i \"error\"                           # Tail logs across all namespaces, including 'error'");
     println!("  wake --ui -o json                                # Use interactive UI mode with JSON output");
     println!("  wake --his \"config\"                           # Search command history for 'config'");
+    println!("  wake \"my-app\" -i \"error\" --web              # Send error logs to configured web endpoint");
+
+    println!("\nWeb Mode Examples:");
+    println!("  # First configure the web endpoint:");
+    println!("  wake setconfig web.endpoint \"https://logs.company.com/ingest\"");
+    println!("  wake setconfig web.batch_size 20");
+    println!("  wake setconfig web.timeout_seconds 60");
+    println!("  ");
+    println!("  Then run wake in web mode:");
+    println!("  wake --web");
+    println!("  Access OpenObserve UI at: http://localhost:5080");
+
+    println!("\nWeb Mode Setup (OpenObserve):");
+    println!("  First, start OpenObserve with Docker:");
+    println!("  docker run -d \\");
+    println!("        --name openobserve \\");
+    println!("        -v $PWD/data:/data \\");
+    println!("        -p 5080:5080 \\");
+    println!("        -e ZO_ROOT_USER_EMAIL=\"root@example.com\" \\");
+    println!("        -e ZO_ROOT_USER_PASSWORD=\"Complexpass#123\" \\");
+    println!("        public.ecr.aws/zinclabs/openobserve:latest");
+    println!();
+    println!("  Then run wake in web mode:");
+    println!("  wake --web");
+    println!("  Access OpenObserve UI at: http://localhost:5080");
+    println!("  Stream name: logs_wake_YYYY_MM_DD (auto-generated daily)");
 
     println!("\nConfiguration Commands:");
     println!("  wake setconfig <key> <value> [--path <path>]      # Set a configuration key to a value");
@@ -223,6 +250,36 @@ pub async fn run(mut args: Args) -> Result<()> {
     info!("=== CLI MODULE STARTING ===");
     info!("CLI: Received args - namespace: {}, pod_selector: {}, container: {}", 
           args.namespace, args.pod_selector, args.container);
+    info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
+          args.ui, args.no_ui, args.output_file);
+    info!("CLI: Web flags - web: {}", args.web);
+
+    // Validate web mode arguments
+    if args.web {
+        // Load config to check web endpoint
+        let config = crate::config::Config::load().unwrap_or_default();
+        let endpoint = config.get_value("web.endpoint").unwrap_or_default();
+        
+        if endpoint.is_empty() || endpoint == "http://localhost:5080/api/default/logs/_json" {
+            info!("CLI: Using default web endpoint from config");
+        } else {
+            info!("CLI: Using custom web endpoint from config: {}", endpoint);
+        }
+        
+        // Web mode is incompatible with UI mode
+        if args.ui {
+            eprintln!("❌ Web mode (--web) cannot be used with UI mode (--ui)");
+            eprintln!("   Web mode operates in CLI mode only");
+            std::process::exit(1);
+        }
+        
+        let batch_size = config.get_value("web.batch_size").unwrap_or_else(|_| "10".to_string());
+        let timeout = config.get_value("web.timeout_seconds").unwrap_or_else(|_| "30".to_string());
+        
+        info!("CLI: Web mode enabled - endpoint: {}, batch_size: {}, timeout: {}s", 
+              endpoint, batch_size, timeout);
+    }
+
     info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
           args.ui, args.no_ui, args.output_file);
 
@@ -529,7 +586,7 @@ async fn handle_template_execution(args: &Args, template_name: &str) -> Result<(
     let template_executor = TemplateExecutor::new(registry);
     
     // Check if template exists
-    if !template_executor.list_templates().contains(&template_name) {
+    if (!template_executor.list_templates().contains(&template_name)) {
         eprintln!("❌ Template '{}' not found.", template_name);
         eprintln!();
         eprintln!("Available templates:");

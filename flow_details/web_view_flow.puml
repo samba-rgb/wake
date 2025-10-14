@@ -1,0 +1,87 @@
+@startuml web_view_flow
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 10
+
+title Wake Web View Feature Flow
+
+actor User
+participant "CLI Args Parser" as CLI
+participant "Main Logic" as Main
+participant "K8s Client" as K8s
+participant "Log Watcher" as Watcher
+participant "Log Buffer" as Buffer
+participant "Filter Engine" as Filter
+participant "Web Output Handler" as WebHandler
+participant "HTTP Client" as HTTP
+participant "Web Endpoint" as Endpoint
+
+User -> CLI: wake pod_selector -i "error" --web --web-endpoint "https://api.example.com/logs"
+
+CLI -> CLI: Parse args\nValidate --web flag\nValidate endpoint URL
+CLI -> Main: Args with web=true\nweb_endpoint="https://api.example.com/logs"
+
+Main -> Main: Detect web mode\nSkip UI initialization
+Main -> K8s: Create K8s client
+Main -> Watcher: Create LogWatcher with args
+
+Watcher -> K8s: List pods matching selector
+K8s --> Watcher: Pod list
+Watcher -> K8s: Create log streams for each pod
+K8s --> Watcher: Log streams
+
+Main -> WebHandler: Initialize WebOutputHandler\nwith endpoint URL
+WebHandler -> HTTP: Create reqwest client
+
+loop Log Processing
+    Watcher -> Buffer: Raw log entry
+    Buffer -> Filter: Apply include/exclude patterns
+    
+    alt Log matches filter
+        Filter -> WebHandler: Filtered log entry
+        WebHandler -> WebHandler: Format as JSON\n{\n  "timestamp": "...",\n  "namespace": "...",\n  "pod_name": "...",\n  "container_name": "...",\n  "message": "...",\n  "source": "kubernetes"\n}
+        
+        WebHandler -> HTTP: POST request to endpoint
+        HTTP -> Endpoint: HTTP POST with JSON payload
+        
+        alt Success (200-299)
+            Endpoint --> HTTP: 200 OK
+            HTTP --> WebHandler: Success
+            WebHandler -> WebHandler: Log success metrics
+        else HTTP Error (4xx/5xx)
+            Endpoint --> HTTP: Error response
+            HTTP --> WebHandler: Error
+            WebHandler -> WebHandler: Log error\nDon't retry 4xx\nRetry 5xx with backoff
+        else Network Error
+            HTTP --> WebHandler: Network error
+            WebHandler -> WebHandler: Retry with exponential backoff
+        end
+    else Log filtered out
+        Filter -> Filter: Discard log entry
+    end
+end
+
+note right of WebHandler
+  **Web Output Handler Features:**
+  - JSON format conversion
+  - HTTP POST requests
+  - Basic error handling
+  - Success/failure logging
+  
+  **Future Enhancements:**
+  - Batch processing
+  - Retry mechanisms
+  - Authentication headers
+  - Multiple endpoints
+end note
+
+note right of Main
+  **Key Differences from Terminal Mode:**
+  - No terminal output
+  - No UI initialization
+  - Logs sent via HTTP instead of display
+  - Non-blocking operation
+end note
+
+@enduml

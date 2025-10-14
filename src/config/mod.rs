@@ -11,6 +11,7 @@ pub struct Config {
     pub autosave: AutosaveConfig,
     pub ui: UiConfig,
     pub history: HistoryConfig,
+    pub web: WebConfig,
     // Args defaultable fields
     pub pod_selector: Option<String>,
     pub container: Option<String>,
@@ -49,6 +50,13 @@ pub struct HistoryConfig {
     pub commands: VecDeque<CommandHistoryEntry>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebConfig {
+    pub endpoint: Option<String>,
+    pub batch_size: usize,
+    pub timeout_seconds: u64,
+}
+
 impl Default for AutosaveConfig {
     fn default() -> Self {
         Self {
@@ -78,6 +86,16 @@ impl Default for HistoryConfig {
     }
 }
 
+impl Default for WebConfig {
+    fn default() -> Self {
+        Self {
+            endpoint: Some("http://localhost:5080".to_string()),
+            batch_size: 10,
+            timeout_seconds: 30,
+        }
+    }
+}
+
 impl Config {
     /// Get the configuration file path
     pub fn config_file_path() -> Result<PathBuf> {
@@ -95,7 +113,7 @@ impl Config {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_file_path()?;
         
-        if !config_path.exists() {
+        if (!config_path.exists()) {
             return Ok(Self::default());
         }
         
@@ -147,7 +165,7 @@ impl Config {
     /// Get autosave file path (either configured path or generate timestamp-based path)
     #[allow(dead_code)]
     pub fn get_autosave_path(&self, write_file: Option<&str>) -> Option<String> {
-        if !self.autosave.enabled {
+        if (!self.autosave.enabled) {
             return None;
         }
         
@@ -184,11 +202,11 @@ impl Config {
                 let expansion = value.parse::<f64>()
                     .map_err(|_| anyhow!("Invalid buffer expansion value: '{}'. Must be a number (e.g., 10, 5.5)", value))?;
                 
-                if expansion < 1.0 {
+                if (expansion < 1.0) {
                     return Err(anyhow!("Buffer expansion must be at least 1.0x (got: {})", expansion));
                 }
                 
-                if expansion > 50.0 {
+                if (expansion > 50.0) {
                     return Err(anyhow!("Buffer expansion too large: {}x (maximum: 50x)", expansion));
                 }
                 
@@ -234,7 +252,47 @@ impl Config {
             "buffer_size" => {
                 self.buffer_size = Some(value.parse::<usize>().map_err(|_| anyhow!("Invalid buffer_size value: '{}'. Must be an integer.", value))?);
             }
-            _ => return Err(anyhow!("Unknown configuration key: '{}'. Available keys: autosave.enabled, autosave.path, ui.buffer_expansion, ui.theme, ui.show_timestamps", key))
+            "web.endpoint" => {
+                self.web.endpoint = if value.is_empty() || value == "<not-set>" || value == "reset" {
+                    // Reset to default
+                    Some("http://localhost:5080".to_string())
+                } else {
+                    // Validate URL format
+                    if !value.starts_with("http://") && !value.starts_with("https://") {
+                        return Err(anyhow!("Invalid web endpoint: '{}'. Must be a valid HTTP/HTTPS URL", value));
+                    }
+                    Some(value.to_string())
+                };
+            }
+            "web.batch_size" => {
+                let batch_size = value.parse::<usize>()
+                    .map_err(|_| anyhow!("Invalid web batch size: '{}'. Must be a positive integer", value))?;
+                
+                if (batch_size == 0) {
+                    return Err(anyhow!("Web batch size must be at least 1 (got: {})", batch_size));
+                }
+                
+                if (batch_size > 1000) {
+                    return Err(anyhow!("Web batch size too large: {} (maximum: 1000)", batch_size));
+                }
+                
+                self.web.batch_size = batch_size;
+            }
+            "web.timeout_seconds" => {
+                let timeout = value.parse::<u64>()
+                    .map_err(|_| anyhow!("Invalid web timeout: '{}'. Must be a positive integer (seconds)", value))?;
+                
+                if (timeout == 0) {
+                    return Err(anyhow!("Web timeout must be at least 1 second (got: {})", timeout));
+                }
+                
+                if (timeout > 300) {
+                    return Err(anyhow!("Web timeout too large: {}s (maximum: 300s)", timeout));
+                }
+                
+                self.web.timeout_seconds = timeout;
+            }
+            _ => return Err(anyhow!("Unknown configuration key: '{}'. Available keys: autosave.enabled, autosave.path, ui.buffer_expansion, ui.theme, ui.show_timestamps, web.endpoint, web.batch_size, web.timeout_seconds", key))
         }
         
         Ok(())
@@ -256,6 +314,9 @@ impl Config {
             "follow".to_string(),
             "output".to_string(),
             "buffer_size".to_string(),
+            "web.endpoint".to_string(),
+            "web.batch_size".to_string(),
+            "web.timeout_seconds".to_string(),
             // Add new config keys here as needed
         ]
     }
@@ -304,6 +365,15 @@ impl Config {
             "follow" => Ok(self.follow.unwrap_or(true).to_string()),
             "output" => Ok(self.output.clone().unwrap_or_else(|| "text".to_string())),
             "buffer_size" => Ok(self.buffer_size.unwrap_or(20000).to_string()),
+            "web.endpoint" => {
+                if let Some(ref endpoint) = self.web.endpoint {
+                    Ok(endpoint.clone())
+                } else {
+                    Ok("http://localhost:5080".to_string())
+                }
+            }
+            "web.batch_size" => Ok(self.web.batch_size.to_string()),
+            "web.timeout_seconds" => Ok(self.web.timeout_seconds.to_string()),
             _ => Err(anyhow!("Configuration key not found: {}", key))
         }
     }
@@ -359,13 +429,13 @@ impl Config {
             .filter(|k| k.starts_with(key) && (k == key || k.starts_with(&format!("{}.", key))))
             .collect();
         
-        if matching_keys.is_empty() {
+        if (matching_keys.is_empty()) {
             return Err(anyhow!("Configuration key not found: {}", key));
         }
         
         // Header
         output.push_str("┌─────────────────────────┬───────────────────────────────────────────┐\n");
-        if matching_keys.len() == 1 && matching_keys[0] == key {
+        if (matching_keys.len() == 1 && matching_keys[0] == key) {
             output.push_str("│ Setting                 │ Value                                     │\n");
         } else {
             output.push_str(&format!("│ {:<23} │ Value                                     │\n", 
@@ -399,7 +469,7 @@ impl Config {
     
     /// Add a command to history
     pub fn add_command_to_history(&mut self, command: String) {
-        if !self.history.enabled {
+        if (!self.history.enabled) {
             return;
         }
         
@@ -412,7 +482,7 @@ impl Config {
         self.history.commands.push_back(entry);
         
         // Maintain max entries limit
-        while self.history.commands.len() > self.history.max_entries {
+        while (self.history.commands.len() > self.history.max_entries) {
             self.history.commands.pop_front();
         }
     }

@@ -137,7 +137,7 @@ pub struct Args {
     pub output_file: Option<PathBuf>,
 
     /// Use specific resource type filter (pod, deployment, statefulset)
-    #[arg(short = 'r', long)]
+    #[arg(short, long)]
     pub resource: Option<String>,
 
     /// Custom template for log output
@@ -227,6 +227,10 @@ pub struct Args {
     /// • Command history automatically saved (last 150 commands)
     #[arg(long = "his", value_name = "QUERY", help = "Show command history or search for commands with intelligent TF-IDF search (e.g., --his \"error logs\")", num_args = 0..=1, default_missing_value = "")]
     pub history: Option<String>,
+
+    /// Enable web mode - send logs to HTTP endpoint instead of terminal
+    #[arg(long, help = "Send filtered logs to web endpoint via HTTP")]
+    pub web: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -327,6 +331,7 @@ impl Default for Args {
             history: None, // Default to None
             monitor: false, // Default to false
             metrics_source: "kubectl".to_string(), // Default to kubectl
+            web: false, // Default to false
         }
     }
 }
