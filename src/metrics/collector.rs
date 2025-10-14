@@ -428,6 +428,11 @@ pub struct ModernMetricsCollector {
     metrics_maps: Arc<Mutex<MetricsMaps>>,
     pods: Arc<Mutex<Vec<Pod>>>,
     collection_active: Arc<Mutex<bool>>,
+    client: Option<Arc<kube::Client>>,
+    using_metrics_api: Arc<Mutex<bool>>,
+    metrics_api_failures: Arc<Mutex<u32>>,
+    api_availability_check_time: Arc<Mutex<Option<DateTime<Utc>>>>,
+    reconnect_backoff_ms: Arc<Mutex<u64>>,
 }
 
 impl ModernMetricsCollector {
@@ -436,6 +441,25 @@ impl ModernMetricsCollector {
             metrics_maps: Arc::new(Mutex::new(MetricsMaps::default())),
             pods: Arc::new(Mutex::new(Vec::new())),
             collection_active: Arc::new(Mutex::new(false)),
+            client: None,
+            using_metrics_api: Arc::new(Mutex::new(true)),
+            metrics_api_failures: Arc::new(Mutex::new(0)),
+            api_availability_check_time: Arc::new(Mutex::new(None)),
+            reconnect_backoff_ms: Arc::new(Mutex::new(500)), // Start with 500ms
+        }
+    }
+    
+    /// Initialize with a Kubernetes client
+    pub fn with_client(client: kube::Client) -> Self {
+        Self {
+            metrics_maps: Arc::new(Mutex::new(MetricsMaps::default())),
+            pods: Arc::new(Mutex::new(Vec::new())),
+            collection_active: Arc::new(Mutex::new(false)),
+            client: Some(Arc::new(client)),
+            using_metrics_api: Arc::new(Mutex::new(true)),
+            metrics_api_failures: Arc::new(Mutex::new(0)),
+            api_availability_check_time: Arc::new(Mutex::new(None)),
+            reconnect_backoff_ms: Arc::new(Mutex::new(500)), // Start with 500ms
         }
     }
     
@@ -449,6 +473,48 @@ impl ModernMetricsCollector {
     pub fn get_metrics_maps(&self) -> MetricsMaps {
         let metrics_guard = self.metrics_maps.lock().unwrap();
         metrics_guard.clone()
+    }
+    
+    /// Check if metrics API should be used or if we need to verify its availability
+    fn should_use_metrics_api(&self) -> bool {
+        let api_guard = self.using_metrics_api.lock().unwrap();
+        let failures_guard = self.metrics_api_failures.lock().unwrap();
+        let last_check_guard = self.api_availability_check_time.lock().unwrap();
+        
+        // If we've already decided not to use the API, return false
+        if !*api_guard {
+            return false;
+        }
+        
+        // If we've had too many failures, we may need to re-check availability
+        if *failures_guard >= 3 {
+            // Check if we've recently verified availability
+            if let Some(last_check) = *last_check_guard {
+                // Only re-check every 30 seconds
+                if (Utc::now() - last_check).num_seconds() < 30 {
+                    return false;
+                }
+            }
+        }
+        
+        true
+    }
+    
+    /// Reset the metrics API failure counter and update last check time
+    fn reset_metrics_api_status(&self, available: bool) {
+        let mut api_guard = self.using_metrics_api.lock().unwrap();
+        let mut failures_guard = self.metrics_api_failures.lock().unwrap();
+        let mut last_check_guard = self.api_availability_check_time.lock().unwrap();
+        let mut backoff_guard = self.reconnect_backoff_ms.lock().unwrap();
+        
+        *api_guard = available;
+        *failures_guard = 0;
+        *last_check_guard = Some(Utc::now());
+        
+        if available {
+            // Reset backoff on successful connection
+            *backoff_guard = 500;
+        }
     }
     
     /// Start collecting container-level metrics with cancellation support
@@ -472,15 +538,58 @@ impl ModernMetricsCollector {
         let metrics_maps = self.metrics_maps.clone();
         let pods = self.pods.clone();
         let collection_active = self.collection_active.clone();
+        let using_metrics_api = self.using_metrics_api.clone();
+        let metrics_api_failures = self.metrics_api_failures.clone();
+        let api_availability_check_time = self.api_availability_check_time.clone();
+        let reconnect_backoff_ms = self.reconnect_backoff_ms.clone();
+        let client_option = self.client.clone();
         
         // Start the metrics collection loop
         tokio::spawn(async move {
             info!("Starting container-level metrics collection for namespace={} pods={} containers={}",
                  namespace, pod_selector, container_selector);
             
+            // Track metrics client and its status
+            let mut metrics_client_option: Option<crate::k8s::metrics::MetricsClient> = None;
+            
+            // Create metrics client if we have a Kubernetes client
+            if let Some(client) = client_option.as_ref() {
+                match crate::k8s::metrics::MetricsClient::new((*client).clone(), namespace.clone()).await {
+                    Ok(mc) => {
+                        info!("Using Kubernetes metrics API for container metrics");
+                        metrics_client_option = Some(mc);
+                        
+                        // Update metrics API status
+                        {
+                            let mut api_guard = using_metrics_api.lock().unwrap();
+                            let mut check_time_guard = api_availability_check_time.lock().unwrap();
+                            *api_guard = true;
+                            *check_time_guard = Some(Utc::now());
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to create metrics client, falling back to kubectl: {}", e);
+                        {
+                            let mut api_guard = using_metrics_api.lock().unwrap();
+                            let mut check_time_guard = api_availability_check_time.lock().unwrap();
+                            *api_guard = false;
+                            *check_time_guard = Some(Utc::now());
+                        }
+                    }
+                }
+            } else {
+                {
+                    let mut api_guard = using_metrics_api.lock().unwrap();
+                    *api_guard = false;
+                }
+            };
+            
             // Collection loop
             let interval = Duration::from_secs(interval_secs.max(1)); // Minimum 1 second
             let mut last_collection = tokio::time::Instant::now();
+            
+            // Periodically check metrics API availability after failures
+            let mut next_api_check_time = tokio::time::Instant::now();
             
             while !cancellation_token.is_cancelled() {
                 // Only collect if interval has elapsed
@@ -502,10 +611,104 @@ impl ModernMetricsCollector {
                     // Timestamp for this collection
                     let timestamp = Utc::now();
                     
-                    // Collect container-level metrics
+                    // Check metrics API availability and recreate client if needed
+                    let should_check_api = {
+                        let use_api = {
+                            let api_guard = using_metrics_api.lock().unwrap();
+                            *api_guard
+                        };
+                        
+                        let failures = {
+                            let failures_guard = metrics_api_failures.lock().unwrap();
+                            *failures_guard
+                        };
+                        
+                        // Check API if we've had failures but aren't using kubectl yet
+                        !use_api && metrics_client_option.is_some() && 
+                        next_api_check_time.elapsed() >= Duration::from_secs(30) // Check every 30 seconds
+                    };
+                    
+                    // If we need to check API availability and we have a client
+                    if should_check_api && client_option.is_some() {
+                        debug!("Checking metrics API availability after previous failures");
+                        
+                        if let Some(client) = client_option.as_ref() {
+                            match crate::k8s::metrics::MetricsClient::new((*client).clone(), namespace.clone()).await {
+                                Ok(mc) => {
+                                    // Test the client with a simple request
+                                    match mc.check_metrics_api_available().await {
+                                        true => {
+                                            info!("Metrics API is available again, switching back from kubectl");
+                                            metrics_client_option = Some(mc);
+                                            
+                                            // Update metrics API status
+                                            {
+                                                let mut api_guard = using_metrics_api.lock().unwrap();
+                                                let mut failures_guard = metrics_api_failures.lock().unwrap();
+                                                let mut check_time_guard = api_availability_check_time.lock().unwrap();
+                                                *api_guard = true;
+                                                *failures_guard = 0;
+                                                *check_time_guard = Some(Utc::now());
+                                            }
+                                        }
+                                        false => {
+                                            debug!("Metrics API still unavailable after check");
+                                            // Update next check time with backoff
+                                            let backoff = {
+                                                let mut backoff_guard = reconnect_backoff_ms.lock().unwrap();
+                                                // Increase backoff up to 5 minutes
+                                                *backoff_guard = (*backoff_guard * 2).min(5 * 60 * 1000);
+                                                *backoff_guard
+                                            };
+                                            
+                                            next_api_check_time = tokio::time::Instant::now() + 
+                                                Duration::from_millis(backoff);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    debug!("Failed to recreate metrics client: {}", e);
+                                    next_api_check_time = tokio::time::Instant::now() + Duration::from_secs(60);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Check if we should use metrics API
+                    let use_api = {
+                        let api_guard = using_metrics_api.lock().unwrap();
+                        *api_guard && metrics_client_option.is_some()
+                    };
+                    
+                    // Process each pod
                     for pod in pod_list.iter() {
-                        match Self::collect_container_metrics(&namespace, &pod.name).await {
+                        // Skip pods without namespace information
+                        let pod_namespace = match &pod.namespace {
+                            Some(ns) => ns,
+                            None => &namespace // Default to collection namespace
+                        };
+                        
+                        // Collect container metrics
+                        let result = if use_api {
+                            if let Some(ref mc) = metrics_client_option {
+                                Self::collect_container_metrics_from_api(mc, pod_namespace, &pod.name).await
+                            } else {
+                                // This should never happen (use_api is true but client is None)
+                                Err(anyhow!("Metrics client not available"))
+                            }
+                        } else {
+                            Self::collect_container_metrics_from_kubectl(pod_namespace, &pod.name).await
+                        };
+                        
+                        // Process the collection result
+                        match result {
                             Ok(container_metrics) => {
+                                // Reset failure counter on success if using API
+                                if use_api {
+                                    let mut failures = metrics_api_failures.lock().unwrap();
+                                    *failures = 0;
+                                }
+                                
                                 // Update metrics maps
                                 let mut metrics_guard = metrics_maps.lock().unwrap();
                                 
@@ -550,7 +753,95 @@ impl ModernMetricsCollector {
                                 metrics_guard.last_update = timestamp;
                             }
                             Err(e) => {
-                                warn!("Failed to collect metrics for pod {}: {}", pod.name, e);
+                                if use_api {
+                                    // Check if this is a connection error like "buffer's worker closed unexpectedly"
+                                    let is_connection_error = e.to_string().contains("worker closed") || 
+                                                             e.to_string().contains("connection reset") ||
+                                                             e.to_string().contains("broken pipe");
+                                                             
+                                    // Increment failure counter
+                                    let mut failures = metrics_api_failures.lock().unwrap();
+                                    *failures += 1;
+                                    
+                                    // Handle different error types differently
+                                    if is_connection_error {
+                                        // Connection errors might be temporary - log with appropriate level
+                                        if *failures <= 2 {
+                                            debug!("Connection error in metrics API (attempt {}): {}", *failures, e);
+                                        } else {
+                                            warn!("Persistent connection errors in metrics API (attempt {}): {}", *failures, e);
+                                        }
+                                    } else {
+                                        // Other errors are more likely to be persistent
+                                        warn!("Metrics API failed for pod {} (attempt {}): {}", pod.name, *failures, e);
+                                    }
+                                    
+                                    // If too many failures or it's a critical error, switch to kubectl
+                                    if *failures >= 3 || !is_connection_error {
+                                        warn!("Metrics API failed {} times, switching to kubectl", *failures);
+                                        
+                                        {
+                                            let mut api_guard = using_metrics_api.lock().unwrap();
+                                            *api_guard = false;
+                                        }
+                                        
+                                        // Try kubectl immediately for this pod
+                                        match Self::collect_container_metrics_from_kubectl(pod_namespace, &pod.name).await {
+                                            Ok(container_metrics) => {
+                                                // Process metrics from kubectl (same as above)
+                                                let mut metrics_guard = metrics_maps.lock().unwrap();
+                                                
+                                                for (container_name, (cpu, memory)) in container_metrics {
+                                                    // Similar code as above for updating metrics
+                                                    // Insert into CPU map
+                                                    let pod_cpu_map = metrics_guard.cpu_map
+                                                        .entry(pod.name.clone())
+                                                        .or_insert_with(HashMap::new);
+                                                    
+                                                    let container_cpu_series = pod_cpu_map
+                                                        .entry(container_name.clone())
+                                                        .or_insert_with(|| TimeSeries::new(&format!("{}-{}-cpu", pod.name, container_name), 1000));
+                                                    
+                                                    container_cpu_series.add_point(timestamp, cpu);
+                                                    
+                                                    // Insert into Memory map
+                                                    let pod_mem_map = metrics_guard.memory_map
+                                                        .entry(pod.name.clone())
+                                                        .or_insert_with(HashMap::new);
+                                                    
+                                                    let container_mem_series = pod_mem_map
+                                                        .entry(container_name.clone())
+                                                        .or_insert_with(|| TimeSeries::new(&format!("{}-{}-memory", pod.name, container_name), 1000));
+                                                    
+                                                    container_mem_series.add_point(timestamp, memory);
+                                                    
+                                                    // Send the metrics data to the channel
+                                                    let data = MetricsData {
+                                                        timestamp,
+                                                        pod_name: pod.name.clone(),
+                                                        container_name,
+                                                        cpu_usage: cpu,
+                                                        memory_usage: memory,
+                                                    };
+                                                    
+                                                    if tx.try_send(data).is_err() {
+                                                        debug!("Failed to send container metrics data to channel");
+                                                    }
+                                                }
+                                                
+                                                // Update last update timestamp
+                                                metrics_guard.last_update = timestamp;
+                                            }
+                                            Err(kubectl_err) => {
+                                                error!("Both metrics API and kubectl failed for pod {}: API error: {}, kubectl error: {}", 
+                                                       pod.name, e, kubectl_err);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Already using kubectl and it failed
+                                    warn!("Failed to collect metrics for pod {} via kubectl: {}", pod.name, e);
+                                }
                             }
                         }
                     }
@@ -575,9 +866,40 @@ impl ModernMetricsCollector {
         Ok(rx)
     }
     
-    /// Collect metrics for all containers in a pod
-    pub async fn collect_container_metrics(namespace: &str, pod_name: &str) -> Result<Vec<(String, (f64, f64))>> {
+    /// Collect container metrics using the Kubernetes metrics API
+    async fn collect_container_metrics_from_api(
+        metrics_client: &crate::k8s::metrics::MetricsClient,
+        namespace: &str,
+        pod_name: &str
+    ) -> Result<Vec<(String, (f64, f64))>> {
+        // Use the metrics API client to fetch container metrics
+        let container_metrics = metrics_client.get_pod_container_metrics(namespace, pod_name).await?;
+        
+        // Convert the metrics format
+        let mut result = Vec::new();
+        
+        for (container_name, metrics) in container_metrics {
+            let cpu_usage = metrics.cpu.usage_value * 100.0; // Convert to percentage (0-100)
+            let memory_usage = metrics.memory.usage_value / (1024.0 * 1024.0); // Convert to MB
+            
+            result.push((container_name, (cpu_usage, memory_usage)));
+        }
+        
+        if result.is_empty() {
+            warn!("No container metrics found via API for pod {}/{}", namespace, pod_name);
+        } else {
+            debug!("Collected metrics for {} containers in pod {}/{} via API", 
+                  result.len(), namespace, pod_name);
+        }
+        
+        Ok(result)
+    }
+    
+    /// Collect metrics for all containers in a pod using kubectl
+    async fn collect_container_metrics_from_kubectl(namespace: &str, pod_name: &str) -> Result<Vec<(String, (f64, f64))>> {
         use std::process::Command;
+        
+        debug!("Collecting container metrics via kubectl for pod {}/{}", namespace, pod_name);
         
         // Use kubectl top pod to get container-level metrics
         let output = Command::new("kubectl")
@@ -668,11 +990,17 @@ impl ModernMetricsCollector {
         
         // If no containers were found, log a warning
         if container_resources.is_empty() {
-            warn!("No container metrics found for pod {}", pod_name);
+            warn!("No container metrics found via kubectl for pod {}/{}", namespace, pod_name);
         } else {
-            info!("Collected metrics for {} containers in pod {}", container_resources.len(), pod_name);
+            debug!("Collected metrics for {} containers in pod {}/{} via kubectl", 
+                 container_resources.len(), namespace, pod_name);
         }
         
         Ok(container_resources)
+    }
+    
+    /// Legacy method that redirects to kubectl version for backward compatibility
+    pub async fn collect_container_metrics(namespace: &str, pod_name: &str) -> Result<Vec<(String, (f64, f64))>> {
+        Self::collect_container_metrics_from_kubectl(namespace, pod_name).await
     }
 }

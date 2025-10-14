@@ -19,6 +19,7 @@ use tracing_subscriber::layer::SubscriberExt; // Add missing import
 use tracing_subscriber::util::SubscriberInitExt; // Add missing import
 use tracing_subscriber::filter::LevelFilter; // Add missing import
 use tracing_subscriber::Layer; // Add missing Layer trait import
+use wake::logging::wake_logger;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -121,6 +122,9 @@ async fn main() -> Result<()> {
         logging::get_log_level(args.verbosity)
     };
     
+    // Initialize the wake logger early
+    let _ = wake_logger::init(args.dev, None);
+    
     // When dev mode is enabled, also log to a file
     if args.dev {
         // Use a single log file name instead of timestamped files
@@ -130,37 +134,51 @@ async fn main() -> Result<()> {
             println!("🔍 Development mode enabled. Logs will be written to: {}", log_file_path);
         }
         
+        // Initialize our custom wake_logger with dev mode enabled
+        let _ = wake_logger::init(true, Some(log_file_path));
+        
         // Create a file appender that writes to the dev log file
         let file_appender = tracing_appender::rolling::never("", log_file_path);
         let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
         
         if should_use_ui {
             // In UI mode with dev: logs go ONLY to file, not stdout/stderr
-            fmt()
+            let subscriber = fmt::Subscriber::builder()
                 .with_max_level(log_level)
                 .with_ansi(false) // No colors in log file
                 .with_writer(non_blocking) // Write to file only
-                .init();
+                .finish();
+            
+            tracing::subscriber::set_global_default(subscriber)
+                .expect("Failed to set tracing subscriber");
         } else {
             // In CLI mode with dev: logs go to both stdout and file
-            tracing_subscriber::registry()
+            let subscriber = tracing_subscriber::registry()
                 .with(fmt::layer().with_filter(LevelFilter::from_level(log_level))) // stdout
-                .with(fmt::layer().with_ansi(false).with_writer(non_blocking).with_filter(LevelFilter::from_level(log_level))) // file
-                .init();
+                .with(fmt::layer().with_ansi(false).with_writer(non_blocking).with_filter(LevelFilter::from_level(log_level))); // file
+            
+            tracing::subscriber::set_global_default(subscriber)
+                .expect("Failed to set tracing subscriber");
         }
     } else if should_use_ui {
         // UI mode without dev: use null writer to completely suppress logs
         use std::io::sink;
-        use tracing_subscriber::filter::LevelFilter;
-        fmt()
+        
+        let subscriber = fmt::Subscriber::builder()
             .with_max_level(LevelFilter::OFF) // Completely disable logging
             .with_writer(sink) // Redirect to null
-            .init();
+            .finish();
+        
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("Failed to set tracing subscriber");
     } else {
         // Normal CLI mode logging to stdout only
-        fmt()
+        let subscriber = fmt::Subscriber::builder()
             .with_max_level(log_level)
-            .init();
+            .finish();
+        
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("Failed to set tracing subscriber");
     }
     
     // Set up signal handling for graceful termination

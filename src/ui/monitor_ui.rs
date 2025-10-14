@@ -41,6 +41,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use chrono::{DateTime};
 use tokio_util::sync::CancellationToken;
+use crate::logging::wake_logger;
 
 // Create stub implementations for the metrics types
 #[derive(Debug, Default, Clone)]
@@ -978,7 +979,7 @@ impl MonitorUI {
         // Spawn background task to update resource usage
         tokio::spawn(async move {
             run_monitor_ui(ui_state_clone, shutdown_rx).await.unwrap_or_else(|e| {
-                eprintln!("Monitor UI error: {}", e);
+                wake_logger::error(&format!("Monitor UI error: {}", e));
             });
         });
         

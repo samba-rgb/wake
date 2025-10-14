@@ -33,6 +33,7 @@ use crate::templates::executor::TemplateExecutor;
 use crate::templates::registry::TemplateRegistry;
 use crate::kernel::{KernelOptimizer, prefetch_log_data};
 use futures::Stream;
+use crate::logging::wake_logger;
 
 pub async fn run_app(
     log_stream: Pin<Box<dyn Stream<Item = LogEntry> + Send>>,
@@ -764,10 +765,10 @@ pub async fn run_monitor_app(args: Args) -> Result<()> {
     ).await?;
     
     if pods.is_empty() {
-        eprintln!("❌ No pods found matching the criteria.");
-        eprintln!("   Namespace: {}", args.namespace);
-        eprintln!("   Pod selector: {}", args.pod_selector);
-        eprintln!("   Container: {}", args.container);
+        wake_logger::error("❌ No pods found matching the criteria.");
+        wake_logger::error(&format!("   Namespace: {}", args.namespace));
+        wake_logger::error(&format!("   Pod selector: {}", args.pod_selector));
+        wake_logger::error(&format!("   Container: {}", args.container));
         return Ok(());
     }
     
