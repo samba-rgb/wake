@@ -33,6 +33,7 @@ use crate::templates::executor::TemplateExecutor;
 use crate::templates::registry::TemplateRegistry;
 use crate::kernel::{KernelOptimizer, prefetch_log_data};
 use futures::Stream;
+use crate::logging::wake_logger;
 
 pub async fn run_app(
     log_stream: Pin<Box<dyn Stream<Item = LogEntry> + Send>>,
@@ -155,7 +156,7 @@ pub async fn run_app(
         0, // No buffer for retroactive filtering - only apply to new logs
     )?;
 
-    // Configure file output mode if file writer is present
+    // Configure file output mode if file_writer is present
     if file_writer.is_some() {
         display_manager.set_file_output_mode(true);
         info!("UI: File output mode enabled - logs will be saved to file");
@@ -265,11 +266,14 @@ pub async fn run_app(
                             InputEvent::Quit => {
                                 info!("UI: Quit signal received, performing cleanup before exit");
                                 
+                                // Signal cancellation to background tasks FIRST
+                                cancellation_token.cancel();
+                                
+                                // Give tasks a moment to shut down cleanly before proceeding
+                                tokio::time::sleep(Duration::from_millis(50)).await;
+                                
                                 // Explicit buffer cleanup for better performance
                                 display_manager.clear_all_buffers();
-                                
-                                // Signal cancellation to background tasks
-                                cancellation_token.cancel();
                                 
                                 info!("UI: Buffers cleared and shutdown initiated");
                                 break;
@@ -725,15 +729,242 @@ pub async fn run_app(
     }
 
     info!("UI: Cleaning up terminal...");
-    // Cleanup terminal
+    // Enhanced cleanup sequence to prevent random text after exit
+    terminal.clear()?; // Clear the screen first
+    
+    // Make sure to flush any pending output
+    io::stdout().flush()?;
+    
+    // Restore terminal state in proper order
     disable_raw_mode()?;
+    
     execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
-        DisableMouseCapture
+        DisableMouseCapture,
+        crossterm::cursor::Show, // Explicitly show cursor
+        crossterm::style::ResetColor // Reset colors
     )?;
-    terminal.show_cursor()?;
+    
+    // Additional flush to ensure all terminal commands are processed
+    io::stdout().flush()?;
 
     info!("=== UI APP COMPLETED ===");
     Ok(())
+}
+
+pub async fn run_monitor_app(args: Args) -> Result<()> {
+    info!("=== STARTING MONITOR APP ===");
+    info!("Monitor: Args - namespace: {}, pod_selector: {}, container: {}", 
+          args.namespace, args.pod_selector, args.container);
+    
+    // Initialize Kubernetes client
+    info!("Monitor: Creating Kubernetes client...");
+    let client = crate::k8s::client::create_client(&args).await?;
+    
+    // Get pod regex
+    let pod_regex = args.pod_regex()?;
+    let container_regex = args.container_regex()?;
+    
+    // Select pods
+    info!("Monitor: Selecting pods...");
+    let pods = crate::k8s::pod::select_pods(
+        &client,
+        &args.namespace,
+        &pod_regex,
+        &container_regex,
+        args.all_namespaces,
+        args.resource.as_deref(),
+        args.sample,
+    ).await?;
+    
+    if pods.is_empty() {
+        wake_logger::error("❌ No pods found matching the criteria.");
+        wake_logger::error(&format!("   Namespace: {}", args.namespace));
+        wake_logger::error(&format!("   Pod selector: {}", args.pod_selector));
+        wake_logger::error(&format!("   Container: {}", args.container));
+        return Ok(());
+    }
+    
+    info!("Monitor: Found {} matching pods", pods.len());
+    
+    // Convert pods to PodInfo for the monitor UI
+    let pod_infos: Vec<crate::k8s::pod::PodInfo> = pods.iter().map(|pod| {
+        crate::k8s::pod::PodInfo {
+            name: pod.name.clone(),
+            namespace: pod.namespace.clone(),
+            containers: pod.containers.clone(),
+            cpu_usage_percent: None,
+            memory_usage_percent: None,
+            memory_usage_bytes: None,
+            memory_limit_bytes: None,
+        }
+    }).collect();
+    
+    // Run the monitor UI
+    crate::ui::monitor::start_monitor(&args, pod_infos).await?;
+    
+    info!("=== MONITOR APP COMPLETED ===");
+    Ok(())
+}
+
+// Helper function to get pod resource usage from kubectl top
+async fn get_pod_resource_usage(
+    client: &kube::Client,
+    namespace: &str,
+    pod_name: &str,
+) -> Result<Vec<(String, (f64, f64))>> {
+    use std::process::Command;
+    
+    // Use kubectl top pod to get resource usage
+    let output = Command::new("kubectl")
+        .args(&["top", "pod", pod_name, "-n", namespace, "--containers", "--no-headers"])
+        .output()?;
+    
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "Failed to get pod resource usage: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    let mut container_resources = Vec::new();
+    
+    // Parse each container's usage - improved parsing logic
+    for line in output_str.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 4 { // We need pod, container, CPU, and memory
+            let container_name = parts[1].to_string();
+            
+            // Parse CPU usage (remove "m" suffix and convert to percentage)
+            let cpu_str = parts[2];
+            let cpu_usage = if cpu_str.ends_with('m') {
+                // Convert millicores to percentage (1000m = 1 core = 100%)
+                let millicores = cpu_str.trim_end_matches('m')
+                    .parse::<f64>()
+                    .unwrap_or_else(|_| {
+                        warn!("Failed to parse CPU millicores: {}", cpu_str);
+                        0.0
+                    });
+                millicores / 10.0 // 1000m = 100%
+            } else {
+                // Direct core count to percentage
+                cpu_str.parse::<f64>()
+                    .unwrap_or_else(|_| {
+                        warn!("Failed to parse CPU cores: {}", cpu_str);
+                        0.0
+                    }) * 100.0 // Convert cores to percentage
+            };
+            
+            // Parse Memory usage
+            let mem_str = parts[3]; // Using index 3 for memory in the container case
+            
+            // Better memory parsing to handle all formats (Ki, Mi, Gi, etc.)
+            let mem_value: f64;
+            let mem_unit = mem_str.chars()
+                .skip_while(|c| c.is_digit(10) || *c == '.')
+                .collect::<String>();
+            
+            let mem_number = mem_str.chars()
+                .take_while(|c| c.is_digit(10) || *c == '.')
+                .collect::<String>()
+                .parse::<f64>()
+                .unwrap_or_else(|_| {
+                    warn!("Failed to parse memory value: {}", mem_str);
+                    0.0
+                });
+                
+            // Convert to MB based on unit
+            mem_value = match mem_unit.as_str() {
+                "Ki" => mem_number / 1024.0,
+                "Mi" => mem_number,
+                "Gi" => mem_number * 1024.0,
+                "Ti" => mem_number * 1024.0 * 1024.0,
+                "K" | "k" => mem_number / 1000.0,
+                "M" => mem_number,
+                "G" => mem_number * 1000.0,
+                "T" => mem_number * 1000.0 * 1000.0,
+                _ => mem_number / (1024.0 * 1024.0), // Assume bytes if no unit
+            };
+            
+            // Debug logging to trace the values
+            info!(
+                "Parsed container metrics: {} - CPU: {}% ({}), Memory: {}MB ({})",
+                container_name, cpu_usage, cpu_str, mem_value, mem_str
+            );
+            
+            container_resources.push((container_name, (cpu_usage, mem_value)));
+        } else if parts.len() == 3 {
+            // This is a case where only one container exists (pod name, cpu, memory)
+            let container_name = "default".to_string();
+            
+            // Parse CPU usage (remove "m" suffix and convert to percentage)
+            let cpu_str = parts[1];
+            let cpu_usage = if cpu_str.ends_with('m') {
+                // Convert millicores to percentage (1000m = 1 core = 100%)
+                let millicores = cpu_str.trim_end_matches('m')
+                    .parse::<f64>()
+                    .unwrap_or_else(|_| {
+                        warn!("Failed to parse CPU millicores: {}", cpu_str);
+                        0.0
+                    });
+                millicores / 10.0 // 1000m = 100%
+            } else {
+                // Direct core count to percentage
+                cpu_str.parse::<f64>()
+                    .unwrap_or_else(|_| {
+                        warn!("Failed to parse CPU cores: {}", cpu_str);
+                        0.0
+                    }) * 100.0 // Convert cores to percentage
+            };
+            
+            // Parse Memory usage
+            let mem_str = parts[2];
+            
+            // Better memory parsing to handle all formats
+            let mem_value: f64;
+            let mem_unit = mem_str.chars()
+                .skip_while(|c| c.is_digit(10) || *c == '.')
+                .collect::<String>();
+            
+            let mem_number = mem_str.chars()
+                .take_while(|c| c.is_digit(10) || *c == '.')
+                .collect::<String>()
+                .parse::<f64>()
+                .unwrap_or_else(|_| {
+                    warn!("Failed to parse memory value: {}", mem_str);
+                    0.0
+                });
+                
+            // Convert to MB based on unit
+            mem_value = match mem_unit.as_str() {
+                "Ki" => mem_number / 1024.0,
+                "Mi" => mem_number,
+                "Gi" => mem_number * 1024.0,
+                "Ti" => mem_number * 1024.0 * 1024.0,
+                "K" | "k" => mem_number / 1000.0,
+                "M" => mem_number,
+                "G" => mem_number * 1000.0,
+                "T" => mem_number * 1000.0 * 1000.0,
+                _ => mem_number / (1024.0 * 1024.0), // Assume bytes if no unit
+            };
+            
+            // Debug logging for the default container case
+            info!(
+                "Parsed default container metrics: {} - CPU: {}% ({}), Memory: {}MB ({})",
+                container_name, cpu_usage, cpu_str, mem_value, mem_str
+            );
+            
+            container_resources.push((container_name, (cpu_usage, mem_value)));
+        }
+    }
+    
+    // Log the results for debugging
+    info!(
+        "Retrieved resource usage for pod {}: {} containers with data", 
+        pod_name, container_resources.len()
+    );
+    
+    Ok(container_resources)
 }

@@ -14,6 +14,9 @@ use crate::cli::Args;
 use crate::filtering::LogFilter;
 use crate::config::Config;
 
+// Export the wake_logger module
+pub mod wake_logger;
+
 /// Set up logging based on verbosity level
 #[allow(dead_code)]
 pub fn setup_logger(_verbosity: u8) -> Result<()> {
