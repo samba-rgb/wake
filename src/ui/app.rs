@@ -266,11 +266,14 @@ pub async fn run_app(
                             InputEvent::Quit => {
                                 info!("UI: Quit signal received, performing cleanup before exit");
                                 
+                                // Signal cancellation to background tasks FIRST
+                                cancellation_token.cancel();
+                                
+                                // Give tasks a moment to shut down cleanly before proceeding
+                                tokio::time::sleep(Duration::from_millis(50)).await;
+                                
                                 // Explicit buffer cleanup for better performance
                                 display_manager.clear_all_buffers();
-                                
-                                // Signal cancellation to background tasks
-                                cancellation_token.cancel();
                                 
                                 info!("UI: Buffers cleared and shutdown initiated");
                                 break;
@@ -726,14 +729,25 @@ pub async fn run_app(
     }
 
     info!("UI: Cleaning up terminal...");
-    // Cleanup terminal
+    // Enhanced cleanup sequence to prevent random text after exit
+    terminal.clear()?; // Clear the screen first
+    
+    // Make sure to flush any pending output
+    io::stdout().flush()?;
+    
+    // Restore terminal state in proper order
     disable_raw_mode()?;
+    
     execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
-        DisableMouseCapture
+        DisableMouseCapture,
+        crossterm::cursor::Show, // Explicitly show cursor
+        crossterm::style::ResetColor // Reset colors
     )?;
-    terminal.show_cursor()?;
+    
+    // Additional flush to ensure all terminal commands are processed
+    io::stdout().flush()?;
 
     info!("=== UI APP COMPLETED ===");
     Ok(())
