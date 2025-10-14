@@ -206,19 +206,16 @@ impl Drop for WebOutputHandler {
 }
 
 fn extract_log_level(message: &str) -> Option<String> {
-    let message_upper = message.to_uppercase();
-    
-    // Common log level patterns
-    if message_upper.contains("ERROR") || message_upper.contains("ERR") {
-        Some("ERROR".to_string())
-    } else if message_upper.contains("WARN") || message_upper.contains("WARNING") {
-        Some("WARN".to_string())
-    } else if message_upper.contains("INFO") {
-        Some("INFO".to_string())
-    } else if message_upper.contains("DEBUG") {
-        Some("DEBUG".to_string())
-    } else if message_upper.contains("TRACE") {
-        Some("TRACE".to_string())
+    if message.to_lowercase().contains("error") {
+        Some("error".to_string())
+    } else if message.to_lowercase().contains("warn") || message.to_lowercase().contains("warning") {
+        Some("warn".to_string())
+    } else if message.to_lowercase().contains("info") {
+        Some("info".to_string())
+    } else if message.to_lowercase().contains("debug") {
+        Some("debug".to_string())
+    } else if message.to_lowercase().contains("trace") {
+        Some("trace".to_string())
     } else {
         None
     }
