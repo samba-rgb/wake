@@ -44,8 +44,8 @@ impl OutputFactory {
             
             // Create dynamic stream name with today's date
             let today = chrono::Local::now().format("%Y_%m_%d").to_string();
-            let stream_name = format!("logs_wake_{}", today);
-            let full_endpoint = format!("{}/api/default/{}/_json", clean_base_url, stream_name);
+            let stream_name = format!("logs_wake_{today}");
+            let full_endpoint = format!("{clean_base_url}/api/default/{stream_name}/_json");
             
             let batch_size = config.get_value("web.batch_size")
                 .unwrap_or_else(|_| "10".to_string())

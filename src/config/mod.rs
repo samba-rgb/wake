@@ -24,6 +24,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct AutosaveConfig {
     pub enabled: bool,
     pub path: Option<String>,
@@ -57,14 +58,6 @@ pub struct WebConfig {
     pub timeout_seconds: u64,
 }
 
-impl Default for AutosaveConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            path: None,
-        }
-    }
-}
 
 impl Default for UiConfig {
     fn default() -> Self {
@@ -113,7 +106,7 @@ impl Config {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_file_path()?;
         
-        if (!config_path.exists()) {
+        if !config_path.exists() {
             return Ok(Self::default());
         }
         
@@ -123,7 +116,7 @@ impl Config {
         match toml::from_str::<Config>(&content) {
             Ok(config) => Ok(config),
             Err(e) => {
-                eprintln!("⚠️  Warning: Failed to parse config file ({}). Using defaults.", e);
+                eprintln!("⚠️  Warning: Failed to parse config file ({e}). Using defaults.");
                 Ok(Self::default())
             }
         }
@@ -165,7 +158,7 @@ impl Config {
     /// Get autosave file path (either configured path or generate timestamp-based path)
     #[allow(dead_code)]
     pub fn get_autosave_path(&self, write_file: Option<&str>) -> Option<String> {
-        if (!self.autosave.enabled) {
+        if !self.autosave.enabled {
             return None;
         }
         
@@ -177,7 +170,7 @@ impl Config {
         } else {
             // Generate timestamp-based filename
             let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-            Some(format!("wake_{}.log", timestamp))
+            Some(format!("wake_{timestamp}.log"))
         }
     }
     
@@ -202,11 +195,11 @@ impl Config {
                 let expansion = value.parse::<f64>()
                     .map_err(|_| anyhow!("Invalid buffer expansion value: '{}'. Must be a number (e.g., 10, 5.5)", value))?;
                 
-                if (expansion < 1.0) {
+                if expansion < 1.0 {
                     return Err(anyhow!("Buffer expansion must be at least 1.0x (got: {})", expansion));
                 }
                 
-                if (expansion > 50.0) {
+                if expansion > 50.0 {
                     return Err(anyhow!("Buffer expansion too large: {}x (maximum: 50x)", expansion));
                 }
                 
@@ -268,11 +261,11 @@ impl Config {
                 let batch_size = value.parse::<usize>()
                     .map_err(|_| anyhow!("Invalid web batch size: '{}'. Must be a positive integer", value))?;
                 
-                if (batch_size == 0) {
+                if batch_size == 0 {
                     return Err(anyhow!("Web batch size must be at least 1 (got: {})", batch_size));
                 }
                 
-                if (batch_size > 1000) {
+                if batch_size > 1000 {
                     return Err(anyhow!("Web batch size too large: {} (maximum: 1000)", batch_size));
                 }
                 
@@ -282,11 +275,11 @@ impl Config {
                 let timeout = value.parse::<u64>()
                     .map_err(|_| anyhow!("Invalid web timeout: '{}'. Must be a positive integer (seconds)", value))?;
                 
-                if (timeout == 0) {
+                if timeout == 0 {
                     return Err(anyhow!("Web timeout must be at least 1 second (got: {})", timeout));
                 }
                 
-                if (timeout > 300) {
+                if timeout > 300 {
                     return Err(anyhow!("Web timeout too large: {}s (maximum: 300s)", timeout));
                 }
                 
@@ -398,7 +391,7 @@ impl Config {
                 } else {
                     value
                 };
-                output.push_str(&format!("│ {:<23} │ {:<41} │\n", key, display_value));
+                output.push_str(&format!("│ {key:<23} │ {display_value:<41} │\n"));
             }
         }
         
@@ -413,7 +406,7 @@ impl Config {
             } else {
                 path_str
             };
-            output.push_str(&format!("\nConfig file: {}\n", path_display));
+            output.push_str(&format!("\nConfig file: {path_display}\n"));
         }
         
         output
@@ -426,16 +419,16 @@ impl Config {
         // Check if it's a section (contains multiple sub-keys)
         let all_keys = self.get_all_keys();
         let matching_keys: Vec<String> = all_keys.into_iter()
-            .filter(|k| k.starts_with(key) && (k == key || k.starts_with(&format!("{}.", key))))
+            .filter(|k| k.starts_with(key) && (k == key || k.starts_with(&format!("{key}."))))
             .collect();
         
-        if (matching_keys.is_empty()) {
+        if matching_keys.is_empty() {
             return Err(anyhow!("Configuration key not found: {}", key));
         }
         
         // Header
         output.push_str("┌─────────────────────────┬───────────────────────────────────────────┐\n");
-        if (matching_keys.len() == 1 && matching_keys[0] == key) {
+        if matching_keys.len() == 1 && matching_keys[0] == key {
             output.push_str("│ Setting                 │ Value                                     │\n");
         } else {
             output.push_str(&format!("│ {:<23} │ Value                                     │\n", 
@@ -448,7 +441,7 @@ impl Config {
             if let Ok(value) = self.get_value(&matching_key) {
                 let display_key = if matching_key == key {
                     key.to_string()
-                } else if matching_key.starts_with(&format!("{}.", key)) {
+                } else if matching_key.starts_with(&format!("{key}.")) {
                     matching_key[key.len()+1..].to_string() // Remove prefix and dot
                 } else {
                     matching_key
@@ -459,7 +452,7 @@ impl Config {
                 } else {
                     value
                 };
-                output.push_str(&format!("│ {:<23} │ {:<41} │\n", display_key, display_value));
+                output.push_str(&format!("│ {display_key:<23} │ {display_value:<41} │\n"));
             }
         }
         
@@ -469,7 +462,7 @@ impl Config {
     
     /// Add a command to history
     pub fn add_command_to_history(&mut self, command: String) {
-        if (!self.history.enabled) {
+        if !self.history.enabled {
             return;
         }
         
@@ -482,7 +475,7 @@ impl Config {
         self.history.commands.push_back(entry);
         
         // Maintain max entries limit
-        while (self.history.commands.len() > self.history.max_entries) {
+        while self.history.commands.len() > self.history.max_entries {
             self.history.commands.pop_front();
         }
     }

@@ -151,9 +151,7 @@ impl Formatter {
     fn normalize_message(message: &str) -> String {
         // Replace all types of newlines and line separators with spaces
         let normalized = message
-            .replace('\n', " ")
-            .replace('\r', " ")
-            .replace('\t', " ");
+            .replace(['\n', '\r', '\t'], " ");
         
         // Collapse multiple consecutive spaces into single spaces
         let mut result = String::new();
@@ -272,7 +270,7 @@ impl Formatter {
         };
 
         // Format the complete log entry
-        format!("{}{}/{} {}", time_part, pod_part, container_part, message_with_level_color)
+        format!("{time_part}{pod_part}/{container_part} {message_with_level_color}")
     }
 
     /// Formats a log entry as JSON
@@ -290,7 +288,7 @@ impl Formatter {
             "timestamp": timestamp,
         });
 
-        serde_json::to_string(&json).unwrap_or_else(|_| normalized_message)
+        serde_json::to_string(&json).unwrap_or(normalized_message)
     }
 
     /// Gets a consistent color for a pod

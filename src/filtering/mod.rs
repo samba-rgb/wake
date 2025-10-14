@@ -23,7 +23,7 @@ impl FilterPattern {
         let tokens = FilterPattern::tokenize(pattern)?;
         let (pat, rest) = FilterPattern::parse_expr(&tokens)?;
         if !rest.is_empty() {
-            return Err(format!("Unexpected tokens: {:?}", rest));
+            return Err(format!("Unexpected tokens: {rest:?}"));
         }
         Ok(pat)
     }
@@ -52,7 +52,7 @@ impl FilterPattern {
                         if ch == '"' { chars.next(); break; }
                         s.push(ch); chars.next();
                     }
-                    tokens.push(format!("\"{}\"", s));
+                    tokens.push(format!("\"{s}\""));
                 },
                 _ => {
                     // regex or word
@@ -115,7 +115,7 @@ impl FilterPattern {
             },
             Some(t) => {
                 // treat as regex
-                let re = Regex::new(t).map_err(|e| format!("Invalid regex '{}': {}", t, e))?;
+                let re = Regex::new(t).map_err(|e| format!("Invalid regex '{t}': {e}"))?;
                 Ok((FilterPattern::Simple(re), &tokens[1..]))
             },
             None => Err("Unexpected end of pattern".to_string()),

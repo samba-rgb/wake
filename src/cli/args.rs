@@ -235,17 +235,9 @@ pub struct Args {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
-    /// Configure Wake settings
+    /// Configure Wake settings with interactive UI
     #[command(name = "setconfig")]
-    SetConfig {
-        /// Configuration key to set
-        key: String,
-        /// Configuration value to set
-        value: String,
-        /// Optional configuration parameter (e.g., path for autosave)
-        #[arg(short, long)]
-        path: Option<String>,
-    },
+    SetConfig,
     /// Display current Wake configuration
     #[command(name = "getconfig")]
     GetConfig {

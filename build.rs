@@ -70,7 +70,7 @@ fn build_tfidf_index(commands: &[serde_json::Value]) -> TfIdfIndex {
         let description = cmd["description"].as_str().unwrap_or("").to_string();
         
         let static_cmd = StaticCommand { command: command.clone(), description: description.clone() };
-        let document = format!("{} {}", command, description);
+        let document = format!("{command} {description}");
         
         static_commands.push(static_cmd);
         documents.push(document);

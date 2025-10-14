@@ -70,10 +70,10 @@ impl WebOutput {
         
         // Show OpenObserve UI redirect information
         println!("🌐 Web mode started - sending logs to OpenObserve");
-        println!("📊 Access OpenObserve dashboard at: {}", base_url);
+        println!("📊 Access OpenObserve dashboard at: {base_url}");
         println!("🔐 Login credentials: root@example.com / Complexpass#123");
-        println!("📝 Stream name: {}", stream_name);
-        println!("🔗 Full endpoint: {}", endpoint);
+        println!("📝 Stream name: {stream_name}");
+        println!("🔗 Full endpoint: {endpoint}");
         println!();
 
         Ok(Self {

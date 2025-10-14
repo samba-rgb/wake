@@ -48,7 +48,7 @@ impl LogOutput for TerminalOutput {
             // Write to primary output
             {
                 let mut writer = self.primary_writer.lock().unwrap();
-                if let Err(e) = writeln!(writer, "{}", formatted) {
+                if let Err(e) = writeln!(writer, "{formatted}") {
                     error!("Failed to write to primary output: {:?}", e);
                     if e.kind() == io::ErrorKind::BrokenPipe {
                         info!("Output pipe closed");
@@ -62,7 +62,7 @@ impl LogOutput for TerminalOutput {
             // Write to autosave if configured
             if let Some(ref autosave_writer) = self.autosave_writer {
                 let mut writer = autosave_writer.lock().unwrap();
-                if let Err(e) = writeln!(writer, "{}", formatted) {
+                if let Err(e) = writeln!(writer, "{formatted}") {
                     error!("Failed to write to autosave output: {:?}", e);
                 }
                 let _ = writer.flush();
