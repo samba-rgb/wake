@@ -43,6 +43,7 @@ tracing-appender = "0.2.3"
 colored = "2.0.4"
 regex = "1.10.2"
 atty = "0.2.14"
+strip-ansi-escapes = "0.2.0"
 
 # Serialization/deserialization
 serde = { version = "1.0.193", features = ["derive"] }

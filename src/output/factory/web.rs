@@ -7,6 +7,7 @@ use std::time::Duration;
 use tokio::time::{timeout, sleep};
 use tracing::{debug, error, info, warn};
 use chrono::{DateTime, Utc};
+use strip_ansi_escapes;
 
 use crate::k8s::logs::LogEntry;
 use super::LogOutput;
@@ -145,13 +146,17 @@ impl WebOutput {
     }
 
     fn convert_log_entry(&self, entry: &LogEntry) -> WebLogEntry {
+        // Strip ANSI escape codes from the message
+        let cleaned_message_bytes = strip_ansi_escapes::strip(&entry.message);
+        let cleaned_message = String::from_utf8_lossy(&cleaned_message_bytes).to_string();
+
         WebLogEntry {
             timestamp: entry.timestamp
                 .map(|ts| ts.to_rfc3339())
                 .unwrap_or_else(|| Utc::now().to_rfc3339()),
-            level: extract_log_level(&entry.message)
+            level: extract_log_level(&cleaned_message)
                 .unwrap_or_else(|| "info".to_string()),
-            message: entry.message.clone(),
+            message: cleaned_message,
             service: extract_service_name(&entry.pod_name),
             pod_name: entry.pod_name.clone(),
             namespace: entry.namespace.clone(),
