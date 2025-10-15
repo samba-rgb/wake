@@ -1,6 +1,7 @@
 pub mod formatter;
 pub mod web;
 pub mod factory;
+pub mod terminal;
 
 use crate::cli::Args;
 use crate::k8s::logs::LogEntry;
@@ -9,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::path::PathBuf;
 
-pub use web::{WebOutputHandler, WebLogEntry};
+pub use web::{WebOutput, WebLogEntry};
 pub use factory::{LogOutput, OutputFactory, LogDecisionMaker};
 
 /// Different output modes supported by Wake
@@ -17,13 +18,14 @@ pub use factory::{LogOutput, OutputFactory, LogDecisionMaker};
 pub enum OutputMode {
     Terminal,
     File(PathBuf),
-    Web(WebOutputHandler),
+    Web(WebOutput),
     TerminalAndFile(PathBuf),
-    TerminalAndWeb(WebOutputHandler),
-    FileAndWeb(PathBuf, WebOutputHandler),
+    TerminalAndWeb(WebOutput),
+    FileAndWeb(PathBuf, WebOutput),
 }
 
 /// Formatter for log entries
+#[derive(Debug)]
 pub struct Formatter {
     output_format: OutputFormat,
     show_timestamps: bool,
@@ -33,6 +35,7 @@ pub struct Formatter {
 }
 
 /// Different output formats
+#[derive(Debug)]
 enum OutputFormat {
     Text,
     Json,

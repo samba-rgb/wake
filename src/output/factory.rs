@@ -4,11 +4,8 @@ use std::collections::HashMap;
 use crate::k8s::logs::LogEntry;
 use crate::cli::Args;
 
-mod terminal;
-mod web;
-
-pub use terminal::TerminalOutput;
-pub use web::WebOutput;
+use super::terminal::TerminalOutput;
+use super::web::WebOutput;
 
 /// Trait defining the output interface
 #[async_trait]

@@ -11,6 +11,16 @@ use crate::cli::Args;
 use crate::config::Config;
 use super::LogOutput;
 
+impl std::fmt::Debug for TerminalOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TerminalOutput")
+         .field("formatter", &self.formatter)
+         .field("primary_writer", &"Box<dyn Write + Send>")
+         .field("autosave_writer", &self.autosave_writer.as_ref().map(|_| "Box<dyn Write + Send>"))
+         .finish()
+    }
+}
+
 pub struct TerminalOutput {
     formatter: Formatter,
     primary_writer: Arc<Mutex<Box<dyn Write + Send>>>,
