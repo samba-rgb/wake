@@ -15,9 +15,7 @@ impl WebView {
     pub fn show(&self) -> Result<()> {
         if self.content_path.exists() {
             println!("📖 Opening guide at: {}", self.content_path.display());
-            std::process::Command::new("xdg-open")
-                .arg(&self.content_path)
-                .spawn()?;
+            opener::open(&self.content_path)?;
             println!("✅ Guide opened in your default browser");
         } else {
             println!("❌ Guide file not found at: {}", self.content_path.display());
