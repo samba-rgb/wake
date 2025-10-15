@@ -16,6 +16,7 @@ use chrono::Local;
 use comfy_table::{Table as HelpTable, presets::UTF8_FULL as HELP_UTF8_FULL, ContentArrangement as HelpContentArrangement, Cell as HelpCell};
 use comfy_table::Table;
 use colored::Colorize;
+use crate::guide::webview::WebView;
 
 /// Prints WAKE in big text with dots
 fn print_wake_big_text() {
@@ -216,6 +217,12 @@ pub async fn run(mut args: Args) -> Result<()> {
     if args.help {
         print_tabular_help();
         return Ok(());
+    }
+
+    // Handle guide flag early
+    if args.guide {
+        let webview = WebView::new();
+        return webview.show();    
     }
 
     // Store command in history before execution (save early to prevent data loss)

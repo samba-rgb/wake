@@ -12,6 +12,7 @@ mod config; // Add the config module declaration
 mod kernel; // Add the kernel module declaration
 mod templates; // Add the templates module declaration
 mod search; // Add the search module declaration
+mod guide; // Add the guide module declaration
 
 use anyhow::Result;
 use tracing_subscriber::layer::SubscriberExt; // Add missing import

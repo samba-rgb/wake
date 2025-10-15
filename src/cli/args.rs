@@ -231,6 +231,10 @@ pub struct Args {
     /// Enable web mode - send logs to HTTP endpoint instead of terminal
     #[arg(long, help = "Send filtered logs to web endpoint via HTTP")]
     pub web: bool,
+
+    /// Show interactive guide or help content
+    #[arg(long, help = "Display interactive guide and help content")]
+    pub guide: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -324,6 +328,7 @@ impl Default for Args {
             monitor: false, // Default to false
             metrics_source: "kubectl".to_string(), // Default to kubectl
             web: false, // Default to false
+            guide: false, // Default to false
         }
     }
 }
