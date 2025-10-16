@@ -211,7 +211,7 @@ pub fn set_platform_numa_policy(dev_mode: bool) -> Result<()> {
 pub fn configure_platform_prefetching(distance: usize, dev_mode: bool) -> Result<()> {
     // Configure CPU prefetching distance
     if dev_mode {
-        eprintln!("🚀 Linux: CPU prefetching configured (distance: {})", distance);
+        eprintln!("🚀 Linux: CPU prefetching configured (distance: {distance})");
     }
     Ok(())
 }
@@ -227,7 +227,7 @@ pub fn get_platform_performance_cores(dev_mode: bool) -> Result<u64> {
     }
     
     if dev_mode {
-        eprintln!("🚀 Linux: Performance cores identified: {} cores", cpu_count);
+        eprintln!("🚀 Linux: Performance cores identified: {cpu_count} cores");
     }
     Ok(performance_mask)
 }
@@ -260,7 +260,7 @@ pub fn set_platform_priority(nice: i8, dev_mode: bool) -> Result<()> {
     let result = unsafe { libc::setpriority(libc::PRIO_PROCESS, 0, nice as c_int) };
     if result == 0 {
         if dev_mode {
-            eprintln!("🚀 Linux: Process priority increased (nice: {})", nice);
+            eprintln!("🚀 Linux: Process priority increased (nice: {nice})");
         }
         Ok(())
     } else {
@@ -270,26 +270,23 @@ pub fn set_platform_priority(nice: i8, dev_mode: bool) -> Result<()> {
 
 pub fn get_platform_cpu_utilization() -> f64 {
     // Read from /proc/stat for CPU utilization
-    match std::fs::read_to_string("/proc/stat") {
-        Ok(contents) => {
-            if let Some(line) = contents.lines().next() {
-                if line.starts_with("cpu ") {
-                    let values: Vec<u64> = line
-                        .split_whitespace()
-                        .skip(1)
-                        .take(4)
-                        .filter_map(|s| s.parse().ok())
-                        .collect();
-                    
-                    if values.len() >= 4 {
-                        let total = values.iter().sum::<u64>();
-                        let idle = values[3];
-                        return ((total - idle) as f64 / total as f64) * 100.0;
-                    }
+    if let Ok(contents) = std::fs::read_to_string("/proc/stat") {
+        if let Some(line) = contents.lines().next() {
+            if line.starts_with("cpu ") {
+                let values: Vec<u64> = line
+                    .split_whitespace()
+                    .skip(1)
+                    .take(4)
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                
+                if values.len() >= 4 {
+                    let total = values.iter().sum::<u64>();
+                    let idle = values[3];
+                    return ((total - idle) as f64 / total as f64) * 100.0;
                 }
             }
         }
-        Err(_) => {}
     }
     0.0
 }
@@ -310,12 +307,12 @@ pub fn enable_platform_tcp_optimizations(dev_mode: bool) -> Result<()> {
         match std::fs::write(&path, value) {
             Ok(_) => {
                 if dev_mode {
-                    eprintln!("🚀 Linux: TCP optimization applied: {} = {}", param, value);
+                    eprintln!("🚀 Linux: TCP optimization applied: {param} = {value}");
                 }
             },
             Err(_) => {
                 if dev_mode {
-                    eprintln!("📊 Linux: TCP optimization unavailable: {}", param);
+                    eprintln!("📊 Linux: TCP optimization unavailable: {param}");
                 }
             },
         }
@@ -326,7 +323,7 @@ pub fn enable_platform_tcp_optimizations(dev_mode: bool) -> Result<()> {
 
 pub fn set_platform_socket_buffers(size: usize, dev_mode: bool) -> Result<()> {
     if dev_mode {
-        eprintln!("🚀 Linux: Socket buffers optimized to {} bytes", size);
+        eprintln!("🚀 Linux: Socket buffers optimized to {size} bytes");
     }
     Ok(())
 }

@@ -20,6 +20,7 @@ k8s-openapi = { version = "0.20.0", features = ["v1_27"] }
 
 # HTTP client
 http = "0.2.12"
+reqwest = { version = "0.11", features = ["json"], default-features = false }
 
 # Add OpenSSL for TLS operations in
 # Async runtime
@@ -42,6 +43,7 @@ tracing-appender = "0.2.3"
 colored = "2.0.4"
 regex = "1.10.2"
 atty = "0.2.14"
+strip-ansi-escapes = "0.2.0"
 
 # Serialization/deserialization
 serde = { version = "1.0.193", features = ["derive"] }
@@ -70,6 +72,7 @@ dirs = "5.0.1"
 fastrand = "2.0.1"
 uuid = { version = "1.8.0", features = ["v4"] }
 glob = "0.3.1"
+opener = "0.6.1"
 
 # Kernel-level optimizations
 libc = "0.2.155"

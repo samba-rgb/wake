@@ -75,6 +75,12 @@ pub struct MetricsData {
 // Simplified implementation of the ModernMetricsCollector for compilation
 pub struct ModernMetricsCollector {}
 
+impl Default for ModernMetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModernMetricsCollector {
     pub fn new() -> Self {
         Self {}
@@ -340,16 +346,13 @@ pub async fn run_monitor_ui(
     // Start metrics update task
     let ui_state_clone = ui_state.clone();
     let metrics_task = tokio::spawn(async move {
-        let mut metrics_maps = MetricsMaps::default();
-        
         while let Some(metrics_data) = metrics_rx.recv().await {
             // Get the current metrics maps from the collector
             let new_maps = metrics_collector.get_metrics_maps();
-            metrics_maps = new_maps;
             
             // Update the UI state with the new metrics
             let mut state = ui_state_clone.lock().await;
-            state.update_from_metrics_maps(&metrics_maps);
+            state.update_from_metrics_maps(&new_maps);
         }
     });
 
@@ -511,7 +514,7 @@ fn draw_header(f: &mut Frame, area: Rect, state: &MonitorUIState) {
     let pod_name = state.selected_pod().map_or("No pod selected".to_string(), |p| p.name.clone());
     let container_name = state.selected_container_name().unwrap_or_else(|| "No container selected".to_string());
     
-    let title = format!("Wake Resource Monitor - Pod: {} / Container: {}", pod_name, container_name);
+    let title = format!("Wake Resource Monitor - Pod: {pod_name} / Container: {container_name}");
 
     let header = Paragraph::new(title)
         .style(Style::default().fg(NEON_CYAN).bg(DARK_BG).add_modifier(Modifier::BOLD))
@@ -659,14 +662,14 @@ fn draw_resource_table(f: &mut Frame, area: Rect, state: &MonitorUIState) {
             Row::new(vec![
                 Cell::from("CPU Usage (%)"),
                 Cell::from(format!("{:.2}%", resources.current_cpu)),
-                Cell::from(format!("{:.2}%", cpu_avg)),
-                Cell::from(format!("{:.2}%", cpu_max)),
+                Cell::from(format!("{cpu_avg:.2}%")),
+                Cell::from(format!("{cpu_max:.2}%")),
             ]),
             Row::new(vec![
                 Cell::from("Memory (MB)"),
                 Cell::from(format!("{:.2} MB", resources.current_memory)),
-                Cell::from(format!("{:.2} MB", mem_avg)),
-                Cell::from(format!("{:.2} MB", mem_max)),
+                Cell::from(format!("{mem_avg:.2} MB")),
+                Cell::from(format!("{mem_max:.2} MB")),
             ]),
         ]
     } else {
@@ -979,7 +982,7 @@ impl MonitorUI {
         // Spawn background task to update resource usage
         tokio::spawn(async move {
             run_monitor_ui(ui_state_clone, shutdown_rx).await.unwrap_or_else(|e| {
-                wake_logger::error(&format!("Monitor UI error: {}", e));
+                wake_logger::error(&format!("Monitor UI error: {e}"));
             });
         });
         

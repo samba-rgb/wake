@@ -268,7 +268,7 @@ impl InputHandler {
             None => {
                 if up {
                     self.history_index = Some(0);
-                    if let Some(item) = self.input_history.get(0) {
+                    if let Some(item) = self.input_history.front() {
                         *current_input = item.clone();
                         self.cursor_position = current_input.len();
                     }

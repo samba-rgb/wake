@@ -1,12 +1,31 @@
 pub mod formatter;
+pub mod web;
+pub mod factory;
+pub mod terminal;
 
 use crate::cli::Args;
 use crate::k8s::logs::LogEntry;
 use colored::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::path::PathBuf;
+
+pub use web::{WebOutput, WebLogEntry};
+pub use factory::{LogOutput, OutputFactory, LogDecisionMaker};
+
+/// Different output modes supported by Wake
+#[derive(Debug)]
+pub enum OutputMode {
+    Terminal,
+    File(PathBuf),
+    Web(WebOutput),
+    TerminalAndFile(PathBuf),
+    TerminalAndWeb(WebOutput),
+    FileAndWeb(PathBuf, WebOutput),
+}
 
 /// Formatter for log entries
+#[derive(Debug)]
 pub struct Formatter {
     output_format: OutputFormat,
     show_timestamps: bool,
@@ -16,6 +35,7 @@ pub struct Formatter {
 }
 
 /// Different output formats
+#[derive(Debug)]
 enum OutputFormat {
     Text,
     Json,
@@ -134,9 +154,7 @@ impl Formatter {
     fn normalize_message(message: &str) -> String {
         // Replace all types of newlines and line separators with spaces
         let normalized = message
-            .replace('\n', " ")
-            .replace('\r', " ")
-            .replace('\t', " ");
+            .replace(['\n', '\r', '\t'], " ");
         
         // Collapse multiple consecutive spaces into single spaces
         let mut result = String::new();
@@ -255,7 +273,7 @@ impl Formatter {
         };
 
         // Format the complete log entry
-        format!("{}{}/{} {}", time_part, pod_part, container_part, message_with_level_color)
+        format!("{time_part}{pod_part}/{container_part} {message_with_level_color}")
     }
 
     /// Formats a log entry as JSON
@@ -273,7 +291,7 @@ impl Formatter {
             "timestamp": timestamp,
         });
 
-        serde_json::to_string(&json).unwrap_or_else(|_| normalized_message)
+        serde_json::to_string(&json).unwrap_or(normalized_message)
     }
 
     /// Gets a consistent color for a pod

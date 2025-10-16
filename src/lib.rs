@@ -13,3 +13,4 @@ pub mod config;
 pub mod kernel;
 pub mod templates;
 pub mod search;
+pub mod guide;

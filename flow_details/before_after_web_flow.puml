@@ -1,0 +1,69 @@
+@startuml before_after_comparison
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 10
+
+title Wake: Before (Current) vs After (Web View) Flow Comparison
+
+!define CURRENT_COLOR #E8F4FD
+!define WEB_COLOR #FFF2E8
+
+rectangle "BEFORE: Current Flow (CLI Mode)" as before CURRENT_COLOR {
+    actor "User" as user1
+    participant "CLI Args" as cli1
+    participant "K8s Client" as k8s1
+    participant "Log Watcher" as watcher1
+    participant "Log Buffer" as buffer1
+    participant "Filter Engine" as filter1
+    participant "Display Buffer" as display1
+    participant "Terminal" as terminal1
+    
+    user1 -> cli1: wake pod_selector -i "error"
+    cli1 -> k8s1: Create client
+    k8s1 -> watcher1: Stream logs
+    watcher1 -> buffer1: Raw logs
+    buffer1 -> filter1: Apply filters
+    filter1 -> display1: Filtered logs
+    display1 -> terminal1: **Display on screen**
+}
+
+rectangle "AFTER: New Web Flow" as after WEB_COLOR {
+    actor "User" as user2
+    participant "CLI Args" as cli2
+    participant "K8s Client" as k8s2
+    participant "Log Watcher" as watcher2
+    participant "Log Buffer" as buffer2
+    participant "Filter Engine" as filter2
+    participant "Web Handler" as webhandler
+    participant "HTTP Client" as http
+    participant "Web Endpoint" as endpoint
+    
+    user2 -> cli2: wake pod_selector -i "error" **--web**
+    cli2 -> k8s2: Create client
+    k8s2 -> watcher2: Stream logs
+    watcher2 -> buffer2: Raw logs
+    buffer2 -> filter2: Apply filters
+    filter2 -> webhandler: Filtered logs
+    webhandler -> http: **JSON payload**
+    http -> endpoint: **HTTP POST**
+}
+
+note top of before
+**Current Behavior:**
+• Logs displayed in terminal
+• Real-time console output
+• User sees logs directly
+• No external integration
+end note
+
+note top of after
+**New Web Behavior:**
+• Logs sent to web endpoint
+• JSON formatted payload
+• HTTP POST requests
+• Integration with external systems
+• No terminal output
+end note
+
+@enduml
