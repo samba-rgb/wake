@@ -51,6 +51,8 @@ fn print_tabular_help() {
     let mut add = |arg: &str, desc: &str| {
         t.add_row(vec![HelpCell::new(arg), HelpCell::new(desc)]);
     };
+
+    add("--guide", "Open the interactive HTML guide in your browser");
     add("POD_SELECTOR", "Pod selector regular expression (positional), default: .* ");
     add("-c, --container <REGEX>", "Container selector regex, default: .* ");
     add("-s, --sample <N>", "Randomly sample up to N matching pods (default: all)");

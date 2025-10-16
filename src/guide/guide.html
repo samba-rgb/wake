@@ -234,6 +234,7 @@
                 <li class="nav-item"><a href="#monitoring">Monitoring</a></li>
                 <li class="nav-item"><a href="#configuration">Configuration</a></li>
                 <li class="nav-item"><a href="#command-history">Command History</a></li>
+                <li class="nav-item"><a href="#support-issues">Support / Raise a Bug</a></li>
                 <li class="nav-item"><a href="https://github.com/samba-rgb/wake" target="_blank">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
                     Contribute on GitHub
@@ -438,6 +439,11 @@ wake -A -i "error"</code></pre>
                             <td>N/A</td>
                         </tr>
                         <tr>
+                            <td><code>--guide</code></td>
+                            <td>Open the interactive HTML guide in your browser</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
                             <td><code>-h, --help</code></td>
                             <td>Print this help</td>
                             <td>N/A</td>
@@ -470,6 +476,9 @@ wake -A -i "error"</code></pre>
             <div class="card-body">
                 <p>Wake can send filtered logs to a web endpoint for viewing. This is great for sharing and collaboration. It integrates with OpenObserve.</p>
                 
+                <h4>Before you start:</h4>
+                <pre><code>mkdir -p data
+chmod +x data</code></pre>
                 <h4>1. Start OpenObserve with Docker:</h4>
                 <pre><code>docker run -d \
       --name openobserve \
@@ -483,6 +492,8 @@ wake -A -i "error"</code></pre>
                 <pre><code>wake setconfig web.endpoint "http://localhost:5080/api/default/logs"
 wake setconfig web.user "root@example.com"
 wake setconfig web.password "Complexpass#123"</code></pre>
+                <p><strong>Note:</strong> The default web endpoint is <code>http://localhost:5080</code>, user email is <code>root@example.com</code>, and password is <code>Complexpass#123</code>.<br>
+If you change the endpoint, user, or password, make sure to update the configuration using the above <code>wake setconfig</code> commands.</p>
 
                 <h4>3. Run Wake in web mode:</h4>
                 <pre><code># Send all logs from the "my-app" pod containing "error"
@@ -498,13 +509,13 @@ wake "my-app" -i "error" --web</code></pre>
             <div class="card-body">
                 <p>Wake supports advanced filtering to help you find exactly what you need.</p>
                 <pre><code># Include logs that contain "error" OR "warn"
-wake "my-app" -i "'error' || 'warn'"
+wake "my-app" -i '"error" || "warn"'""
 
 # Exclude logs that contain "debug"
 wake "my-app" -e "debug"
 
-# Complex query: (error OR warn) AND NOT (debug)
-wake "my-app" -i "('error' || 'warn') && !'debug'"</code></pre>
+# Complex query: (error OR warn)
+wake "my-app" -i '"error" || "warn"'</code></pre>
             </div>
         </section>
 
@@ -575,6 +586,16 @@ wake --his "error logs"
 
 # Show all command history
 wake --his</code></pre>
+            </div>
+        </section>
+
+        <section id="support-issues" class="card">
+            <div class="card-header">
+                <h2>Support &amp; Issues</h2>
+            </div>
+            <div class="card-body">
+                <p>If you encounter any issues, please raise them on the <a href="https://github.com/samba-rgb/wake/issues" target="_blank">GitHub Issues page</a>.<br>
+                For direct contact, you can reach the author at <a href="mailto:samba24052001@gmail.com">samba24052001@gmail.com</a>.</p>
             </div>
         </section>
     </main>
