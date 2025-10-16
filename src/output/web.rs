@@ -288,7 +288,7 @@ impl Drop for WebOutput {
         if let Some(handle) = self.flush_handle.take() {
             info!("Shutting down web output. Waiting for final log flush...");
             drop(self.sender.clone());
-            tokio::runtime::Handle::current().block_on(handle);
+            let _ = tokio::runtime::Handle::current().block_on(handle);
             info!("Web output shutdown complete.");
         }
     }

@@ -346,16 +346,13 @@ pub async fn run_monitor_ui(
     // Start metrics update task
     let ui_state_clone = ui_state.clone();
     let metrics_task = tokio::spawn(async move {
-        let mut metrics_maps = MetricsMaps::default();
-        
         while let Some(metrics_data) = metrics_rx.recv().await {
             // Get the current metrics maps from the collector
             let new_maps = metrics_collector.get_metrics_maps();
-            metrics_maps = new_maps;
             
             // Update the UI state with the new metrics
             let mut state = ui_state_clone.lock().await;
-            state.update_from_metrics_maps(&metrics_maps);
+            state.update_from_metrics_maps(&new_maps);
         }
     });
 

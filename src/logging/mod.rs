@@ -82,7 +82,7 @@ pub async fn process_logs(
     });
     
     // Start the filtering process (creates second buffer)
-    let filtered_rx = filter.start_filtering(raw_rx);
+    let filtered_rx = filter.start_filtering2(raw_rx);
     info!("🔍 Log filtering pipeline started");
 
     // Task 2: Process filtered logs through decision maker

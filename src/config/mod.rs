@@ -114,7 +114,7 @@ impl Config {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_file_path()?;
         
-        if (!config_path.exists()) {
+        if !config_path.exists() {
             return Ok(Self::default());
         }
         
@@ -166,7 +166,7 @@ impl Config {
     /// Get autosave file path (either configured path or generate timestamp-based path)
     #[allow(dead_code)]
     pub fn get_autosave_path(&self, write_file: Option<&str>) -> Option<String> {
-        if (!self.autosave.enabled) {
+        if !self.autosave.enabled {
             return None;
         }
         
@@ -203,11 +203,11 @@ impl Config {
                 let expansion = value.parse::<f64>()
                     .map_err(|_| anyhow!("Invalid buffer expansion value: '{}'. Must be a number (e.g., 10, 5.5)", value))?;
                 
-                if (expansion < 1.0) {
+                if expansion < 1.0 {
                     return Err(anyhow!("Buffer expansion must be at least 1.0x (got: {})", expansion));
                 }
                 
-                if (expansion > 50.0) {
+                if expansion > 50.0 {
                     return Err(anyhow!("Buffer expansion too large: {}x (maximum: 50x)", expansion));
                 }
                 
@@ -259,7 +259,7 @@ impl Config {
                     Some("http://localhost:5080".to_string())
                 } else {
                     // Validate URL format
-                    if (!value.starts_with("http://") && !value.starts_with("https://")) {
+                    if !value.starts_with("http://") && !value.starts_with("https://") {
                         return Err(anyhow!("Invalid web endpoint: '{}'. Must be a valid HTTP/HTTPS URL", value));
                     }
                     Some(value.to_string())
@@ -269,11 +269,11 @@ impl Config {
                 let batch_size = value.parse::<usize>()
                     .map_err(|_| anyhow!("Invalid web batch size: '{}'. Must be a positive integer", value))?;
                 
-                if (batch_size == 0) {
+                if batch_size == 0 {
                     return Err(anyhow!("Web batch size must be at least 1 (got: {})", batch_size));
                 }
                 
-                if (batch_size > 1000) {
+                if batch_size > 1000 {
                     return Err(anyhow!("Web batch size too large: {} (maximum: 1000)", batch_size));
                 }
                 
@@ -283,11 +283,11 @@ impl Config {
                 let timeout = value.parse::<u64>()
                     .map_err(|_| anyhow!("Invalid web timeout: '{}'. Must be a positive integer (seconds)", value))?;
                 
-                if (timeout == 0) {
+                if timeout == 0 {
                     return Err(anyhow!("Web timeout must be at least 1 second (got: {})", timeout));
                 }
                 
-                if (timeout > 300) {
+                if timeout > 300 {
                     return Err(anyhow!("Web timeout too large: {}s (maximum: 300s)", timeout));
                 }
                 
@@ -460,32 +460,32 @@ impl Config {
             .filter(|k| k.starts_with(key) && (k == key || k.starts_with(&format!("{key}."))))
             .collect();
         
-        if (matching_keys.is_empty()) {
+        if matching_keys.is_empty() {
             return Err(anyhow!("Configuration key not found: {}", key));
         }
         
         // Header
         output.push_str("┌─────────────────────────┬───────────────────────────────────────────┐\n");
-        if (matching_keys.len() == 1 && matching_keys[0] == key) {
+        if matching_keys.len() == 1 && matching_keys[0] == key {
             output.push_str("│ Setting                 │ Value                                     │\n");
         } else {
             output.push_str(&format!("│ {:<23} │ Value                                     │\n", 
-                if (key.is_empty()) { "Configuration" } else { key }));
+                if key.is_empty() { "Configuration" } else { key }));
         }
         output.push_str("├─────────────────────────┼───────────────────────────────────────────┤\n");
         
         // Display matching keys
         for matching_key in matching_keys {
             if let Ok(value) = self.get_value(&matching_key) {
-                let display_key = if (matching_key == key) {
+                let display_key = if matching_key == key {
                     key.to_string()
-                } else if (matching_key.starts_with(&format!("{key}."))) {
+                } else if matching_key.starts_with(&format!("{key}.")) {
                     matching_key[key.len()+1..].to_string() // Remove prefix and dot
                 } else {
                     matching_key
                 };
                 
-                let display_value = if (value.len() > 37) {
+                let display_value = if value.len() > 37 {
                     format!("{}...", &value[..34])
                 } else {
                     value
@@ -500,7 +500,7 @@ impl Config {
     
     /// Add a command to history
     pub fn add_command_to_history(&mut self, command: String) {
-        if (!self.history.enabled) {
+        if !self.history.enabled {
             return;
         }
         
@@ -513,7 +513,7 @@ impl Config {
         self.history.commands.push_back(entry);
         
         // Maintain max entries limit
-        while (self.history.commands.len() > self.history.max_entries) {
+        while self.history.commands.len() > self.history.max_entries {
             self.history.commands.pop_front();
         }
     }
