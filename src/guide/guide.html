@@ -160,6 +160,22 @@
             font-weight: 600;
         }
 
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #edf2f7;
+        }
+
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
@@ -208,13 +224,16 @@
         </div>
         <nav class="nav">
             <ul class="nav-list">
-                <li class="nav-item"><a href="#normal-view" class="active">Normal Log View</a></li>
+                <li class="nav-item"><a href="#getting-started" class="active">Getting Started</a></li>
+                <li class="nav-item"><a href="#all-arguments">All Arguments</a></li>
                 <li class="nav-item"><a href="#tui-view">TUI View</a></li>
                 <li class="nav-item"><a href="#web-view">Web View</a></li>
+                <li class="nav-item"><a href="#filtering">Filtering Logs</a></li>
                 <li class="nav-item"><a href="#templates">Running Templates</a></li>
                 <li class="nav-item"><a href="#scripts">Running Scripts</a></li>
                 <li class="nav-item"><a href="#monitoring">Monitoring</a></li>
-                <li class="nav-item"><a href="#configs">Changing Configs</a></li>
+                <li class="nav-item"><a href="#configuration">Configuration</a></li>
+                <li class="nav-item"><a href="#command-history">Command History</a></li>
                 <li class="nav-item"><a href="https://github.com/samba-rgb/wake" target="_blank">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
                     Contribute on GitHub
@@ -229,22 +248,213 @@
             <p>Your comprehensive guide to advanced Kubernetes log tailing.</p>
         </header>
 
-        <section id="normal-view" class="card">
+        <section id="getting-started" class="card">
             <div class="card-header">
-                <h2>Normal View of Logs</h2>
+                <h2>Getting Started: Basic Log Tailing</h2>
             </div>
             <div class="card-body">
-                <p>Use Wake to tail logs from Kubernetes pods in a simple, readable format. This is the default mode and provides a straightforward stream of log data.</p>
-                <pre><code>wake -n kube-system "kube-proxy"
-[2025-10-15T16:42:10Z] kube-proxy: Starting up...
-[2025-10-15T16:42:12Z] kube-proxy: Syncing rules
-...</code></pre>
+                <p>Use Wake to tail logs from Kubernetes pods. This is the default mode and provides a straightforward stream of log data.</p>
+                <pre><code># Tail logs for kube-proxy in kube-system namespace
+wake -n kube-system "kube-proxy"
+
+# Tail logs across all namespaces, including the string 'error'
+wake -A -i "error"</code></pre>
+            </div>
+        </section>
+
+        <section id="all-arguments" class="card">
+            <div class="card-header">
+                <h2>All Command-Line Arguments</h2>
+            </div>
+            <div class="card-body">
+                <p>This section provides a complete list of all available command-line arguments for Wake.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Argument</th>
+                            <th>Description</th>
+                            <th>Default Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>POD_SELECTOR</code></td>
+                            <td>Pod selector regular expression (positional)</td>
+                            <td><code>.*</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>-c, --container &lt;REGEX&gt;</code></td>
+                            <td>Container selector regex</td>
+                            <td><code>.*</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>-s, --sample &lt;N&gt;</code></td>
+                            <td>Randomly sample up to N matching pods</td>
+                            <td>all</td>
+                        </tr>
+                        <tr>
+                            <td><code>-L, --list-containers</code></td>
+                            <td>List all containers in matched pods (no streaming)</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--all-containers</code></td>
+                            <td>Show logs from all containers in pods</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-n, --namespace &lt;NAME&gt;</code></td>
+                            <td>Kubernetes namespace</td>
+                            <td>current context</td>
+                        </tr>
+                        <tr>
+                            <td><code>-A, --all-namespaces</code></td>
+                            <td>Show logs from all namespaces</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-k, --kubeconfig &lt;PATH&gt;</code></td>
+                            <td>Path to kubeconfig file</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-x, --context &lt;NAME&gt;</code></td>
+                            <td>Kubernetes context to use</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-t, --tail &lt;LINES&gt;</code></td>
+                            <td>Lines of logs to display from beginning</td>
+                            <td>10</td>
+                        </tr>
+                        <tr>
+                            <td><code>-f, --follow [true|false]</code></td>
+                            <td>Follow logs (stream)</td>
+                            <td>true</td>
+                        </tr>
+                        <tr>
+                            <td><code>-i, --include &lt;PATTERN&gt;</code></td>
+                            <td>Include logs matching advanced pattern (&&, ||, !, quotes, regex)</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-e, --exclude &lt;PATTERN&gt;</code></td>
+                            <td>Exclude logs matching advanced pattern</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-T, --timestamps</code></td>
+                            <td>Show timestamps in logs</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-o, --output &lt;FORMAT&gt;</code></td>
+                            <td>Output format (text, json, raw)</td>
+                            <td>text</td>
+                        </tr>
+                        <tr>
+                            <td><code>-w, --output-file &lt;FILE&gt;</code></td>
+                            <td>Write logs to file (use with --ui for both file and UI)</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-r, --resource &lt;KIND/NAME&gt;</code></td>
+                            <td>Select pods by resource owner (deploy/foo, sts/bar, etc.)</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--exec-template &lt;NAME&gt;</code></td>
+                            <td>Execute predefined template (jfr, heap-dump, thread-dump)</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--template-args &lt;ARGS&gt;...</code></td>
+                            <td>Arguments to pass to the template</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--list-templates</code></td>
+                            <td>List available templates</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--template-output &lt;DIR&gt;</code></td>
+                            <td>Directory to save template outputs</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--since &lt;DURATION&gt;</code></td>
+                            <td>Show logs since duration (e.g., 5s, 2m, 3h)</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--threads &lt;N&gt;</code></td>
+                            <td>Threads for log filtering</td>
+                            <td>2x CPU cores</td>
+                        </tr>
+                        <tr>
+                            <td><code>--ui</code></td>
+                            <td>Enable interactive UI mode with dynamic filtering</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--no-ui</code></td>
+                            <td>Disable UI and force CLI output</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--dev</code></td>
+                            <td>Enable development mode (internal logs)</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--buffer-size &lt;N&gt;</code></td>
+                            <td>Number of log entries to keep in memory</td>
+                            <td>20000</td>
+                        </tr>
+                        <tr>
+                            <td><code>-v, --verbosity &lt;LEVEL&gt;</code></td>
+                            <td>Verbosity for internal debug output</td>
+                            <td>0</td>
+                        </tr>
+                        <tr>
+                            <td><code>--script-in &lt;PATH&gt;</code></td>
+                            <td>Run a script in each selected pod and collect output</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--script-outdir &lt;DIR&gt;</code></td>
+                            <td>Directory to save script outputs (overrides config)</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--his [QUERY]</code></td>
+                            <td>Show command history or search saved commands using TF-IDF</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>--web</code></td>
+                            <td>Send filtered logs to web endpoint via HTTP (configure with 'wake setconfig web.*')</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-h, --help</code></td>
+                            <td>Print this help</td>
+                            <td>N/A</td>
+                        </tr>
+                        <tr>
+                            <td><code>-V, --version</code></td>
+                            <td>Print version</td>
+                            <td>N/A</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 
         <section id="tui-view" class="card">
             <div class="card-header">
-                <h2>TUI View of Logs</h2>
+                <h2>TUI View</h2>
             </div>
             <div class="card-body">
                 <p>For an interactive experience, launch the Terminal UI (TUI) mode. This allows for real-time filtering, searching, and navigation within your terminal.</p>
@@ -255,33 +465,46 @@
 
         <section id="web-view" class="card">
             <div class="card-header">
-                <h2>Web View of Logs</h2>
+                <h2>Web View (with OpenObserve)</h2>
             </div>
             <div class="card-body">
-                <p>Wake can also serve a web-based UI for viewing logs, which is great for sharing and collaboration.</p>
-                <pre><code>wake --ui --web</code></pre>
-                <p>This will start a local web server and open the log viewer in your default browser.</p>
+                <p>Wake can send filtered logs to a web endpoint for viewing. This is great for sharing and collaboration. It integrates with OpenObserve.</p>
+                
+                <h4>1. Start OpenObserve with Docker:</h4>
+                <pre><code>docker run -d \
+      --name openobserve \
+      -v $PWD/data:/data \
+      -p 5080:5080 \
+      -e ZO_ROOT_USER_EMAIL="root@example.com" \
+      -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
+      public.ecr.aws/zinclabs/openobserve:latest</code></pre>
+
+                <h4>2. Configure Wake to use the web endpoint:</h4>
+                <pre><code>wake setconfig web.endpoint "http://localhost:5080/api/default/logs"
+wake setconfig web.user "root@example.com"
+wake setconfig web.password "Complexpass#123"</code></pre>
+
+                <h4>3. Run Wake in web mode:</h4>
+                <pre><code># Send all logs from the "my-app" pod containing "error"
+wake "my-app" -i "error" --web</code></pre>
+                <p>Access the OpenObserve UI at <a href="http://localhost:5080" target="_blank">http://localhost:5080</a>. The stream name will be auto-generated daily (e.g., <code>logs_wake_YYYY_MM_DD</code>).</p>
             </div>
         </section>
 
-        <section id="templates" class="card">
+        <section id="filtering" class="card">
             <div class="card-header">
-                <h2>Running Templates</h2>
+                <h2>Advanced Log Filtering</h2>
             </div>
             <div class="card-body">
-                <p>Templates allow you to define and reuse complex log queries and output formats. This is useful for standardizing log analysis across your team.</p>
-                <pre><code>wake --template my-template.yaml</code></pre>
-                <p>You can specify filters, output fields, and formatting in your template file.</p>
-            </div>
-        </section>
+                <p>Wake supports advanced filtering to help you find exactly what you need.</p>
+                <pre><code># Include logs that contain "error" OR "warn"
+wake "my-app" -i "'error' || 'warn'"
 
-        <section id="scripts" class="card">
-            <div class="card-header">
-                <h2>Running Scripts</h2>
-            </div>
-            <div class="card-body">
-                <p>Execute custom scripts to perform advanced log processing, such as sending alerts or integrating with other tools.</p>
-                <pre><code>wake --script ./scripts/my_script.sh</code></pre>
+# Exclude logs that contain "debug"
+wake "my-app" -e "debug"
+
+# Complex query: (error OR warn) AND NOT (debug)
+wake "my-app" -i "('error' || 'warn') && !'debug'"</code></pre>
             </div>
         </section>
 
@@ -296,13 +519,62 @@
             </div>
         </section>
 
-        <section id="configs" class="card">
+        <section id="templates" class="card">
             <div class="card-header">
-                <h2>Changing Configs</h2>
+                <h2>Running Templates</h2>
             </div>
             <div class="card-body">
-                <p>Customize Wake's behavior through a configuration file. You can specify default namespaces, filters, and output formats.</p>
-                <p>By default, Wake looks for a <span class="command">wake.yaml</span> file in your current directory or home directory.</p>
+                <p>Templates allow you to execute predefined commands inside your pods. This is useful for diagnostics like thread dumps or heap dumps.</p>
+                <pre><code># List available templates
+wake --list-templates
+
+# Execute the 'thread-dump' template on 'my-app'
+wake "my-app" --exec-template thread-dump
+
+# Save the output to a specific directory
+wake "my-app" --exec-template heap-dump --template-output /tmp/heap-dumps</code></pre>
+            </div>
+        </section>
+
+        <section id="scripts" class="card">
+            <div class="card-header">
+                <h2>Running Scripts</h2>
+            </div>
+            <div class="card-body">
+                <p>Execute custom scripts inside each selected pod and collect the output.</p>
+                <pre><code># Run a script to check disk usage
+wake "my-app" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usage</code></pre>
+            </div>
+        </section>
+
+        <section id="configuration" class="card">
+            <div class="card-header">
+                <h2>Configuration Management</h2>
+            </div>
+            <div class="card-body">
+                <p>Customize Wake's behavior through configuration commands.</p>
+                <pre><code># Open an interactive UI to edit all settings
+wake setconfig
+
+# Show all current configuration
+wake getconfig
+
+# Get a specific configuration key
+wake getconfig web.endpoint</code></pre>
+            </div>
+        </section>
+
+        <section id="command-history" class="card">
+            <div class="card-header">
+                <h2>Command History (TF-IDF Search)</h2>
+            </div>
+            <div class="card-body">
+                <p>Wake saves your command history and allows you to search it using TF-IDF for intelligent retrieval.</p>
+                <pre><code># Search for commands related to "error logs"
+wake --his "error logs"
+
+# Show all command history
+wake --his</code></pre>
             </div>
         </section>
     </main>
@@ -310,7 +582,9 @@
     <script>
         document.querySelectorAll('.nav-item a').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
-                document.querySelector('.nav-item a.active').classList.remove('active');
+                if (document.querySelector('.nav-item a.active')) {
+                    document.querySelector('.nav-item a.active').classList.remove('active');
+                }
                 this.classList.add('active');
             });
         });

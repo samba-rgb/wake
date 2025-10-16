@@ -52,11 +52,15 @@ impl OutputFactory {
                 .unwrap_or_else(|_| "30".to_string())
                 .parse::<u64>()
                 .unwrap_or(30);
+            let web_user = config.get_value("web.user").unwrap_or_default();
+            let web_pass = config.get_value("web.password").unwrap_or_default();
 
             Ok(Box::new(WebOutput::new(
                 full_endpoint,
                 batch_size,
                 timeout_seconds,
+                web_user,
+                web_pass,
             )?))
         } else {
             // Terminal output mode

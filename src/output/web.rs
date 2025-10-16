@@ -4,6 +4,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
+use tokio::sync::mpsc;
 use tokio::time::{timeout, sleep};
 use tracing::{debug, error, info, warn};
 use chrono::{DateTime, Utc};
@@ -26,34 +27,33 @@ pub struct WebLogEntry {
 
 #[derive(Debug)]
 pub struct WebOutput {
-    client: Client,
-    endpoint: String,
-    stream_name: String,
-    batch_size: usize,
-    timeout_duration: Duration,
-    retry_attempts: u32,
-    retry_delay: Duration,
-    current_batch: Vec<WebLogEntry>,
-    base_url: String,
+    sender: mpsc::Sender<LogEntry>,
+    flush_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl WebOutput {
-    pub fn new(endpoint: String, batch_size: usize, timeout_seconds: u64) -> Result<Self> {
+    pub fn new(
+        endpoint: String,
+        batch_size: usize,
+        timeout_seconds: u64,
+        web_user: String,
+        web_pass: String,
+    ) -> Result<Self> {
+        let (sender, receiver) = mpsc::channel(1000); // Channel with a buffer of 1000
+
         let client = Client::builder()
             .timeout(Duration::from_secs(timeout_seconds))
             .build()
             .context("Failed to create HTTP client")?;
 
-        // Extract base URL from endpoint
         let base_url = if let Some(pos) = endpoint.find("/api/") {
             endpoint[..pos].to_string()
         } else {
             "http://localhost:5080".to_string()
         };
 
-        // Extract stream name from endpoint
         let stream_name = if let Some(api_pos) = endpoint.find("/api/default/") {
-            let after_api = &endpoint[api_pos + 13..]; // "/api/default/".len() = 13
+            let after_api = &endpoint[api_pos + 13..];
             if let Some(json_pos) = after_api.find("/_json") {
                 after_api[..json_pos].to_string()
             } else {
@@ -69,26 +69,118 @@ impl WebOutput {
         info!("   Base URL: {}", base_url);
         info!("   Batch size: {}", batch_size);
         info!("   Timeout: {}s", timeout_seconds);
-        
-        // Show OpenObserve UI redirect information
+
         println!("🌐 Web mode started - sending logs to OpenObserve");
         println!("📊 Access OpenObserve dashboard at: {base_url}");
-        println!("🔐 Login credentials: root@example.com / Complexpass#123");
+        println!("🔐 Login credentials: {} / {}", web_user, "*".repeat(web_pass.len()));
         println!("📝 Stream name: {stream_name}");
         println!("🔗 Full endpoint: {endpoint}");
         println!();
 
-        Ok(Self {
+        let mut handler = BatchingWebOutput {
             client,
-            endpoint,
-            stream_name,
+            endpoint: endpoint.clone(),
+            stream_name: stream_name.clone(),
             batch_size,
             timeout_duration: Duration::from_secs(timeout_seconds),
             retry_attempts: 3,
             retry_delay: Duration::from_millis(1000),
             current_batch: Vec::new(),
-            base_url,
+            receiver,
+            web_user,
+            web_pass,
+        };
+
+        let flush_handle = tokio::spawn(async move {
+            handler.run().await;
+        });
+
+        Ok(Self {
+            sender,
+            flush_handle: Some(flush_handle),
         })
+    }
+}
+
+struct BatchingWebOutput {
+    client: Client,
+    endpoint: String,
+    stream_name: String,
+    batch_size: usize,
+    timeout_duration: Duration,
+    retry_attempts: u32,
+    retry_delay: Duration,
+    current_batch: Vec<WebLogEntry>,
+    receiver: mpsc::Receiver<LogEntry>,
+    web_user: String,
+    web_pass: String,
+}
+
+impl BatchingWebOutput {
+    async fn run(&mut self) {
+        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        loop {
+            tokio::select! {
+                Some(entry) = self.receiver.recv() => {
+                    let web_entry = self.convert_log_entry(&entry);
+                    self.current_batch.push(web_entry);
+                    if self.current_batch.len() >= self.batch_size {
+                        if let Err(e) = self.flush().await {
+                            error!("Failed to flush logs: {}", e);
+                        }
+                    }
+                }
+                _ = interval.tick() => {
+                    if !self.current_batch.is_empty() {
+                        if let Err(e) = self.flush().await {
+                            error!("Failed to flush logs on interval: {}", e);
+                        }
+                    }
+                }
+                else => {
+                    // Channel closed, flush remaining logs and exit
+                    if !self.current_batch.is_empty() {
+                        if let Err(e) = self.flush().await {
+                            error!("Failed to flush logs on shutdown: {}", e);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    async fn flush(&mut self) -> Result<()> {
+        if self.current_batch.is_empty() {
+            return Ok(());
+        }
+
+        let json_payload = serde_json::to_string(&self.current_batch)
+            .context("Failed to serialize logs to JSON")?;
+
+        debug!(
+            "📤 Sending {} log entries to {}",
+            self.current_batch.len(),
+            self.endpoint
+        );
+
+        match self.send_logs_with_retry(&json_payload).await {
+            Ok(_) => {
+                info!(
+                    "✅ Successfully sent {} log entries",
+                    self.current_batch.len()
+                );
+                self.current_batch.clear();
+            }
+            Err(e) => {
+                error!("❌ Failed to send logs after retries: {}", e);
+                // Decide on error handling: clear the batch anyway or retry later
+                self.current_batch.clear();
+                return Err(e);
+            }
+        }
+
+        Ok(())
     }
 
     async fn send_logs_with_retry(&self, json_payload: &str) -> Result<()> {
@@ -99,10 +191,13 @@ impl WebOutput {
                 Ok(_) => return Ok(()),
                 Err(e) => {
                     last_error = Some(e);
-                    
+
                     if attempt < self.retry_attempts {
                         let delay = self.retry_delay * attempt;
-                        warn!("⚠️  Attempt {}/{} failed, retrying in {:?}", attempt, self.retry_attempts, delay);
+                        warn!(
+                            "⚠️  Attempt {}/{} failed, retrying in {:?}",
+                            attempt, self.retry_attempts, delay
+                        );
                         sleep(delay).await;
                     } else {
                         error!("❌ All {} attempts failed", self.retry_attempts);
@@ -115,17 +210,23 @@ impl WebOutput {
     }
 
     async fn send_logs_once(&self, json_payload: &str) -> Result<()> {
-        debug!("📡 POST {} (payload size: {} bytes) [stream: {}]", self.endpoint, json_payload.len(), self.stream_name);
+        debug!(
+            "📡 POST {} (payload size: {} bytes) [stream: {}]",
+            self.endpoint,
+            json_payload.len(),
+            self.stream_name
+        );
 
         let response = timeout(
             self.timeout_duration,
             self.client
                 .post(&self.endpoint)
                 .header("Content-Type", "application/json")
-                .basic_auth("root@example.com", Some("Complexpass#123"))
+                .basic_auth(&self.web_user, Some(&self.web_pass))
                 .body(json_payload.to_string())
-                .send()
-        ).await
+                .send(),
+        )
+        .await
         .context("HTTP request timed out")?
         .context("Failed to send HTTP request")?;
 
@@ -147,7 +248,6 @@ impl WebOutput {
     }
 
     fn convert_log_entry(&self, entry: &LogEntry) -> WebLogEntry {
-        // Strip ANSI escape codes from the message
         let cleaned_message_bytes = strip_ansi_escapes::strip(&entry.message);
         let cleaned_message = String::from_utf8_lossy(&cleaned_message_bytes).to_string();
 
@@ -155,8 +255,7 @@ impl WebOutput {
             timestamp: entry.timestamp
                 .map(|ts| ts.to_rfc3339())
                 .unwrap_or_else(|| Utc::now().to_rfc3339()),
-            level: extract_log_level(&cleaned_message)
-                .unwrap_or_else(|| "info".to_string()),
+            level: extract_log_level(&cleaned_message).unwrap_or_else(|| "info".to_string()),
             message: cleaned_message,
             service: extract_service_name(&entry.pod_name),
             pod_name: entry.pod_name.clone(),
@@ -169,44 +268,29 @@ impl WebOutput {
 #[async_trait]
 impl LogOutput for WebOutput {
     async fn send_log(&mut self, entry: &LogEntry) -> Result<()> {
-        let web_entry = self.convert_log_entry(entry);
-        self.current_batch.push(web_entry);
-
-        if self.current_batch.len() >= self.batch_size {
-            self.flush().await?;
-        }
-
-        Ok(())
+        self.sender
+            .send(entry.clone())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to send log to web output channel: {}", e))
     }
 
     async fn flush(&mut self) -> Result<()> {
-        if self.current_batch.is_empty() {
-            return Ok(());
-        }
-
-        // Send as array directly (matching your curl payload format)
-        let json_payload = serde_json::to_string(&self.current_batch)
-            .context("Failed to serialize logs to JSON")?;
-
-        debug!("📤 Sending {} log entries to {}", self.current_batch.len(), self.endpoint);
-
-        match self.send_logs_with_retry(&json_payload).await {
-            Ok(_) => {
-                info!("✅ Successfully sent {} log entries", self.current_batch.len());
-                self.current_batch.clear();
-            }
-            Err(e) => {
-                error!("❌ Failed to send logs after retries: {}", e);
-                self.current_batch.clear();
-                return Err(e);
-            }
-        }
-
         Ok(())
     }
 
     fn output_type(&self) -> &'static str {
         "web"
+    }
+}
+
+impl Drop for WebOutput {
+    fn drop(&mut self) {
+        if let Some(handle) = self.flush_handle.take() {
+            info!("Shutting down web output. Waiting for final log flush...");
+            drop(self.sender.clone());
+            tokio::runtime::Handle::current().block_on(handle);
+            info!("Web output shutdown complete.");
+        }
     }
 }
 
@@ -227,8 +311,6 @@ fn extract_log_level(message: &str) -> Option<String> {
 }
 
 fn extract_service_name(pod_name: &str) -> String {
-    // Extract service name from pod name by removing deployment suffix
-    // e.g., "web-api-deployment-7d4b8c9f6-x8k2m" -> "web-api"
     if let Some(deployment_pos) = pod_name.find("-deployment-") {
         pod_name[..deployment_pos].to_string()
     } else if let Some(dash_pos) = pod_name.rfind('-') {
