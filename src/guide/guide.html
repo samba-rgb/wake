@@ -429,10 +429,10 @@ wake "my-app" -i "error" --web</code></pre>
             <div class="card-header">
                 <h2>Advanced Log Filtering</h2>
             </div>
-            <div class="card-body"></div>
+            <div class="card-body">
                 <p>Wake supports advanced filtering to help you find exactly what you need.</p>
                 <pre><code># Include logs that contain "error" OR "warn"
-wake "my-app" -i '"error" || "warn"'""
+wake "my-app" -i '"error" || "warn"'
 
 # Exclude logs that contain "debug"
 wake "my-app" -e "debug"
