@@ -5,6 +5,7 @@ pub mod filter_manager;
 pub mod template_ui;
 pub mod monitor;
 pub mod monitor_ui;
+pub mod config_ui;
 
 use anyhow::Result;
 use crate::cli::Args;
@@ -23,4 +24,8 @@ pub async fn run_with_ui(
 
 pub async fn run_with_monitor_ui(args: Args) -> Result<()> {
     app::run_monitor_app(args).await
+}
+
+pub async fn run_with_config_ui() -> Result<()> {
+    config_ui::run_config_ui().await
 }

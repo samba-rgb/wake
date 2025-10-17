@@ -143,7 +143,7 @@ impl TemplateParser {
         } else if seconds >= 60 {
             format!("{}m", seconds / 60)
         } else {
-            format!("{}s", seconds)
+            format!("{seconds}s")
         }
     }
 
@@ -165,11 +165,11 @@ impl TemplateParser {
                 ));
                 
                 if let Some(ref default) = param.default_value {
-                    help.push_str(&format!("    Default: {}\n", default));
+                    help.push_str(&format!("    Default: {default}\n"));
                 }
                 
                 if let Some(ref regex) = param.validation_regex {
-                    help.push_str(&format!("    Format: {}\n", regex));
+                    help.push_str(&format!("    Format: {regex}\n"));
                 }
             }
             help.push('\n');
@@ -178,7 +178,7 @@ impl TemplateParser {
         if !template.required_tools.is_empty() {
             help.push_str("Required tools in pods:\n");
             for tool in &template.required_tools {
-                help.push_str(&format!("  - {}\n", tool));
+                help.push_str(&format!("  - {tool}\n"));
             }
             help.push('\n');
         }

@@ -34,7 +34,7 @@ pub async fn create_selector_for_resource(
             // Build a label selector string
             let selector_string = selectors
                 .iter()
-                .map(|(key, value)| format!("{}={}", key, value))
+                .map(|(key, value)| format!("{key}={value}"))
                 .collect::<Vec<_>>()
                 .join(",");
                 

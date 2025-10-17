@@ -217,7 +217,7 @@ impl TemplateExecutor {
         let ui_state_clone = ui_state.clone();
         let ui_task = tokio::spawn(async move {
             if let Err(e) = crate::ui::template_ui::run_template_ui(ui_state_clone, ui_rx).await {
-                eprintln!("UI error: {}", e);
+                eprintln!("UI error: {e}");
             }
         });
 
@@ -289,8 +289,8 @@ impl TemplateExecutor {
         let failed = pod_results.len() - successful;
         
         println!("\n📊 Execution Summary:");
-        println!("  ✅ Successful: {}", successful);
-        println!("  ❌ Failed: {}", failed);
+        println!("  ✅ Successful: {successful}");
+        println!("  ❌ Failed: {failed}");
         println!("  📁 Output: {}", execution.output_dir.display());
 
         Ok(TemplateExecutionResult {
@@ -479,7 +479,7 @@ impl TemplateExecutor {
                         .send(UIUpdate::CommandOutput {
                             pod_index,
                             command_index: cmd_index,
-                            output: format!("❌ Command failed: {}", e),
+                            output: format!("❌ Command failed: {e}"),
                         })
                         .await;
 
@@ -496,7 +496,7 @@ impl TemplateExecutor {
                             .send(UIUpdate::CommandOutput {
                                 pod_index,
                                 command_index: cmd_index,
-                                output: format!("⚠️ Command failed (ignored): {}", e),
+                                output: format!("⚠️ Command failed (ignored): {e}"),
                             })
                             .await;
 
@@ -789,7 +789,7 @@ impl TemplateExecutor {
             .send(UIUpdate::CommandOutput {
                 pod_index,
                 command_index,
-                output: format!("⏳ Waiting {} ({} seconds) locally...", duration_str, seconds),
+                output: format!("⏳ Waiting {duration_str} ({seconds} seconds) locally..."),
             })
             .await;
 
@@ -826,8 +826,7 @@ impl TemplateExecutor {
                         pod_index,
                         command_index,
                         output: format!(
-                            "⏳ [{}] {}% ({:02}:{:02} elapsed)",
-                            bar, progress_percent, elapsed_min, elapsed_sec
+                            "⏳ [{bar}] {progress_percent}% ({elapsed_min:02}:{elapsed_sec:02} elapsed)"
                         ),
                     })
                     .await;
@@ -836,7 +835,7 @@ impl TemplateExecutor {
 
         Ok(CommandResult {
             success: true,
-            stdout: format!("Waited {} seconds locally", seconds),
+            stdout: format!("Waited {seconds} seconds locally"),
             stderr: String::new(),
             exit_code: 0,
         })
@@ -845,12 +844,12 @@ impl TemplateExecutor {
     /// Handle wait command (console version)
     async fn handle_wait_command(&self, duration_str: &str) -> Result<CommandResult> {
         let seconds = self.parse_duration(duration_str)?;
-        println!("⏳ Waiting {} seconds locally...", seconds);
+        println!("⏳ Waiting {seconds} seconds locally...");
         sleep(Duration::from_secs(seconds)).await;
 
         Ok(CommandResult {
             success: true,
-            stdout: format!("Waited {} seconds locally", seconds),
+            stdout: format!("Waited {seconds} seconds locally"),
             stderr: String::new(),
             exit_code: 0,
         })
@@ -888,8 +887,7 @@ impl TemplateExecutor {
             .arg("sh")
             .arg("-c")
             .arg(format!(
-                "cd '{}' 2>/dev/null && find . -name '{}' -type f 2>/dev/null | head -100",
-                search_dir, filename_pattern
+                "cd '{search_dir}' 2>/dev/null && find . -name '{filename_pattern}' -type f 2>/dev/null | head -100"
             ));
 
         let output = kubectl_cmd.output().await?;
@@ -974,7 +972,7 @@ impl TemplateExecutor {
 
             // Replace template variables
             for (param_name, value) in &execution.arguments {
-                let placeholder = format!("{{{{{}}}}}", param_name);
+                let placeholder = format!("{{{{{param_name}}}}}");
                 resolved_arg = resolved_arg.replace(&placeholder, value);
             }
 

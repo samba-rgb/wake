@@ -126,6 +126,12 @@ pub struct HashLineCache {
     generation: usize,
 }
 
+impl Default for HashLineCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HashLineCache {
     pub fn new() -> Self {
         Self {
@@ -142,9 +148,7 @@ impl HashLineCache {
     fn normalize_message_for_ui(message: &str) -> String {
         // Replace all types of newlines and line separators with spaces
         let normalized = message
-            .replace('\n', " ")
-            .replace('\r', " ")
-            .replace('\t', " ");
+            .replace(['\n', '\r', '\t'], " ");
         
         // Collapse multiple consecutive spaces into single spaces
         let mut result = String::new();
@@ -270,11 +274,7 @@ impl HashLineCache {
         let clean_pod_name = Self::strip_ansi_codes(&entry.pod_name);
         let clean_container_name = Self::strip_ansi_codes(&entry.container_name);
 
-        format!("{}{}/{} {}", 
-            time_part,
-            clean_pod_name,
-            clean_container_name,
-            clean_message
+        format!("{time_part}{clean_pod_name}/{clean_container_name} {clean_message}"
         )
     }
 
@@ -368,7 +368,7 @@ impl DisplayManager {
             cache_generation: 0,
             pod_color_cache: HashMap::new(),
             container_color_cache: HashMap::new(),
-            dev_mode: dev_mode, // Set dev mode from parameter
+            dev_mode, // Set dev mode from parameter
             color_scheme,
             colors_enabled,
             enhanced_buffer_active: false, // Default to enhanced buffer expansion inactive
@@ -602,7 +602,7 @@ impl DisplayManager {
             namespace: "system".to_string(),
             pod_name: "wake".to_string(),
             container_name: "filter".to_string(),
-            message: format!("🔧 {}", message),
+            message: format!("🔧 {message}"),
             timestamp: Some(chrono::Utc::now()),
         };
         
@@ -650,7 +650,7 @@ impl DisplayManager {
                 10.0 // Default fallback
             };
             
-            self.add_system_log(&format!("⏸️ Follow mode disabled - Buffer expanded to {}x size for browsing", expansion));
+            self.add_system_log(&format!("⏸️ Follow mode disabled - Buffer expanded to {expansion}x size for browsing"));
         } else {
             // Currently paused -> switch to follow mode
             
@@ -704,8 +704,7 @@ impl DisplayManager {
             // Trim excess entries if buffer is over normal size
             let entries_to_remove = self.log_entries.len().saturating_sub(self.max_lines);
             if entries_to_remove > 0 {
-                self.add_system_log(&format!("📉 Trimming {} excess entries from enhanced buffer", 
-                    entries_to_remove));
+                self.add_system_log(&format!("📉 Trimming {entries_to_remove} excess entries from enhanced buffer"));
                 
                 // Remove from front to keep recent logs
                 for _ in 0..entries_to_remove {
@@ -916,7 +915,7 @@ impl DisplayManager {
             if selection.is_dragging {
                 selection.end_drag();
                 let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                self.add_system_log(&format!("📝 Hash selection complete: {} lines selected - Ctrl+C to copy", lines_selected));
+                self.add_system_log(&format!("📝 Hash selection complete: {lines_selected} lines selected - Ctrl+C to copy"));
                 return true;
             }
         }
@@ -940,7 +939,7 @@ impl DisplayManager {
                     }
                     
                     let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                    self.add_system_log(&format!("📝 Hash selection extended up: {} lines", lines_selected));
+                    self.add_system_log(&format!("📝 Hash selection extended up: {lines_selected} lines"));
                 }
             }
         }
@@ -964,7 +963,7 @@ impl DisplayManager {
                     }
                     
                     let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                    self.add_system_log(&format!("📝 Hash selection extended down: {} lines", lines_selected));
+                    self.add_system_log(&format!("📝 Hash selection extended down: {lines_selected} lines"));
                 }
             }
         }
@@ -1208,7 +1207,7 @@ impl DisplayManager {
                     selection.visual_end_line = start.max(end);
                     
                     let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-                    self.add_system_log(&format!("📝 Selection updated after scroll: {} lines visible", lines_selected));
+                    self.add_system_log(&format!("📝 Selection updated after scroll: {lines_selected} lines visible"));
                 }
                 (Some(visible), None) | (None, Some(visible)) => {
                     // Only one hash visible in current viewport - adjust selection
@@ -1361,7 +1360,7 @@ impl DisplayManager {
 
         let selection_text = if let Some(ref selection) = self.hash_selection {
             let lines_selected = (selection.visual_end_line - selection.visual_start_line) + 1;
-            format!(" │ 📝 {} selected", lines_selected)
+            format!(" │ 📝 {lines_selected} selected")
         } else {
             String::new()
         };
@@ -1422,9 +1421,9 @@ impl DisplayManager {
         };
 
         let memory_status_spans = vec![
-            Span::styled(format!("{} ", memory_icon), Style::default().fg(memory_color)),
+            Span::styled(format!("{memory_icon} "), Style::default().fg(memory_color)),
             Span::styled(
-                format!("Mem: {:.1}%", memory_percent), 
+                format!("Mem: {memory_percent:.1}%"), 
                 Style::default().fg(memory_color).add_modifier(Modifier::BOLD)
             ),
             Span::styled(filter_status, Style::default().fg(Color::Cyan)),
