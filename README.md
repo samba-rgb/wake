@@ -368,6 +368,30 @@ Wake intelligently handles filter changes:
 - **New logs only** - Filter changes only affect incoming logs
 - **Filter history** - Navigate through previously used patterns with arrow keys
 
+## 📖 Interactive Guide
+
+Wake includes a comprehensive interactive HTML guide to help you get started, explore features, and troubleshoot issues.
+
+- **How to open the guide:**
+  - Run `wake --guide` to open the guide in your default web browser.
+  - The guide is also available at `src/guide/guide.html` for direct viewing.
+
+- **What the guide covers:**
+  - Getting started with Wake
+  - All command-line arguments and usage examples
+  - TUI and Web View setup
+  - Advanced log filtering
+  - Monitoring and resource usage
+  - Running templates and scripts
+  - Configuration management
+  - Command history and search
+  - Support, bug reporting, and contact information
+
+- **Support:**
+  - The guide includes a section for raising issues on GitHub and contacting the author directly for help.
+
+Use the guide for a smooth onboarding experience and as a reference for all Wake features!
+
 ## Next Steps
 
 The following enhancements are planned for future versions:
@@ -626,4 +650,3 @@ wake -r sts/database --all-containers
 ## License
 
 MIT License
-````
