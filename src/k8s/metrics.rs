@@ -194,7 +194,7 @@ impl MetricsClient {
                 
                 // Find the pod in our list to get resource limits/requests
                 let pod = pods.iter().find(|p| {
-                    p.metadata.name.as_ref().is_some_and(|name| name == pod_name)
+                    p.metadata.name.as_ref().map_or(false, |name| name == pod_name)
                 });
                 
                 // Extract CPU metrics
@@ -241,29 +241,29 @@ impl MetricsClient {
             let namespace = if let Some(ns) = &pod.metadata.namespace {
                 ns
             } else {
-                wake_logger::debug(&format!("Pod {pod_name} has no namespace, using default"));
+                wake_logger::debug(&format!("Pod {} has no namespace, using default", pod_name));
                 "default"
             };
             
-            wake_logger::debug(&format!("Getting metrics for pod {namespace}/{pod_name}"));
+            wake_logger::debug(&format!("Getting metrics for pod {}/{}", namespace, pod_name));
             
             // Use the --containers flag to get per-container metrics
             let output = Command::new("kubectl")
                 .args(["top", "pod", pod_name, "-n", namespace, "--containers", "--no-headers"])
                 .output()
                 .map_err(|e| {
-                    wake_logger::error(&format!("Failed to execute kubectl top for pod {pod_name}: {e}"));
+                    wake_logger::error(&format!("Failed to execute kubectl top for pod {}: {}", pod_name, e));
                     anyhow!("Failed to execute kubectl top for pod {}: {}", pod_name, e)
                 })?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                wake_logger::error(&format!("kubectl top failed for pod {pod_name}: {stderr}"));
+                wake_logger::error(&format!("kubectl top failed for pod {}: {}", pod_name, stderr));
                 continue; // Skip this pod but continue processing others
             }
 
             let stdout = String::from_utf8_lossy(&output.stdout);
-            wake_logger::debug(&format!("kubectl top output for pod {pod_name}: {stdout}"));
+            wake_logger::debug(&format!("kubectl top output for pod {}: {}", pod_name, stdout));
             
             // Parse the output of kubectl top pod --containers
             // Output format: POD NAME     CONTAINER NAME     CPU(cores)   MEMORY(bytes)
@@ -279,7 +279,7 @@ impl MetricsClient {
                 
                 // If we have pod name included, need at least 4 fields
                 if fields.len() < 4 {
-                    wake_logger::debug(&format!("Line doesn't have enough fields, skipping: {line}"));
+                    wake_logger::debug(&format!("Line doesn't have enough fields, skipping: {}", line));
                     continue;
                 }
                 
@@ -289,7 +289,7 @@ impl MetricsClient {
                 // The container's memory will be in the fourth field (index 3)
                 let mem_str = fields[3];
                 
-                wake_logger::debug(&format!("Container metrics: CPU={cpu_str}, Memory={mem_str}"));
+                wake_logger::debug(&format!("Container metrics: CPU={}, Memory={}", cpu_str, mem_str));
                 
                 // Parse CPU usage
                 let cpu_value = if cpu_str.ends_with('m') {
@@ -297,7 +297,7 @@ impl MetricsClient {
                     match cpu_str[0..cpu_str.len()-1].parse::<f64>() {
                         Ok(v) => v,
                         Err(_) => {
-                            wake_logger::error(&format!("Failed to parse CPU value: {cpu_str}"));
+                            wake_logger::error(&format!("Failed to parse CPU value: {}", cpu_str));
                             continue;
                         }
                     }
@@ -306,7 +306,7 @@ impl MetricsClient {
                     match cpu_str.parse::<f64>() {
                         Ok(v) => v * 1000.0,
                         Err(_) => {
-                            wake_logger::error(&format!("Failed to parse CPU value: {cpu_str}"));
+                            wake_logger::error(&format!("Failed to parse CPU value: {}", cpu_str));
                             continue;
                         }
                     }
@@ -318,7 +318,7 @@ impl MetricsClient {
                     match mem_str[0..mem_str.len()-2].parse::<f64>() {
                         Ok(v) => v * 1024.0 * 1024.0,
                         Err(_) => {
-                            wake_logger::error(&format!("Failed to parse memory value: {mem_str}"));
+                            wake_logger::error(&format!("Failed to parse memory value: {}", mem_str));
                             continue;
                         }
                     }
@@ -327,7 +327,7 @@ impl MetricsClient {
                     match mem_str[0..mem_str.len()-2].parse::<f64>() {
                         Ok(v) => v * 1024.0,
                         Err(_) => {
-                            wake_logger::error(&format!("Failed to parse memory value: {mem_str}"));
+                            wake_logger::error(&format!("Failed to parse memory value: {}", mem_str));
                             continue;
                         }
                     }
@@ -336,7 +336,7 @@ impl MetricsClient {
                     match mem_str[0..mem_str.len()-2].parse::<f64>() {
                         Ok(v) => v * 1024.0 * 1024.0 * 1024.0,
                         Err(_) => {
-                            wake_logger::error(&format!("Failed to parse memory value: {mem_str}"));
+                            wake_logger::error(&format!("Failed to parse memory value: {}", mem_str));
                             continue;
                         }
                     }
@@ -345,7 +345,7 @@ impl MetricsClient {
                     match mem_str.parse::<f64>() {
                         Ok(v) => v,
                         Err(_) => {
-                            wake_logger::error(&format!("Failed to parse memory value: {mem_str}"));
+                            wake_logger::error(&format!("Failed to parse memory value: {}", mem_str));
                             continue;
                         }
                     }
@@ -359,7 +359,7 @@ impl MetricsClient {
             if containers_count > 0 {
                 // Create resource metrics for the pod by aggregating container metrics
                 let cpu = ResourceMetrics {
-                    usage: format!("{cpu_total} cores"),
+                    usage: format!("{} cores", cpu_total),
                     usage_value: cpu_total,
                     request: None, // We don't have this from kubectl top
                     limit: None,   // We don't have this from kubectl top
@@ -367,7 +367,7 @@ impl MetricsClient {
                 };
                 
                 let memory = ResourceMetrics {
-                    usage: format!("{mem_total} bytes"),
+                    usage: format!("{} bytes", mem_total),
                     usage_value: mem_total,
                     request: None, // We don't have this from kubectl top
                     limit: None,   // We don't have this from kubectl top
@@ -382,11 +382,12 @@ impl MetricsClient {
                     memory,
                 };
                 
-                wake_logger::debug(&format!("Created pod metrics for {pod_name}: CPU={cpu_total}, Memory={mem_total}"));
+                wake_logger::debug(&format!("Created pod metrics for {}: CPU={}, Memory={}", 
+                       pod_name, cpu_total, mem_total));
                 
                 result.insert(pod_name.to_string(), pod_metrics_entry);
             } else {
-                wake_logger::debug(&format!("No container metrics found for pod {pod_name}"));
+                wake_logger::debug(&format!("No container metrics found for pod {}", pod_name));
             }
         }
         
@@ -535,9 +536,9 @@ impl MetricsClient {
             };
         } else {
             // Replace the value in the original format
-            if let Some(value_idx) = usage_str.find(|c: char| c.is_ascii_digit()) {
-                let suffix = &usage_str[value_idx..].chars().skip_while(|c| c.is_ascii_digit() || *c == '.').collect::<String>();
-                usage_str = format!("{total_usage}{suffix}");
+            if let Some(value_idx) = usage_str.find(|c: char| c.is_digit(10)) {
+                let suffix = &usage_str[value_idx..].chars().skip_while(|c| c.is_digit(10) || *c == '.').collect::<String>();
+                usage_str = format!("{}{}", total_usage, suffix);
             }
         }
         
@@ -641,7 +642,7 @@ impl MetricsClient {
         pod_name: &str
     ) -> Result<HashMap<String, PodMetrics>> {
         // First check if metrics API is available before attempting to use it
-        if !self.metrics_api_available {
+        if (!self.metrics_api_available) {
             debug!("Metrics API not available, cannot fetch container metrics");
             return Err(anyhow!("Metrics API is not available"));
         }
@@ -671,7 +672,7 @@ impl MetricsClient {
                 std::time::Duration::from_secs(5), // 5 second timeout
                 async {
                     // Prepare URL to get metrics for a specific pod
-                    let url = format!("/apis/metrics.k8s.io/v1beta1/namespaces/{namespace}/pods/{pod_name}");
+                    let url = format!("/apis/metrics.k8s.io/v1beta1/namespaces/{}/pods/{}", namespace, pod_name);
                     
                     // Request metrics data for the specific pod
                     let request = http::Request::builder()
@@ -836,7 +837,7 @@ fn parse_quantity(quantity: &str) -> Option<f64> {
     
     let mut seen_digit = false;
     for c in quantity.chars() {
-        if c.is_ascii_digit() || c == '.' {
+        if c.is_digit(10) || c == '.' {
             numeric_part.push(c);
             seen_digit = true;
         } else if seen_digit {

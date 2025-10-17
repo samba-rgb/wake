@@ -16,7 +16,6 @@ use tracing::{info, debug, error, warn};
 
 /// Represents a single log entry from a container
 #[derive(Debug, Clone)]
-#[derive(Default)]
 pub struct LogEntry {
     pub namespace: String,
     pub pod_name: String,
@@ -25,6 +24,17 @@ pub struct LogEntry {
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+impl Default for LogEntry {
+    fn default() -> Self {
+        Self {
+            namespace: String::new(),
+            pod_name: String::new(),
+            container_name: String::new(),
+            message: String::new(),
+            timestamp: None,
+        }
+    }
+}
 
 /// Watches and streams logs from multiple pods/containers
 pub struct LogWatcher {
@@ -85,7 +95,7 @@ impl LogWatcher {
         // Fallback: Use first container (current behavior - always works)
         if let Some(first_container) = pod_info.containers.first() {
             info!("LOG_WATCHER: No clear default found, falling back to first container: {}", first_container);
-            first_container.clone()
+            return first_container.clone();
         } else {
             error!("LOG_WATCHER: No containers available in pod '{}', unable to determine default container", pod_info.name);
             panic!("No containers available in pod '{}'", pod_info.name);
@@ -177,15 +187,15 @@ impl LogWatcher {
         }
         
         // Only consider containers that appear in multiple pods
-        
-            
-        container_counts.into_iter()
+        let most_common = container_counts.into_iter()
             .filter(|(_, count)| *count > 1) // Must appear in at least 2 pods
             .max_by_key(|(_, count)| *count)
             .map(|(name, count)| {
                 debug!("Most common container: {} (appears {} times)", name, count);
                 name
-            })
+            });
+            
+        most_common
     }
 
     /// Starts streaming logs from all matching pods/containers with dynamic pod discovery
@@ -395,7 +405,7 @@ impl LogWatcher {
                     tx.clone(),
                 ).await;
                 
-                pod_tasks.insert(format!("{pod_key}/{default_container}"), task);
+                pod_tasks.insert(format!("{}/{}", pod_key, default_container), task);
             } else {
                 // Monitor all matching containers
                 for container_name in &pod_info.containers {
@@ -411,7 +421,7 @@ impl LogWatcher {
                         tx.clone(),
                     ).await;
                     
-                    pod_tasks.insert(format!("{pod_key}/{container_name}"), task);
+                    pod_tasks.insert(format!("{}/{}", pod_key, container_name), task);
                 }
             }
         }
@@ -508,7 +518,8 @@ impl LogWatcher {
                             namespace: namespace.to_string(),
                             pod_name: pod_name.to_string(),
                             container_name: container_name.to_string(),
-                            message: format!("🔄 Connection lost, retrying... (attempt {retry_count}/{MAX_RETRIES}) - {e}"),
+                            message: format!("🔄 Connection lost, retrying... (attempt {}/{}) - {}", 
+                                           retry_count, MAX_RETRIES, e),
                             timestamp: Some(chrono::Utc::now()),
                         };
                         
@@ -939,7 +950,7 @@ impl LogWatcher {
     ) -> Result<()> {
         let pod_name = pod.metadata.name.as_ref().ok_or_else(|| anyhow!("Pod has no name"))?;
         let pod_namespace = pod.metadata.namespace.as_ref().unwrap_or(&args.namespace);
-        let pod_key = format!("{pod_namespace}/{pod_name}");
+        let pod_key = format!("{}/{}", pod_namespace, pod_name);
         
         // Check if pod matches our criteria
         let pod_regex = args.pod_regex().context("Invalid pod selector regex")?;
@@ -1021,7 +1032,7 @@ impl LogWatcher {
                 tx.clone(),
             ).await;
             
-            pod_tasks.insert(format!("{pod_key}/{default_container}"), task);
+            pod_tasks.insert(format!("{}/{}", pod_key, default_container), task);
         } else {
             // Monitor all matching containers
             for container_name in &pod_info.containers {
@@ -1037,7 +1048,7 @@ impl LogWatcher {
                     tx.clone(),
                 ).await;
                 
-                pod_tasks.insert(format!("{pod_key}/{container_name}"), task);
+                pod_tasks.insert(format!("{}/{}", pod_key, container_name), task);
             }
         }
         
@@ -1054,7 +1065,7 @@ impl LogWatcher {
         let pod_name = pod.metadata.name.as_ref().ok_or_else(|| anyhow!("Pod has no name"))?;
         let default_namespace = "default".to_string();
         let pod_namespace = pod.metadata.namespace.as_ref().unwrap_or(&default_namespace);
-        let pod_key = format!("{pod_namespace}/{pod_name}");
+        let pod_key = format!("{}/{}", pod_namespace, pod_name);
         
         if known_pods.remove(&pod_key) {
             info!("WATCH_DISCOVERY: Pod deleted: {}", pod_key);
@@ -1064,7 +1075,8 @@ impl LogWatcher {
                 namespace: pod_namespace.clone(),
                 pod_name: pod_name.clone(),
                 container_name: "system".to_string(),
-                message: format!("🗑️ Pod deleted and removed from monitoring: {pod_namespace}/{pod_name}"),
+                message: format!("🗑️ Pod deleted and removed from monitoring: {}/{}", 
+                               pod_namespace, pod_name),
                 timestamp: Some(chrono::Utc::now()),
             };
             let _ = tx.send(deletion_entry).await;
@@ -1072,7 +1084,7 @@ impl LogWatcher {
             // Stop all tasks for this pod
             let mut tasks_to_remove = Vec::new();
             for (task_key, task) in pod_tasks.iter() {
-                if task_key.starts_with(&format!("{pod_key}/")) {
+                if task_key.starts_with(&format!("{}/", pod_key)) {
                     task.abort();
                     tasks_to_remove.push(task_key.clone());
                 }

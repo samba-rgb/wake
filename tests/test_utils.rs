@@ -25,7 +25,7 @@ use std::fs;
 pub fn load_fixture(name: &str) -> String {
     let fixture_path = Path::new("tests/common/fixtures").join(name);
     fs::read_to_string(fixture_path)
-        .unwrap_or_else(|_| panic!("Failed to load test fixture: {name}"))
+        .unwrap_or_else(|_| panic!("Failed to load test fixture: {}", name))
 }
 
 /// Set up a test environment with common configuration
@@ -70,7 +70,7 @@ pub fn teardown_test_env() {
 /// tests that need to work with files
 #[allow(dead_code)]
 pub fn create_test_dir(prefix: &str) -> std::path::PathBuf {
-    let temp_dir = std::env::temp_dir().join(format!("wake_test_{prefix}"));
+    let temp_dir = std::env::temp_dir().join(format!("wake_test_{}", prefix));
     fs::create_dir_all(&temp_dir).expect("Failed to create test directory");
     temp_dir
 }

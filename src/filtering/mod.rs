@@ -23,7 +23,7 @@ impl FilterPattern {
         let tokens = FilterPattern::tokenize(pattern)?;
         let (pat, rest) = FilterPattern::parse_expr(&tokens)?;
         if !rest.is_empty() {
-            return Err(format!("Unexpected tokens: {rest:?}"));
+            return Err(format!("Unexpected tokens: {:?}", rest));
         }
         Ok(pat)
     }
@@ -52,7 +52,7 @@ impl FilterPattern {
                         if ch == '"' { chars.next(); break; }
                         s.push(ch); chars.next();
                     }
-                    tokens.push(format!("\"{s}\""));
+                    tokens.push(format!("\"{}\"", s));
                 },
                 _ => {
                     // regex or word
@@ -115,7 +115,7 @@ impl FilterPattern {
             },
             Some(t) => {
                 // treat as regex
-                let re = Regex::new(t).map_err(|e| format!("Invalid regex '{t}': {e}"))?;
+                let re = Regex::new(t).map_err(|e| format!("Invalid regex '{}': {}", t, e))?;
                 Ok((FilterPattern::Simple(re), &tokens[1..]))
             },
             None => Err("Unexpected end of pattern".to_string()),
@@ -139,7 +139,6 @@ pub struct LogFilter {
     include_pattern: Option<Arc<FilterPattern>>,
     exclude_pattern: Option<Arc<FilterPattern>>,
     thread_pool: ThreadPool,
-    number_of_threads: usize,
 }
 
 impl LogFilter {
@@ -162,7 +161,6 @@ impl LogFilter {
             include_pattern: include_arc,
             exclude_pattern: exclude_arc,
             thread_pool,
-            number_of_threads: num_threads
         }
     }
 
@@ -247,67 +245,4 @@ impl LogFilter {
         let cpu_count = num_cpus::get();
         std::cmp::max(2, cpu_count)
     }
-
-    /// Start filtering with multiple async tasks, each using the same thread pool.
-    /// Each log entry is sent to only one async task.
-    pub fn start_filtering2(&self, mut input_rx: tokio::sync::mpsc::Receiver<LogEntry>) -> tokio::sync::mpsc::Receiver<LogEntry> {
-        let (output_tx, output_rx) = tokio::sync::mpsc::channel(1024);
-        let thread_pool = self.thread_pool.clone();
-        let include_pattern = self.include_pattern.clone();
-        let exclude_pattern = self.exclude_pattern.clone();
-        let num_tasks = self.number_of_threads;
-        // Create N channels, one for each async task
-        let mut task_channels = Vec::new();
-        for _ in 0..num_tasks {
-            let (tx, rx) = tokio::sync::mpsc::channel(256);
-            task_channels.push((tx, rx));
-        }
-        // Clone senders for dispatcher
-        let senders: Vec<_> = task_channels.iter().map(|(tx, _)| tx.clone()).collect();
-        // Dispatcher: distributes log entries round-robin to async tasks
-        tokio::spawn(async move {
-            let mut idx = 0;
-            let mut entry_count = 0;
-            while let Some(entry) = input_rx.recv().await {
-                let tx = &senders[idx % num_tasks];
-                let _ = tx.send(entry).await;
-                idx += 1;
-                entry_count += 1;
-                if entry_count % 1000 == 0 {
-                    idx = 0;
-                }
-            }
-        });
-        // Each async task reads from its own channel and uses the shared thread pool
-        for (_, mut rx) in task_channels {
-            let thread_pool = thread_pool.clone();
-            let include_pattern = include_pattern.clone();
-            let exclude_pattern = exclude_pattern.clone();
-            let output_tx = output_tx.clone();
-            tokio::spawn(async move {
-                while let Some(entry) = rx.recv().await {
-                    let output_tx = output_tx.clone();
-                    let include_clone = include_pattern.clone();
-                    let exclude_clone = exclude_pattern.clone();
-                    thread_pool.execute(move || {
-                        let should_include = match &include_clone {
-                            Some(pattern) => pattern.matches(&entry.message),
-                            _ => true,
-                        };
-                        let should_exclude = match &exclude_clone {
-                            Some(pattern) => pattern.matches(&entry.message),
-                            _ => false,
-                        };
-                        if should_include && !should_exclude {
-                            let _ = output_tx.blocking_send(entry);
-                        }
-                    });
-                }
-            });
-        }
-        output_rx
-    }
 }
-
-
-

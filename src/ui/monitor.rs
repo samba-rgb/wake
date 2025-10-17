@@ -196,7 +196,7 @@ impl MonitorState {
 
     /// Get the metrics for a container
     pub fn get_metrics(&self, pod_name: &str, container_name: &str) -> Option<&ContainerMetrics> {
-        let key = format!("{pod_name}/{container_name}");
+        let key = format!("{}/{}", pod_name, container_name);
         self.usage_data.get(&key)
     }
 }
@@ -209,7 +209,7 @@ fn detect_metrics_source(state: &MonitorState) -> MetricsSource {
     }
     
     // Take any metrics entry and check if disk and network metrics are all zeros
-    for metrics in state.usage_data.values() {
+    for (_, metrics) in &state.usage_data {
         if metrics.disk_read > 0.0 || metrics.disk_write > 0.0 || 
            metrics.net_rx > 0.0 || metrics.net_tx > 0.0 {
             return MetricsSource::Full; // We have disk or network metrics
@@ -234,7 +234,7 @@ pub fn render_monitor(f: &mut Frame, state: &MonitorState, area: Rect) {
         .split(area);
 
     // Render the tabs
-    let titles = ["Overview", "Details"];
+    let titles = vec!["Overview", "Details"];
     let tabs = Tabs::new(
         titles.iter().map(|t| {
             Line::from(vec![Span::styled(*t, Style::default().fg(Color::White))])
@@ -380,7 +380,7 @@ fn render_overview_charts(f: &mut Frame, state: &MonitorState, area: Rect, pod: 
             .split(area);
         
         // Container title with navigation hints
-        let container_title = format!("Container: {container_name} (↑/↓ to change)");
+        let container_title = format!("Container: {} (↑/↓ to change)", container_name);
         let title_block = Block::default()
             .borders(Borders::ALL)
             .title(container_title);
@@ -525,7 +525,7 @@ fn render_mini_memory_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod
             let chart = Chart::new(dataset)
                 .block(
                     Block::default()
-                        .title(format!("Memory: {memory_mb:.2}MB"))
+                        .title(format!("Memory: {:.2}MB", memory_mb))
                         .borders(Borders::ALL)
                 )
                 .x_axis(
@@ -548,7 +548,7 @@ fn render_mini_memory_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod
     // If no history available yet, fall back to a simple display
     if let Some(metrics) = metrics {
         let memory_mb = metrics.memory_usage / (1024.0 * 1024.0);
-        let message = format!("Memory: {memory_mb:.2}MB\n\nCollecting data...");
+        let message = format!("Memory: {:.2}MB\n\nCollecting data...", memory_mb);
         let message_widget = ratatui::widgets::Paragraph::new(message)
             .style(Style::default().fg(Color::Blue))
             .alignment(ratatui::layout::Alignment::Center)
@@ -665,9 +665,11 @@ fn render_metrics_table(f: &mut Frame, state: &MonitorState, area: Rect, pod: &P
     f.render_widget(metrics_list, chunks[0]);
 
     // Container details
-    let details_info = [format!("Container Name: {container_name}"),
+    let details_info = vec![
+        format!("Container Name: {}", container_name),
         format!("Pod Name: {}", pod.name),
-        format!("Namespace: {}", pod.namespace)];
+        format!("Namespace: {}", pod.namespace),
+    ];
 
     let details_items: Vec<ListItem> = details_info.iter()
         .map(|info| ListItem::new(info.clone()))
@@ -848,7 +850,7 @@ fn render_memory_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &Po
             let chart = Chart::new(dataset)
                 .block(
                     Block::default()
-                        .title(format!("Memory Usage (MB) - Current: {memory_mb:.2} MB"))
+                        .title(format!("Memory Usage (MB) - Current: {:.2} MB", memory_mb))
                         .title_style(Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))
                         .borders(Borders::ALL)
                 )
@@ -874,7 +876,7 @@ fn render_memory_chart(f: &mut Frame, area: Rect, state: &MonitorState, pod: &Po
     // Fallback to simple display if no history or metrics are available
     let message = if metrics.is_some() {
         let memory_mb = metrics.unwrap().memory_usage / (1024.0 * 1024.0);
-        format!("Memory Usage: {memory_mb:.2} MB\n\nCollecting data...")
+        format!("Memory Usage: {:.2} MB\n\nCollecting data...", memory_mb)
     } else {
         "No memory metrics available".to_string()
     };
@@ -1012,7 +1014,7 @@ pub async fn run_monitor_loop(
     
     loop {
         // Check for shutdown signal
-        if shutdown_rx.try_recv().is_ok() {
+        if let Ok(_) = shutdown_rx.try_recv() {
             break;
         }
         
@@ -1064,7 +1066,7 @@ pub async fn run_monitor_loop_with_shared_state(
             client
         },
         Err(e) => {
-            wake_logger::error(&format!("Failed to create Kubernetes client: {e}"));
+            wake_logger::error(&format!("Failed to create Kubernetes client: {}", e));
             return Err(anyhow::anyhow!("Failed to create Kubernetes client"));
         }
     };
@@ -1078,7 +1080,7 @@ pub async fn run_monitor_loop_with_shared_state(
             client
         },
         Err(e) => {
-            wake_logger::error(&format!("Failed to create metrics client: {e}"));
+            wake_logger::error(&format!("Failed to create metrics client: {}", e));
             return Err(anyhow::anyhow!("Failed to create metrics client"));
         }
     };
@@ -1087,7 +1089,7 @@ pub async fn run_monitor_loop_with_shared_state(
     
     loop {
         // Check for shutdown signal
-        if shutdown_rx.try_recv().is_ok() {
+        if let Ok(_) = shutdown_rx.try_recv() {
             wake_logger::info("Received shutdown signal, exiting metrics collection loop");
             break;
         }
@@ -1233,13 +1235,13 @@ pub async fn run_monitor_loop_with_shared_state(
                                 Ok(output) => {
                                     if output.status.success() {
                                         let stdout = String::from_utf8_lossy(&output.stdout);
-                                        wake_logger::info(&format!("Direct kubectl output: {stdout}"));
+                                        wake_logger::info(&format!("Direct kubectl output: {}", stdout));
                                     } else {
                                         let stderr = String::from_utf8_lossy(&output.stderr);
-                                        wake_logger::error(&format!("Direct kubectl command failed: {stderr}"));
+                                        wake_logger::error(&format!("Direct kubectl command failed: {}", stderr));
                                     }
                                 },
-                                Err(e) => wake_logger::error(&format!("Failed to run direct kubectl command: {e}")),
+                                Err(e) => wake_logger::error(&format!("Failed to run direct kubectl command: {}", e)),
                             }
                         }
                     }
@@ -1252,7 +1254,7 @@ pub async fn run_monitor_loop_with_shared_state(
                     }
                 },
                 Err(e) => {
-                    wake_logger::error(&format!("Failed to get pod metrics: {e}"));
+                    wake_logger::error(&format!("Failed to get pod metrics: {}", e));
                     
                     // Try running kubectl top directly for all pods to see output
                     let direct_output = std::process::Command::new("kubectl")
@@ -1263,13 +1265,13 @@ pub async fn run_monitor_loop_with_shared_state(
                         Ok(output) => {
                             if output.status.success() {
                                 let stdout = String::from_utf8_lossy(&output.stdout);
-                                wake_logger::info(&format!("Direct kubectl top pods output: {stdout}"));
+                                wake_logger::info(&format!("Direct kubectl top pods output: {}", stdout));
                             } else {
                                 let stderr = String::from_utf8_lossy(&output.stderr);
-                                wake_logger::error(&format!("Direct kubectl top pods failed: {stderr}"));
+                                wake_logger::error(&format!("Direct kubectl top pods failed: {}", stderr));
                             }
                         },
-                        Err(e) => wake_logger::error(&format!("Failed to run direct kubectl top pods: {e}")),
+                        Err(e) => wake_logger::error(&format!("Failed to run direct kubectl top pods: {}", e)),
                     }
                     
                     // Fallback to dummy data if metrics API fails
@@ -1353,7 +1355,7 @@ pub async fn start_monitor(args: &crate::cli::Args, pod_infos: Vec<crate::k8s::p
     let state_clone = state.clone();
     let metrics_handle = tokio::spawn(async move {
         if let Err(e) = run_monitor_loop_with_shared_state(state_clone, shutdown_rx).await {
-            wake_logger::error(&format!("Error in metrics collection: {e}"));
+            wake_logger::error(&format!("Error in metrics collection: {}", e));
         }
     });
 

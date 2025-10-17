@@ -128,11 +128,11 @@ pub async fn run_app(
         } else {
             // Generate timestamp-based filename
             let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-            format!("wake_{timestamp}.log")
+            format!("wake_{}.log", timestamp)
         };
         
         info!("UI mode: Autosave enabled - writing logs to: {}", autosave_path);
-        display_manager.add_system_log(&format!("💾 Autosave enabled: {autosave_path}"));
+        display_manager.add_system_log(&format!("💾 Autosave enabled: {}", autosave_path));
         
         Some(Box::new(OpenOptions::new()
             .create(true)
@@ -302,7 +302,7 @@ pub async fn run_app(
                                     // Show an alert dialog for invalid pattern
                                     // display_manager.show_popup_alert(frame, message);
                                     // Log the error message using formatted string
-                                    display_manager.add_system_log(&format!("Invalid include filter pattern: {e}"));
+                                    display_manager.add_system_log(&format!("Invalid include filter pattern: {}", e));
                                     None
                                 } else {
                                     Some(pattern.clone())
@@ -318,7 +318,7 @@ pub async fn run_app(
                                     let filter_msg = if pattern.is_empty() {
                                         "── Filter cleared: showing all new logs ──".to_string()
                                     } else {
-                                        format!("── Filter applied: {pattern} (affects new logs only) ──")
+                                        format!("── Filter applied: {} (affects new logs only) ──", pattern)
                                     };
                                     display_manager.add_system_log(&filter_msg);
                                     info!("Include filter updated: {:?}", pattern_opt);
@@ -328,14 +328,14 @@ pub async fn run_app(
                                 let pattern_opt = if pattern.is_empty() { None } else { Some(pattern.clone()) };
                                 if let Err(e) = filter_manager.update_exclude_pattern(pattern_opt.clone()).await {
                                     // Log the error message using formatted string for exclude filter
-                                    display_manager.add_system_log(&format!("Invalid exclude filter pattern: {e}"));
+                                    display_manager.add_system_log(&format!("Invalid exclude filter pattern: {}", e));
                                     error!("Failed to update exclude pattern: {}", e);
                                 } else {
                                     // Add a filter change notification to the display (old logs remain)
                                     let filter_msg = if pattern.is_empty() {
                                         "── Exclude filter cleared: showing all new logs ──".to_string()
                                     } else {
-                                        format!("── Exclude filter applied: {pattern} (affects new logs only) ──")
+                                        format!("── Exclude filter applied: {} (affects new logs only) ──", pattern)
                                     };
                                     display_manager.add_system_log(&filter_msg);
                                     info!("Exclude filter updated: {:?}", pattern_opt);
@@ -378,13 +378,15 @@ pub async fn run_app(
                                             Ok(()) => {
                                                 let lines_copied = logs_text.lines().count();
                                                 display_manager.add_system_log(&format!(
-                                                    "── Copied {lines_copied} visible log lines to clipboard ──"
+                                                    "── Copied {} visible log lines to clipboard ──", 
+                                                    lines_copied
                                                 ));
                                                 info!("Successfully copied {} lines to clipboard", lines_copied);
                                             }
                                             Err(e) => {
                                                 display_manager.add_system_log(&format!(
-                                                    "── Failed to copy to clipboard: {e} ──"
+                                                    "── Failed to copy to clipboard: {} ──", 
+                                                    e
                                                 ));
                                                 error!("Failed to copy to clipboard: {}", e);
                                             }
@@ -392,7 +394,8 @@ pub async fn run_app(
                                     }
                                     Err(e) => {
                                         display_manager.add_system_log(&format!(
-                                            "── Failed to initialize clipboard: {e} ──"
+                                            "── Failed to initialize clipboard: {} ──", 
+                                            e
                                         ));
                                         error!("Failed to initialize clipboard: {}", e);
                                     }
@@ -410,7 +413,8 @@ pub async fn run_app(
                                                 Ok(()) => {
                                                     let lines_copied = selected_text.lines().count();
                                                     display_manager.add_system_log(&format!(
-                                                        "── Copied {lines_copied} selected lines to clipboard ──"
+                                                        "── Copied {} selected lines to clipboard ──", 
+                                                        lines_copied
                                                     ));
                                                     info!("Successfully copied {} selected lines to clipboard", lines_copied);
                                                     // Clear selection after copying
@@ -418,7 +422,8 @@ pub async fn run_app(
                                                 }
                                                 Err(e) => {
                                                     display_manager.add_system_log(&format!(
-                                                        "── Failed to copy selection to clipboard: {e} ──"
+                                                        "── Failed to copy selection to clipboard: {} ──", 
+                                                        e
                                                     ));
                                                     error!("Failed to copy selection to clipboard: {}", e);
                                                 }
@@ -426,7 +431,8 @@ pub async fn run_app(
                                         }
                                         Err(e) => {
                                             display_manager.add_system_log(&format!(
-                                                "── Failed to initialize clipboard: {e} ──"
+                                                "── Failed to initialize clipboard: {} ──", 
+                                                e
                                             ));
                                             error!("Failed to initialize clipboard: {}", e);
                                         }
@@ -442,13 +448,15 @@ pub async fn run_app(
                                                 Ok(()) => {
                                                     let lines_copied = logs_text.lines().count();
                                                     display_manager.add_system_log(&format!(
-                                                        "── Copied {lines_copied} visible log lines to clipboard ──"
+                                                        "── Copied {} visible log lines to clipboard ──", 
+                                                        lines_copied
                                                     ));
                                                     info!("Successfully copied {} lines to clipboard", lines_copied);
                                                 }
                                                 Err(e) => {
                                                     display_manager.add_system_log(&format!(
-                                                        "── Failed to copy to clipboard: {e} ──"
+                                                        "── Failed to copy to clipboard: {} ──", 
+                                                        e
                                                     ));
                                                     error!("Failed to copy to clipboard: {}", e);
                                                 }
@@ -456,7 +464,8 @@ pub async fn run_app(
                                         }
                                         Err(e) => {
                                             display_manager.add_system_log(&format!(
-                                                "── Failed to initialize clipboard: {e} ──"
+                                                "── Failed to initialize clipboard: {} ──", 
+                                                e
                                             ));
                                             error!("Failed to initialize clipboard: {}", e);
                                         }
@@ -509,7 +518,7 @@ pub async fn run_app(
                         }
                         
                         // Schedule render for next frame instead of immediate render
-                        last_render = std::time::Instant::now().checked_sub(render_interval).unwrap_or_else(std::time::Instant::now);
+                        last_render = std::time::Instant::now().checked_sub(render_interval).unwrap_or_else(|| std::time::Instant::now());
                     }
                 },
                 Event::Mouse(mouse_event) => {
@@ -615,7 +624,7 @@ pub async fn run_app(
                 if let Some(ref mut file_writer) = file_writer {
                     if let Some(ref formatter) = formatter {
                         if let Some(formatted) = formatter.format_without_filtering(&entry) {
-                            if let Err(e) = writeln!(file_writer, "{formatted}") {
+                            if let Err(e) = writeln!(file_writer, "{}", formatted) {
                                 error!("Failed to write to output file: {:?}", e);
                             } else {
                                 let _ = file_writer.flush();
@@ -628,7 +637,7 @@ pub async fn run_app(
                 if let Some(ref mut autosave_writer) = autosave_writer {
                     let formatter = crate::output::Formatter::new(&args);
                     if let Some(formatted) = formatter.format_without_filtering(&entry) {
-                        if let Err(e) = writeln!(autosave_writer, "{formatted}") {
+                        if let Err(e) = writeln!(autosave_writer, "{}", formatted) {
                             error!("Failed to write to autosave file: {:?}", e);
                             // Continue processing even if autosave fails
                         } else {
@@ -653,7 +662,8 @@ pub async fn run_app(
                             format!("🔄 Buffer full: {} logs saved to file, {} display entries skipped. Press 'f' to resume or scroll to bottom", 
                                    logs_inserted + logs_skipped, logs_skipped)
                         } else {
-                            format!("⚠️ Buffer full: {logs_skipped} logs LOST! Consider: 1) Press 'f' to resume 2) Use -w flag for file output 3) Increase --buffer-size")
+                            format!("⚠️ Buffer full: {} logs LOST! Consider: 1) Press 'f' to resume 2) Use -w flag for file output 3) Increase --buffer-size", 
+                                   logs_skipped)
                         };
                         
                         display_manager.add_system_log(&guidance_msg);
@@ -663,7 +673,8 @@ pub async fn run_app(
                 } else {
                     // Not at full capacity but still skipping - this shouldn't happen
                     display_manager.add_system_log(&format!(
-                        "🔍 Unexpected: {logs_skipped} logs skipped at {memory_usage}% capacity - this may indicate a logic issue"
+                        "🔍 Unexpected: {} logs skipped at {}% capacity - this may indicate a logic issue", 
+                        logs_skipped, memory_usage
                     ));
                 }
             }
@@ -674,9 +685,11 @@ pub async fn run_app(
             // **IMPROVED LOGGING**: More informative status when skipping logs
             if logs_skipped > 0 && logs_skipped % 100 == 0 {
                 let status_msg = if display_manager.file_output_mode {
-                    format!("UI: Buffer management active - {logs_inserted} inserted to display, {logs_skipped} saved to file only")
+                    format!("UI: Buffer management active - {} inserted to display, {} saved to file only", 
+                           logs_inserted, logs_skipped)
                 } else {
-                    format!("UI: WARNING - {logs_skipped} logs lost due to full buffer, {logs_inserted} inserted to display")
+                    format!("UI: WARNING - {} logs lost due to full buffer, {} inserted to display", 
+                           logs_skipped, logs_inserted)
                 };
                 info!("{}", status_msg);
             }
@@ -805,7 +818,7 @@ async fn get_pod_resource_usage(
     
     // Use kubectl top pod to get resource usage
     let output = Command::new("kubectl")
-        .args(["top", "pod", pod_name, "-n", namespace, "--containers", "--no-headers"])
+        .args(&["top", "pod", pod_name, "-n", namespace, "--containers", "--no-headers"])
         .output()?;
     
     if !output.status.success() {
@@ -848,13 +861,13 @@ async fn get_pod_resource_usage(
             let mem_str = parts[3]; // Using index 3 for memory in the container case
             
             // Better memory parsing to handle all formats (Ki, Mi, Gi, etc.)
-            
+            let mem_value: f64;
             let mem_unit = mem_str.chars()
-                .skip_while(|c| c.is_ascii_digit() || *c == '.')
+                .skip_while(|c| c.is_digit(10) || *c == '.')
                 .collect::<String>();
             
             let mem_number = mem_str.chars()
-                .take_while(|c| c.is_ascii_digit() || *c == '.')
+                .take_while(|c| c.is_digit(10) || *c == '.')
                 .collect::<String>()
                 .parse::<f64>()
                 .unwrap_or_else(|_| {
@@ -863,7 +876,7 @@ async fn get_pod_resource_usage(
                 });
                 
             // Convert to MB based on unit
-            let mem_value: f64 = match mem_unit.as_str() {
+            mem_value = match mem_unit.as_str() {
                 "Ki" => mem_number / 1024.0,
                 "Mi" => mem_number,
                 "Gi" => mem_number * 1024.0,
@@ -910,13 +923,13 @@ async fn get_pod_resource_usage(
             let mem_str = parts[2];
             
             // Better memory parsing to handle all formats
-            
+            let mem_value: f64;
             let mem_unit = mem_str.chars()
-                .skip_while(|c| c.is_ascii_digit() || *c == '.')
+                .skip_while(|c| c.is_digit(10) || *c == '.')
                 .collect::<String>();
             
             let mem_number = mem_str.chars()
-                .take_while(|c| c.is_ascii_digit() || *c == '.')
+                .take_while(|c| c.is_digit(10) || *c == '.')
                 .collect::<String>()
                 .parse::<f64>()
                 .unwrap_or_else(|_| {
@@ -925,7 +938,7 @@ async fn get_pod_resource_usage(
                 });
                 
             // Convert to MB based on unit
-            let mem_value: f64 = match mem_unit.as_str() {
+            mem_value = match mem_unit.as_str() {
                 "Ki" => mem_number / 1024.0,
                 "Mi" => mem_number,
                 "Gi" => mem_number * 1024.0,

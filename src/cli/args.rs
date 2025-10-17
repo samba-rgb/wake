@@ -137,7 +137,7 @@ pub struct Args {
     pub output_file: Option<PathBuf>,
 
     /// Use specific resource type filter (pod, deployment, statefulset)
-    #[arg(short, long)]
+    #[arg(short = 'r', long)]
     pub resource: Option<String>,
 
     /// Custom template for log output
@@ -227,21 +227,21 @@ pub struct Args {
     /// • Command history automatically saved (last 150 commands)
     #[arg(long = "his", value_name = "QUERY", help = "Show command history or search for commands with intelligent TF-IDF search (e.g., --his \"error logs\")", num_args = 0..=1, default_missing_value = "")]
     pub history: Option<String>,
-
-    /// Enable web mode - send logs to HTTP endpoint instead of terminal
-    #[arg(long, help = "Send filtered logs to web endpoint via HTTP")]
-    pub web: bool,
-
-    /// Show interactive guide or help content
-    #[arg(long, help = "Display interactive guide and help content")]
-    pub guide: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
-    /// Configure Wake settings with interactive UI
+    /// Configure Wake settings
     #[command(name = "setconfig")]
-    SetConfig,
+    SetConfig {
+        /// Configuration key to set
+        key: String,
+        /// Configuration value to set
+        value: String,
+        /// Optional configuration parameter (e.g., path for autosave)
+        #[arg(short, long)]
+        path: Option<String>,
+    },
     /// Display current Wake configuration
     #[command(name = "getconfig")]
     GetConfig {
@@ -327,8 +327,6 @@ impl Default for Args {
             history: None, // Default to None
             monitor: false, // Default to false
             metrics_source: "kubectl".to_string(), // Default to kubectl
-            web: false, // Default to false
-            guide: false, // Default to false
         }
     }
 }
