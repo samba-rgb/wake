@@ -5,6 +5,8 @@ use anyhow::{Result, Context, anyhow};
 use directories::ProjectDirs;
 use std::collections::VecDeque;
 use chrono::{DateTime, Utc};
+use tracing::{debug, error, info, warn};
+
 
 // Default web credentials constants
 const DEFAULT_WEB_USER: &str = "root@example.com";
@@ -140,7 +142,7 @@ impl Config {
         fs::write(&config_path, content)
             .context("Failed to write config file")?;
         
-        println!("Configuration saved to: {}", config_path.display());
+        info!("Configuration saved to: {}", config_path.display());
         Ok(())
     }
     
