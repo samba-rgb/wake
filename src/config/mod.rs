@@ -6,16 +6,11 @@ use directories::ProjectDirs;
 use std::collections::VecDeque;
 use chrono::{DateTime, Utc};
 
-// Default web credentials constants
-const DEFAULT_WEB_USER: &str = "root@example.com";
-const DEFAULT_WEB_PASSWORD: &str = "Complexpass#123";
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub autosave: AutosaveConfig,
     pub ui: UiConfig,
     pub history: HistoryConfig,
-    pub web: WebConfig,
     // Args defaultable fields
     pub pod_selector: Option<String>,
     pub container: Option<String>,
@@ -28,7 +23,6 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
 pub struct AutosaveConfig {
     pub enabled: bool,
     pub path: Option<String>,
@@ -55,15 +49,14 @@ pub struct HistoryConfig {
     pub commands: VecDeque<CommandHistoryEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WebConfig {
-    pub endpoint: Option<String>,
-    pub batch_size: usize,
-    pub timeout_seconds: u64,
-    pub user: Option<String>,
-    pub password: Option<String>,
+impl Default for AutosaveConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            path: None,
+        }
+    }
 }
-
 
 impl Default for UiConfig {
     fn default() -> Self {
@@ -81,18 +74,6 @@ impl Default for HistoryConfig {
             enabled: true,
             max_entries: 150,
             commands: VecDeque::new(),
-        }
-    }
-}
-
-impl Default for WebConfig {
-    fn default() -> Self {
-        Self {
-            endpoint: Some("http://localhost:5080".to_string()),
-            batch_size: 10,
-            timeout_seconds: 30,
-            user: Some(DEFAULT_WEB_USER.to_string()),
-            password: Some(DEFAULT_WEB_PASSWORD.to_string()),
         }
     }
 }
@@ -124,7 +105,7 @@ impl Config {
         match toml::from_str::<Config>(&content) {
             Ok(config) => Ok(config),
             Err(e) => {
-                eprintln!("⚠️  Warning: Failed to parse config file ({e}). Using defaults.");
+                eprintln!("⚠️  Warning: Failed to parse config file ({}). Using defaults.", e);
                 Ok(Self::default())
             }
         }
@@ -178,7 +159,7 @@ impl Config {
         } else {
             // Generate timestamp-based filename
             let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-            Some(format!("wake_{timestamp}.log"))
+            Some(format!("wake_{}.log", timestamp))
         }
     }
     
@@ -253,61 +234,7 @@ impl Config {
             "buffer_size" => {
                 self.buffer_size = Some(value.parse::<usize>().map_err(|_| anyhow!("Invalid buffer_size value: '{}'. Must be an integer.", value))?);
             }
-            "web.endpoint" => {
-                self.web.endpoint = if value.is_empty() || value == "<not-set>" || value == "reset" {
-                    // Reset to default
-                    Some("http://localhost:5080".to_string())
-                } else {
-                    // Validate URL format
-                    if !value.starts_with("http://") && !value.starts_with("https://") {
-                        return Err(anyhow!("Invalid web endpoint: '{}'. Must be a valid HTTP/HTTPS URL", value));
-                    }
-                    Some(value.to_string())
-                };
-            }
-            "web.batch_size" => {
-                let batch_size = value.parse::<usize>()
-                    .map_err(|_| anyhow!("Invalid web batch size: '{}'. Must be a positive integer", value))?;
-                
-                if batch_size == 0 {
-                    return Err(anyhow!("Web batch size must be at least 1 (got: {})", batch_size));
-                }
-                
-                if batch_size > 1000 {
-                    return Err(anyhow!("Web batch size too large: {} (maximum: 1000)", batch_size));
-                }
-                
-                self.web.batch_size = batch_size;
-            }
-            "web.timeout_seconds" => {
-                let timeout = value.parse::<u64>()
-                    .map_err(|_| anyhow!("Invalid web timeout: '{}'. Must be a positive integer (seconds)", value))?;
-                
-                if timeout == 0 {
-                    return Err(anyhow!("Web timeout must be at least 1 second (got: {})", timeout));
-                }
-                
-                if timeout > 300 {
-                    return Err(anyhow!("Web timeout too large: {}s (maximum: 300s)", timeout));
-                }
-                
-                self.web.timeout_seconds = timeout;
-            }
-            "web.user" => {
-                self.web.user = if value.is_empty() || value == "<not-set>" || value == "reset" {
-                    Some(DEFAULT_WEB_USER.to_string())
-                } else {
-                    Some(value.to_string())
-                };
-            }
-            "web.password" => {
-                self.web.password = if value.is_empty() || value == "<not-set>" || value == "reset" {
-                    Some(DEFAULT_WEB_PASSWORD.to_string())
-                } else {
-                    Some(value.to_string())
-                };
-            }
-            _ => return Err(anyhow!("Unknown configuration key: '{}'. Available keys: autosave.enabled, autosave.path, ui.buffer_expansion, ui.theme, ui.show_timestamps, web.endpoint, web.batch_size, web.timeout_seconds, web.user, web.password", key))
+            _ => return Err(anyhow!("Unknown configuration key: '{}'. Available keys: autosave.enabled, autosave.path, ui.buffer_expansion, ui.theme, ui.show_timestamps", key))
         }
         
         Ok(())
@@ -329,11 +256,6 @@ impl Config {
             "follow".to_string(),
             "output".to_string(),
             "buffer_size".to_string(),
-            "web.endpoint".to_string(),
-            "web.batch_size".to_string(),
-            "web.timeout_seconds".to_string(),
-            "web.user".to_string(),
-            "web.password".to_string(),
             // Add new config keys here as needed
         ]
     }
@@ -382,29 +304,6 @@ impl Config {
             "follow" => Ok(self.follow.unwrap_or(true).to_string()),
             "output" => Ok(self.output.clone().unwrap_or_else(|| "text".to_string())),
             "buffer_size" => Ok(self.buffer_size.unwrap_or(20000).to_string()),
-            "web.endpoint" => {
-                if let Some(ref endpoint) = self.web.endpoint {
-                    Ok(endpoint.clone())
-                } else {
-                    Ok("http://localhost:5080".to_string())
-                }
-            }
-            "web.batch_size" => Ok(self.web.batch_size.to_string()),
-            "web.timeout_seconds" => Ok(self.web.timeout_seconds.to_string()),
-            "web.user" => {
-                if let Some(ref user) = self.web.user {
-                    Ok(user.clone())
-                } else {
-                    Ok(DEFAULT_WEB_USER.to_string())
-                }
-            }
-            "web.password" => {
-                if let Some(ref password) = self.web.password {
-                    Ok(password.clone())
-                } else {
-                    Ok(DEFAULT_WEB_PASSWORD.to_string())
-                }
-            }
             _ => Err(anyhow!("Configuration key not found: {}", key))
         }
     }
@@ -429,7 +328,7 @@ impl Config {
                 } else {
                     value
                 };
-                output.push_str(&format!("│ {key:<23} │ {display_value:<41} │\n"));
+                output.push_str(&format!("│ {:<23} │ {:<41} │\n", key, display_value));
             }
         }
         
@@ -444,7 +343,7 @@ impl Config {
             } else {
                 path_str
             };
-            output.push_str(&format!("\nConfig file: {path_display}\n"));
+            output.push_str(&format!("\nConfig file: {}\n", path_display));
         }
         
         output
@@ -457,7 +356,7 @@ impl Config {
         // Check if it's a section (contains multiple sub-keys)
         let all_keys = self.get_all_keys();
         let matching_keys: Vec<String> = all_keys.into_iter()
-            .filter(|k| k.starts_with(key) && (k == key || k.starts_with(&format!("{key}."))))
+            .filter(|k| k.starts_with(key) && (k == key || k.starts_with(&format!("{}.", key))))
             .collect();
         
         if matching_keys.is_empty() {
@@ -479,7 +378,7 @@ impl Config {
             if let Ok(value) = self.get_value(&matching_key) {
                 let display_key = if matching_key == key {
                     key.to_string()
-                } else if matching_key.starts_with(&format!("{key}.")) {
+                } else if matching_key.starts_with(&format!("{}.", key)) {
                     matching_key[key.len()+1..].to_string() // Remove prefix and dot
                 } else {
                     matching_key
@@ -490,7 +389,7 @@ impl Config {
                 } else {
                     value
                 };
-                output.push_str(&format!("│ {display_key:<23} │ {display_value:<41} │\n"));
+                output.push_str(&format!("│ {:<23} │ {:<41} │\n", display_key, display_value));
             }
         }
         

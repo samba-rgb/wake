@@ -16,7 +16,6 @@ use chrono::Local;
 use comfy_table::{Table as HelpTable, presets::UTF8_FULL as HELP_UTF8_FULL, ContentArrangement as HelpContentArrangement, Cell as HelpCell};
 use comfy_table::Table;
 use colored::Colorize;
-use crate::guide::webview::WebView;
 
 /// Prints WAKE in big text with dots
 fn print_wake_big_text() {
@@ -51,8 +50,6 @@ fn print_tabular_help() {
     let mut add = |arg: &str, desc: &str| {
         t.add_row(vec![HelpCell::new(arg), HelpCell::new(desc)]);
     };
-
-    add("--guide", "Open the interactive HTML guide in your browser");
     add("POD_SELECTOR", "Pod selector regular expression (positional), default: .* ");
     add("-c, --container <REGEX>", "Container selector regex, default: .* ");
     add("-s, --sample <N>", "Randomly sample up to N matching pods (default: all)");
@@ -84,49 +81,27 @@ fn print_tabular_help() {
     add("--script-in <PATH>", "Run a script in each selected pod and collect output");
     add("--script-outdir <DIR>", "Directory to save script outputs (overrides config)");
     add("--his [QUERY]", "Show command history or search saved commands using TF-IDF");
-    add("--web", "Send filtered logs to web endpoint via HTTP (configure with 'wake setconfig web.*')");
     add("-h, --help", "Print this help");
     add("-V, --version", "Print version");
 
-    println!("{t}");
+    println!("{}", t);
 
     println!("\nExamples:");
     println!("  wake -n kube-system \"kube-proxy\"                # Tail logs for kube-proxy in kube-system namespace");
     println!("  wake -A -i \"error\"                           # Tail logs across all namespaces, including 'error'");
     println!("  wake --ui -o json                                # Use interactive UI mode with JSON output");
     println!("  wake --his \"config\"                           # Search command history for 'config'");
-    println!("  wake \"my-app\" -i \"error\" --web              # Send error logs to configured web endpoint");
-
-    println!("\nWeb Mode Examples:");
-    println!("  # First configure the web endpoint:");
-    println!("  wake setconfig web.endpoint \"https://logs.company.com/ingest\"");
-    println!("  wake setconfig web.batch_size 20");
-    println!("  wake setconfig web.timeout_seconds 60");
-    println!("  ");
-    println!("  Then run wake in web mode:");
-    println!("  wake --web");
-    println!("  Access OpenObserve UI at: http://localhost:5080");
-
-    println!("\nWeb Mode Setup (OpenObserve):");
-    println!("  First, start OpenObserve with Docker:");
-    println!("  docker run -d \\");
-    println!("        --name openobserve \\");
-    println!("        -v $PWD/data:/data \\");
-    println!("        -p 5080:5080 \\");
-    println!("        -e ZO_ROOT_USER_EMAIL=\"root@example.com\" \\");
-    println!("        -e ZO_ROOT_USER_PASSWORD=\"Complexpass#123\" \\");
-    println!("        public.ecr.aws/zinclabs/openobserve:latest");
-    println!();
-    println!("  Then run wake in web mode:");
-    println!("  wake --web");
-    println!("  Access OpenObserve UI at: http://localhost:5080");
-    println!("  Stream name: logs_wake_YYYY_MM_DD (auto-generated daily)");
 
     println!("\nConfiguration Commands:");
-    println!("  wake setconfig                                   # Open interactive configuration UI");
+    println!("  wake setconfig <key> <value> [--path <path>]      # Set a configuration key to a value");
     println!("  wake getconfig [<key>]                           # Get the value of a configuration key or all keys");
     // Examples
-    println!("  wake setconfig                                    # Interactive UI to edit all settings");
+    println!("  wake setconfig autosave true                      # Enable autosave with auto-generated filenames");
+    println!("  wake setconfig autosave true --path /var/logs     # Enable autosave with custom directory");
+    println!("  wake setconfig autosave false                     # Disable autosave");
+    println!("  wake setconfig ui-buffer-expansion 10             # Buffer grows 10x in pause mode for UI");
+    println!("  wake setconfig ui-buffer-expansion 5              # Buffer grows 5x in pause mode for UI");
+    println!("  wake setconfig script_outdir /tmp/wake-results    # Set default script output directory");
     println!("  wake getconfig                                    # Show all configuration");
     println!("  wake getconfig autosave                           # Show only autosave configuration");
     println!("  wake getconfig ui-buffer-expansion                # Show only buffer expansion setting");
@@ -167,14 +142,14 @@ async fn run_script_in_pods(args: &Args) -> Result<()> {
     };
     std::fs::create_dir_all(&outdir)?;
     let timestamp = Local::now().format("%Y%m%d_%H%M%S");
-    let output_dir = outdir.join(format!("wake_output_{timestamp}"));
+    let output_dir = outdir.join(format!("wake_output_{}", timestamp));
     std::fs::create_dir_all(&output_dir)?;
 
     for pod in pods {
         let pod_name = &pod.name;
         let ns = &pod.namespace;
         let containers = &pod.containers;
-        let container = containers.first().cloned().unwrap_or_else(|| "default".to_string());
+        let container = containers.get(0).cloned().unwrap_or_else(|| "default".to_string());
         let pods_api: Api<Pod> = Api::namespaced(client.clone(), ns);
 
         let script_str = String::from_utf8_lossy(&script_data);
@@ -185,10 +160,10 @@ async fn run_script_in_pods(args: &Args) -> Result<()> {
             &kube::api::AttachParams::default().container(&container),
         ).await?;
         let mut _dummy = Vec::new();
-        if let Some(mut s) = copy_out.stdout() {
+        if let Some(mut s) = copy_out.stdout().take() {
             tokio::io::copy(&mut s, &mut _dummy).await?;
         }
-        if let Some(mut s) = copy_out.stderr() {
+        if let Some(mut s) = copy_out.stderr().take() {
             tokio::io::copy(&mut s, &mut _dummy).await?;
         }
 
@@ -199,14 +174,14 @@ async fn run_script_in_pods(args: &Args) -> Result<()> {
         ).await?;
         let mut stdout = Vec::new();
         let mut stderr = Vec::new();
-        if let Some(mut s) = exec_out.stdout() {
+        if let Some(mut s) = exec_out.stdout().take() {
             tokio::io::copy(&mut s, &mut stdout).await?;
         }
-        if let Some(mut s) = exec_out.stderr() {
+        if let Some(mut s) = exec_out.stderr().take() {
             tokio::io::copy(&mut s, &mut stderr).await?;
         }
-        let out_file = output_dir.join(format!("{ns}_{pod_name}.stdout.txt"));
-        let err_file = output_dir.join(format!("{ns}_{pod_name}.stderr.txt"));
+        let out_file = output_dir.join(format!("{}_{}.stdout.txt", ns, pod_name));
+        let err_file = output_dir.join(format!("{}_{}.stderr.txt", ns, pod_name));
         std::fs::write(&out_file, &stdout)?;
         std::fs::write(&err_file, &stderr)?;
     }
@@ -221,19 +196,13 @@ pub async fn run(mut args: Args) -> Result<()> {
         return Ok(());
     }
 
-    // Handle guide flag early
-    if args.guide {
-        let webview = WebView::new();
-        return webview.show();    
-    }
-
     // Store command in history before execution (save early to prevent data loss)
     store_command_in_history(&args)?;
     
     if args.author {
         let author_path = std::path::Path::new("author.txt");
         if let Ok(content) = std::fs::read_to_string(author_path) {
-            println!("{content}");
+            println!("{}", content);
         } else {
             println!("samba\nGitHub: https://github.com/samba-rgb\n");
         }
@@ -254,36 +223,6 @@ pub async fn run(mut args: Args) -> Result<()> {
     info!("=== CLI MODULE STARTING ===");
     info!("CLI: Received args - namespace: {}, pod_selector: {}, container: {}", 
           args.namespace, args.pod_selector, args.container);
-    info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
-          args.ui, args.no_ui, args.output_file);
-    info!("CLI: Web flags - web: {}", args.web);
-
-    // Validate web mode arguments
-    if args.web {
-        // Load config to check web endpoint
-        let config = crate::config::Config::load().unwrap_or_default();
-        let endpoint = config.get_value("web.endpoint").unwrap_or_default();
-        
-        if endpoint.is_empty() || endpoint == "http://localhost:5080/api/default/logs/_json" {
-            info!("CLI: Using default web endpoint from config");
-        } else {
-            info!("CLI: Using custom web endpoint from config: {}", endpoint);
-        }
-        
-        // Web mode is incompatible with UI mode
-        if args.ui {
-            eprintln!("❌ Web mode (--web) cannot be used with UI mode (--ui)");
-            eprintln!("   Web mode operates in CLI mode only");
-            std::process::exit(1);
-        }
-        
-        let batch_size = config.get_value("web.batch_size").unwrap_or_else(|_| "10".to_string());
-        let timeout = config.get_value("web.timeout_seconds").unwrap_or_else(|_| "30".to_string());
-        
-        info!("CLI: Web mode enabled - endpoint: {}, batch_size: {}, timeout: {}s", 
-              endpoint, batch_size, timeout);
-    }
-
     info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
           args.ui, args.no_ui, args.output_file);
 
@@ -435,23 +374,80 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
     use crate::config::Config;
     
     match command {
-        Commands::SetConfig => {
-            // Always open the UI for setconfig commands
-            info!("Opening configuration UI for interactive editing");
-            crate::ui::run_with_config_ui().await?;
+        Commands::SetConfig { key, value, path } => {
+            let mut config = Config::load().context("Failed to load configuration")?;
+            
+            // Handle special cases that need custom logic
+            match key.to_lowercase().as_str() {
+                "autosave" => {
+                    let enabled = match value.to_lowercase().as_str() {
+                        "true" | "1" | "yes" | "on" | "enable" | "enabled" => true,
+                        "false" | "0" | "no" | "off" | "disable" | "disabled" => false,
+                        _ => {
+                            eprintln!("❌ Invalid value for autosave: '{}'. Use 'true' or 'false'", value);
+                            std::process::exit(1);
+                        }
+                    };
+                    
+                    config.set_autosave(enabled, path.clone());
+                    config.save().context("Failed to save configuration")?;
+                    
+                    if enabled {
+                        if let Some(path_str) = path {
+                            println!("✅ Autosave enabled with custom path: {}", path_str);
+                        } else {
+                            println!("✅ Autosave enabled with auto-generated filenames (wake_TIMESTAMP.log)");
+                        }
+                    } else {
+                        println!("✅ Autosave disabled");
+                    }
+                }
+                _ => {
+                    // Use the automatic configuration system for all other keys
+                    match config.set_value(key, value) {
+                        Ok(()) => {
+                            config.save().context("Failed to save configuration")?;
+                            println!("✅ Configuration updated: {} = {}", key, value);
+                            
+                            // Provide helpful context for specific settings
+                            match key {
+                                k if k.contains("buffer_expansion") => {
+                                    println!("💡 In pause mode, the buffer will expand to hold {}x more logs for better browsing", value);
+                                }
+                                k if k.contains("theme") => {
+                                    println!("🎨 UI theme set to: {}", value);
+                                }
+                                k if k.contains("show_timestamps") => {
+                                    println!("🕒 Default timestamp display: {}", value);
+                                }
+                                _ => {}
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("❌ Failed to set configuration: {}", e);
+                            eprintln!("\nAvailable keys:");
+                            let all_keys = config.get_all_keys();
+                            for available_key in &all_keys {
+                                eprintln!("  - {}", available_key);
+                            }
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
         }
         Commands::GetConfig { key } => {
             let config = Config::load().context("Failed to load configuration")?;
             match key {
                 Some(key_name) => {
                     match config.display_key(key_name) {
-                        Ok(output) => print!("{output}"),
+                        Ok(output) => print!("{}", output),
                         Err(e) => {
-                            eprintln!("❌ {e}");
+                            eprintln!("❌ {}", e);
                             eprintln!("\nAvailable keys:");
                             let all_keys = config.get_all_keys();
                             for available_key in &all_keys {
-                                eprintln!("  - {available_key}");
+                                eprintln!("  - {}", available_key);
                             }
                             std::process::exit(1);
                         }
@@ -466,7 +462,7 @@ async fn handle_config_command(command: &crate::cli::args::Commands) -> Result<(
                             table.add_row([key, val.trim().to_string()]);
                         }
                     }
-                    println!("{table}");
+                    println!("{}", table);
                 }
             }
         }
@@ -510,7 +506,7 @@ async fn handle_list_templates() -> Result<()> {
         table.add_row([name.clone(), template.description.clone(), params]);
     }
     
-    println!("{table}");
+    println!("{}", table);
     println!();
     println!("💡 Usage examples:");
     println!("  wake -t thread-dump 1234");
@@ -526,7 +522,7 @@ async fn handle_template_execution(args: &Args, template_name: &str) -> Result<(
     use crate::templates::executor::TemplateExecutor;
     use crate::k8s::pod::select_pods;
     
-    println!("🚀 Executing template: {template_name}");
+    println!("🚀 Executing template: {}", template_name);
     
     // Initialize template system
     let registry = TemplateRegistry::with_builtins();
@@ -534,11 +530,11 @@ async fn handle_template_execution(args: &Args, template_name: &str) -> Result<(
     
     // Check if template exists
     if !template_executor.list_templates().contains(&template_name) {
-        eprintln!("❌ Template '{template_name}' not found.");
+        eprintln!("❌ Template '{}' not found.", template_name);
         eprintln!();
         eprintln!("Available templates:");
         for available_template in template_executor.list_templates() {
-            eprintln!("  - {available_template}");
+            eprintln!("  - {}", available_template);
         }
         eprintln!();
         eprintln!("Use --list-templates to see detailed information about each template.");
@@ -595,14 +591,14 @@ async fn handle_template_execution(args: &Args, template_name: &str) -> Result<(
             
             println!();
             println!("📊 Execution Summary:");
-            println!("  ✅ Successful: {successful}");
+            println!("  ✅ Successful: {}", successful);
             if failed > 0 {
-                println!("  ❌ Failed: {failed}");
+                println!("  ❌ Failed: {}", failed);
             }
             println!("  📁 Output directory: {}", execution_result.output_dir.display());
         }
         Err(e) => {
-            eprintln!("❌ Template execution failed: {e}");
+            eprintln!("❌ Template execution failed: {}", e);
             std::process::exit(1);
         }
     }
@@ -618,8 +614,14 @@ fn store_command_in_history(args: &Args) -> Result<()> {
     // Add subcommands first
     if let Some(ref cmd) = args.command {
         match cmd {
-            crate::cli::args::Commands::SetConfig => {
+            crate::cli::args::Commands::SetConfig { key, value, path } => {
                 command_parts.push("setconfig".to_string());
+                command_parts.push(key.clone());
+                command_parts.push(value.clone());
+                if let Some(p) = path {
+                    command_parts.push("--path".to_string());
+                    command_parts.push(p.clone());
+                }
             }
             crate::cli::args::Commands::GetConfig { key } => {
                 command_parts.push("getconfig".to_string());
@@ -735,7 +737,7 @@ async fn handle_show_history() -> Result<()> {
     for (i, entry) in history.iter().take(display_count).enumerate() {
         let time_ago = format_time_ago(&entry.timestamp);
         println!("{:3}. {} {}", i + 1, entry.command, 
-                 format!("({time_ago})").as_str().dimmed());
+                 format!("({})", time_ago).as_str().dimmed());
     }
     
     if history.len() > 50 {
@@ -754,7 +756,7 @@ async fn handle_search_commands(query: &str) -> Result<()> {
     let searcher = match TfIdfSearcher::new() {
         Ok(s) => s,
         Err(e) => {
-            println!("❌ Search functionality not available: {e}");
+            println!("❌ Search functionality not available: {}", e);
             println!();
             println!("💡 This might be because:");
             println!("  • The static commands database wasn't built during compilation");
@@ -768,7 +770,7 @@ async fn handle_search_commands(query: &str) -> Result<()> {
         println!("🚀 Command: {}", result.command.green());
         println!("📝 Description: {}", result.description);
     } else {
-        println!("❌ No matching commands found for \"{query}\"");
+        println!("❌ No matching commands found for \"{}\"", query);
         println!();
         println!("💡 Try searching with different terms:");
         println!("  • \"error\" instead of \"error logs\"");
@@ -789,7 +791,7 @@ async fn handle_search_commands(query: &str) -> Result<()> {
         }
         
         for (category, _) in categories {
-            println!("  • {category}");
+            println!("  • {}", category);
         }
     }
     

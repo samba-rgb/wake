@@ -515,7 +515,7 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
 
     // Format CPU information
     let cpu_text = if let Some(cpu_percent) = pod.pod_info.cpu_usage_percent {
-        format!("{cpu_percent:.1}%")
+        format!("{:.1}%", cpu_percent)
     } else {
         "N/A".to_string()
     };
@@ -539,7 +539,7 @@ fn draw_pod_info(f: &mut Frame, area: Rect, pod: &PodExecutionState) {
                 format_bytes(limit_bytes)
             )
         } else {
-            format!("{memory_percent:.1}%")
+            format!("{:.1}%", memory_percent)
         };
         (memory_text, memory_color)
     } else if let Some(usage_bytes) = pod.pod_info.memory_usage_bytes {
@@ -653,7 +653,7 @@ fn draw_command_logs(f: &mut Frame, area: Rect, pod: &PodExecutionState, scroll:
 
         // Command description line with enhanced colors
         log_lines.push(Line::from(vec![
-            Span::styled(format!("[{timestamp}] "), Style::default().fg(SILVER)),
+            Span::styled(format!("[{}] ", timestamp), Style::default().fg(SILVER)),
             Span::raw(status_icon),
             Span::raw(" "),
             Span::styled(&log.description, Style::default().add_modifier(Modifier::BOLD).fg(BRIGHT_WHITE)),
@@ -930,7 +930,7 @@ fn draw_completion_dialog(f: &mut Frame, state: &TemplateUIState) {
         ]),
         Line::from(vec![
             Span::styled("  ⏱️  Total Time: ", Style::default().fg(HIGH_CONTRAST_WHITE)),
-            Span::styled(format!("{minutes}m {seconds}s"), Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{}m {}s", minutes, seconds), Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -1039,10 +1039,10 @@ fn get_status_text(status: &PodStatus) -> String {
             format!("Waiting {} ({:.1}%)", duration, progress * 100.0)
         }
         PodStatus::DownloadingFiles { current, total } => {
-            format!("Downloading files ({current}/{total})")
+            format!("Downloading files ({}/{})", current, total)
         }
         PodStatus::Completed => "Completed".to_string(),
-        PodStatus::Failed { error } => format!("Failed: {error}"),
+        PodStatus::Failed { error } => format!("Failed: {}", error),
     }
 }
 

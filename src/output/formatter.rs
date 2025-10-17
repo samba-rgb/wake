@@ -6,7 +6,9 @@ use anyhow::{Result, anyhow};
 fn normalize_message(message: &str) -> String {
     // Replace all types of newlines and line separators with spaces
     let normalized = message
-        .replace(['\n', '\r', '\t'], " ");
+        .replace('\n', " ")
+        .replace('\r', " ")
+        .replace('\t', " ");
     
     // Collapse multiple consecutive spaces into single spaces
     let mut result = String::new();
@@ -90,12 +92,6 @@ pub struct JsonFormatter {}
 /// Formats logs in raw format (just the message)
 pub struct RawFormatter {}
 
-impl Default for JsonFormatter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl JsonFormatter {
     /// Creates a new JSON formatter
     #[allow(dead_code)]
@@ -124,12 +120,6 @@ impl OutputFormatter for JsonFormatter {
     
     fn format_name(&self) -> Option<String> {
         Some("json".to_string())
-    }
-}
-
-impl Default for RawFormatter {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

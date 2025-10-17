@@ -12,10 +12,9 @@ mod config; // Add the config module declaration
 mod kernel; // Add the kernel module declaration
 mod templates; // Add the templates module declaration
 mod search; // Add the search module declaration
-mod guide; // Add the guide module declaration
-mod common;
 
 use anyhow::Result;
+use tracing_appender;
 use tracing_subscriber::layer::SubscriberExt; // Add missing import
 use tracing_subscriber::util::SubscriberInitExt; // Add missing import
 use tracing_subscriber::filter::LevelFilter; // Add missing import
@@ -70,8 +69,8 @@ async fn main() -> Result<()> {
     // Validate include and exclude patterns before proceeding
     if let Some(ref include_pattern) = args.include {
         if let Err(e) = filtering::FilterPattern::parse(include_pattern) {
-            eprintln!("❌ Invalid include pattern: '{include_pattern}'");
-            eprintln!("   Error: {e}");
+            eprintln!("❌ Invalid include pattern: '{}'", include_pattern);
+            eprintln!("   Error: {}", e);
             eprintln!("\n💡 Pattern syntax help:");
             eprintln!("   • Regex patterns: \"ERROR|WARN\"");
             eprintln!("   • Logical AND: '\"info\" && \"user\"'");
@@ -85,8 +84,8 @@ async fn main() -> Result<()> {
     
     if let Some(ref exclude_pattern) = args.exclude {
         if let Err(e) = filtering::FilterPattern::parse(exclude_pattern) {
-            eprintln!("❌ Invalid exclude pattern: '{exclude_pattern}'");
-            eprintln!("   Error: {e}");
+            eprintln!("❌ Invalid exclude pattern: '{}'", exclude_pattern);
+            eprintln!("   Error: {}", e);
             eprintln!("\n💡 Pattern syntax help:");
             eprintln!("   • Regex patterns: \"ERROR|WARN\"");
             eprintln!("   • Logical AND: '\"info\" && \"user\"'");
@@ -132,7 +131,7 @@ async fn main() -> Result<()> {
         let log_file_path = "wake_dev.log";
         
         if !should_use_ui {
-            println!("🔍 Development mode enabled. Logs will be written to: {log_file_path}");
+            println!("🔍 Development mode enabled. Logs will be written to: {}", log_file_path);
         }
         
         // Initialize our custom wake_logger with dev mode enabled

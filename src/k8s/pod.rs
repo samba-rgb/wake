@@ -55,7 +55,7 @@ pub async fn select_pods(
             ListParams::default()
         };
         
-        let pod_list = pods.list(&params).await.context(format!("Failed to list pods in namespace {ns}"))?;
+        let pod_list = pods.list(&params).await.context(format!("Failed to list pods in namespace {}", ns))?;
         
         for pod in pod_list {
             let pod_name = pod.name_unchecked();
@@ -74,11 +74,13 @@ pub async fn select_pods(
             if let Some(spec) = &pod.spec {
                 for c in &spec.containers {
                     if is_plain_name(container_re) {
-                        if c.name != container_re.as_str() {
+                        if &c.name != container_re.as_str() {
                             continue;
                         }
-                    } else if !container_re.is_match(&c.name) {
-                        continue;
+                    } else {
+                        if !container_re.is_match(&c.name) {
+                            continue;
+                        }
                     }
                     containers.push(c.name.clone());
                 }
@@ -89,11 +91,13 @@ pub async fn select_pods(
                 if let Some(container_statuses) = &status.container_statuses {
                     for cs in container_statuses {
                         if is_plain_name(container_re) {
-                            if cs.name != container_re.as_str() {
+                            if &cs.name != container_re.as_str() {
                                 continue;
                             }
-                        } else if !container_re.is_match(&cs.name) {
-                            continue;
+                        } else {
+                            if !container_re.is_match(&cs.name) {
+                                continue;
+                            }
                         }
                         if !containers.contains(&cs.name) {
                             containers.push(cs.name.clone());
@@ -103,11 +107,13 @@ pub async fn select_pods(
                 if let Some(init_containers) = &status.init_container_statuses {
                     for cs in init_containers {
                         if is_plain_name(container_re) {
-                            if cs.name != container_re.as_str() {
+                            if &cs.name != container_re.as_str() {
                                 continue;
                             }
-                        } else if !container_re.is_match(&cs.name) {
-                            continue;
+                        } else {
+                            if !container_re.is_match(&cs.name) {
+                                continue;
+                            }
                         }
                         if !containers.contains(&cs.name) {
                             containers.push(cs.name.clone());
@@ -202,7 +208,7 @@ pub async fn list_container_names(
         pods_api = Api::namespaced(client.clone(), namespace);
     }
     let params = if let Some(query) = resource_query {
-        println!("Using resource selector: {query}");
+        println!("Using resource selector: {}", query);
         let ns = if all_namespaces { "default" } else { namespace };
         create_selector_for_resource(client, ns, query).await?
     } else {
@@ -272,10 +278,10 @@ pub async fn list_container_names(
                             let (days, rem) = (secs / 86400, secs % 86400);
                             let (hours, rem) = (rem / 3600, rem % 3600);
                             let (mins, secs) = (rem / 60, rem % 60);
-                            if days > 0 { format!("{days}d {hours}h {mins}m") }
-                            else if hours > 0 { format!("{hours}h {mins}m") }
-                            else if mins > 0 { format!("{mins}m {secs}s") }
-                            else { format!("{secs}s") }
+                            if days > 0 { format!("{}d {}h {}m", days, hours, mins) }
+                            else if hours > 0 { format!("{}h {}m", hours, mins) }
+                            else if mins > 0 { format!("{}m {}s", mins, secs) }
+                            else { format!("{}s", secs) }
                         } else { "0s".to_string() }
                     } else { "-".to_string() };
                     let restarts = cs.restart_count;
@@ -318,12 +324,12 @@ pub async fn list_container_names(
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_header(vec!["Namespace", "Pod", "Container", "Type", "Pod IP", "Running For", "Restarts", "State"]);
     for (ns, pod, cont, typ, ip, start, restarts, state) in rows {
-        let padded_state = format!("{state:<18}");
+        let padded_state = format!("{:<18}", state);
         let colored_state = if state == "Running+Ready" { padded_state.green().bold().to_string() } else { padded_state.red().bold().to_string() };
         let state_cell = Cell::new(colored_state).set_alignment(CellAlignment::Left);
         table.add_row(vec![Cell::new(ns), Cell::new(pod), Cell::new(cont), Cell::new(typ), Cell::new(ip), Cell::new(start), Cell::new(restarts.to_string()), state_cell]);
     }
-    println!("{table}");
+    println!("{}", table);
     Ok(())
 }
 

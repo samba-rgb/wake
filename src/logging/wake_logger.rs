@@ -44,7 +44,7 @@ pub fn init(dev_mode: bool, log_file_path: Option<&str>) -> Result<()> {
 fn write_to_file(level: &str, message: &str) -> Result<()> {
     if let Some(file_logger) = FILE_LOGGER.get() {
         if let Some(ref mut file) = *file_logger.lock().unwrap() {
-            writeln!(file, "[{level}] {message}")?;
+            writeln!(file, "[{}] {}", level, message)?;
             file.flush()?;
         }
     }
@@ -57,7 +57,7 @@ pub fn info(message: &str) {
     let dev_mode = unsafe { IS_DEV_MODE };
     info!("{}", message);
     if dev_mode {
-        println!("[INFO] {message}");
+        println!("[INFO] {}", message);
     }
     let _ = write_to_file("INFO", message);
 }
@@ -68,7 +68,7 @@ pub fn debug(message: &str) {
     let dev_mode = unsafe { IS_DEV_MODE };
     debug!("{}", message);
     if dev_mode {
-        println!("[DEBUG] {message}");
+        println!("[DEBUG] {}", message);
     }
     let _ = write_to_file("DEBUG", message);
 }
@@ -79,7 +79,7 @@ pub fn warn(message: &str) {
     let dev_mode = unsafe { IS_DEV_MODE };
     warn!("{}", message);
     if dev_mode {
-        println!("[WARNING] {message}");
+        println!("[WARNING] {}", message);
     }
     let _ = write_to_file("WARNING", message);
 }
@@ -88,7 +88,7 @@ pub fn warn(message: &str) {
 pub fn error(message: &str) {
     error!("{}", message);
     // Errors are always printed to stderr
-    eprintln!("[ERROR] {message}");
+    eprintln!("[ERROR] {}", message);
     let _ = write_to_file("ERROR", message);
 }
 
@@ -98,7 +98,7 @@ pub fn dev_println(message: &str) {
     let dev_mode = unsafe { IS_DEV_MODE };
     debug!("{}", message);
     if dev_mode {
-        println!("{message}");
+        println!("{}", message);
     }
     let _ = write_to_file("DEBUG", message);
 }
