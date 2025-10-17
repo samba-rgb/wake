@@ -264,28 +264,12 @@ pub async fn run(mut args: Args) -> Result<()> {
         let config = crate::config::Config::load().unwrap_or_default();
         let endpoint = config.get_value("web.endpoint").unwrap_or_default();
         
-        if endpoint.is_empty() || endpoint == "http://localhost:5080" {
+        if endpoint.is_empty() || endpoint == "http://localhost:5080/api/default/logs/_json" {
             info!("CLI: Using default web endpoint from config");
         } else {
             info!("CLI: Using custom web endpoint from config: {}", endpoint);
         }
         
-        if !endpoint.is_empty() {
-            match reqwest::get(&endpoint).await {
-                Ok(resp) if resp.status().is_success() => {
-                    println!("✅ Web endpoint {endpoint} is reachable.");
-                }
-                Ok(resp) => {
-                    eprintln!("⚠️  Web endpoint {endpoint} responded with status: {}", resp.status());
-                    std::process::exit(1);
-                }
-                Err(e) => {
-                    eprintln!("❌ Could not reach web endpoint {endpoint}: {e}");
-                    std::process::exit(1);
-                }
-            }
-        }
-
         // Web mode is incompatible with UI mode
         if args.ui {
             eprintln!("❌ Web mode (--web) cannot be used with UI mode (--ui)");
