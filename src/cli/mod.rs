@@ -223,7 +223,7 @@ pub async fn run(mut args: Args) -> Result<()> {
 
     // Handle guide flag early
     if args.guide {
-        let webview = WebView::new();
+        let mut webview = WebView::new();
         return webview.show();    
     }
 

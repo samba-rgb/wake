@@ -73,6 +73,7 @@ fastrand = "2.0.1"
 uuid = { version = "1.8.0", features = ["v4"] }
 glob = "0.3.1"
 opener = "0.6.1"
+rust-embed = "8"
 
 # Kernel-level optimizations
 libc = "0.2.155"
