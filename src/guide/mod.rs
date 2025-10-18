@@ -12,4 +12,8 @@ pub fn get_guide_html() -> Option<String> {
     Asset::get("guide.html").map(|data| String::from_utf8_lossy(&data.data).to_string())
 }
 
+pub fn get_wake_icon() -> Option<Vec<u8>> {
+    Asset::get("wakeicon.png").map(|data| data.data.into())
+}
+
 pub mod webview;

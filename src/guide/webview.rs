@@ -23,6 +23,7 @@ impl WebView {
             let html_path = tmp_dir.join("wake_guide.html");
             let tui_path = tmp_dir.join("tui.png");
             let web_path = tmp_dir.join("web.png");
+            let icon_path = tmp_dir.join("wakeicon.png");
             if let Some(tui_img) = get_asset("tui.png") {
                 let mut f = File::create(&tui_path).ok()?;
                 f.write_all(&tui_img).ok()?;
@@ -31,8 +32,14 @@ impl WebView {
                 let mut f = File::create(&web_path).ok()?;
                 f.write_all(&web_img).ok()?;
             }
-            let html = html.replace("resources/tui.png", &tui_path.to_string_lossy())
-                           .replace("resources/web.png", &web_path.to_string_lossy());
+            if let Some(icon_img) = get_asset("wakeicon.png") {
+                let mut f = File::create(&icon_path).ok()?;
+                f.write_all(&icon_img).ok()?;
+            }
+            // Use only the file name for image src in HTML
+            let html = html.replace("resources/tui.png", "tui.png")
+                           .replace("resources/web.png", "web.png")
+                           .replace("wakeicon.png", "wakeicon.png");
             let mut f = File::create(&html_path).ok()?;
             f.write_all(html.as_bytes()).ok()?;
             self.content_path = html_path.clone();
