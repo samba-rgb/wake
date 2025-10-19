@@ -21,12 +21,134 @@ use tracing_subscriber::util::SubscriberInitExt; // Add missing import
 use tracing_subscriber::filter::LevelFilter; // Add missing import
 use tracing_subscriber::Layer; // Add missing Layer trait import
 use wake::logging::wake_logger;
+use std::process::Command;
+use regex::Regex;
+use tracing::{info, warn, debug, error};
+use std::io::{stdin, stdout, Write};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Parse command line arguments first
     let mut args = cli::parse_args();
     let config = config::Config::load().unwrap_or_default();
+
+    // --- START: startup update enforcement ---
+    // Perform an update check and enforce policy:
+    //  - Major update: disallow running (exit)
+    //  - Minor/Patch: prompt the user and offer the brew upgrade instruction
+    {
+        let owner = "samba-rgb";
+        let repo = "wake";
+        let bin_name = env!("CARGO_PKG_NAME");
+        let current_version = env!("CARGO_PKG_VERSION");
+
+        let um = wake::update_manager::UpdateManager::new(owner, repo, bin_name, current_version);
+        match um.check_with_level().await {
+            Ok((Some(info), level)) => {
+                use wake::update_manager::UpdateLevel;
+                match level {
+                    UpdateLevel::Major => {
+                        // Major update - refuse to run
+                        eprintln!("A MAJOR update is required: {}. You must upgrade before using this version.", info.version);
+                        eprintln!("Upgrade command: {}", um.brew_update_command());
+                        std::process::exit(1);
+                    }
+                    UpdateLevel::Minor => {
+                        println!("A minor update is available: {}", info.version);
+                        print!("Show upgrade instruction? [y/N]: ");
+                        let _ = stdout().flush();
+                        let mut ans = String::new();
+                        let _ = stdin().read_line(&mut ans);
+                        if ans.trim().eq_ignore_ascii_case("y") {
+                            println!("Run to upgrade: {}", um.brew_update_command());
+                        }
+                    }
+                    UpdateLevel::Patch => {
+                        println!("A patch update is available: {}", info.version);
+                        print!("Show upgrade instruction? [y/N]: ");
+                        let _ = stdout().flush();
+                        let mut ans = String::new();
+                        let _ = stdin().read_line(&mut ans);
+                        if ans.trim().eq_ignore_ascii_case("y") {
+                            println!("Run to upgrade: {}", um.brew_update_command());
+                        }
+                    }
+                    UpdateLevel::None => {
+                        // info present but classified as None — treat as no-op
+                    }
+                    UpdateLevel::Unknown => {
+                        warn!("Update available ({}) but could not classify severity", info.version);
+                    }
+                }
+            }
+            Ok((None, level)) => {
+                use wake::update_manager::UpdateLevel;
+                match level {
+                    UpdateLevel::None => {
+                        // up-to-date, no update available
+                    }
+                    UpdateLevel::Unknown => {
+                        warn!("No update information available and classification unknown");
+                    }
+                    // This branch covers the unexpected case where a level indicates an update but no UpdateAvailable was returned.
+                    UpdateLevel::Major => {
+                        eprintln!("A MAJOR update is required but no release details were returned. Upgrade: {}", um.brew_update_command());
+                        std::process::exit(1);
+                    }
+                    UpdateLevel::Minor => {
+                        println!("A minor update may be available (no release details).\nRun to upgrade: {}", um.brew_update_command());
+                    }
+                    UpdateLevel::Patch => {
+                        println!("A patch update may be available (no release details).\nRun to upgrade: {}", um.brew_update_command());
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Update check failed during startup: {}", e);
+            }
+        }
+    }
+    // --- END: startup update enforcement ---
+
+    // Handle --update early: check GitHub repo info from git remote and run update manager
+    if args.update {
+        // Determine GitHub owner/repo once and store it.
+        let owner_repo: (String, String) = ("samba-rgb".to_string(), "wake".to_string());
+
+        // Prepare fallback messages
+        let bin_name = env!("CARGO_PKG_NAME");
+        let current_version = env!("CARGO_PKG_VERSION");
+
+        let (owner, repo) = owner_repo;
+        info!("Checking updates for {}/{} (binary: {}, version: {})...", owner, repo, bin_name, current_version);
+        let um = wake::update_manager::UpdateManager::new(&owner, &repo, bin_name, current_version);
+
+        // Use programmatic check() and log the outcome
+        match um.check().await {
+            Ok(Some(info)) => {
+                info!("Update available: {}", info.version);
+                if let Some(url) = &info.url {
+                    info!("Release page: {}", url);
+                }
+                if let Some(body) = &info.body {
+                    debug!("Release body:\n{}", body);
+                } else {
+                    debug!("Release body: (none)");
+                }
+                // Also print Homebrew upgrade instruction via the manager helper
+                println!("Upgrade with: {}", um.brew_update_command());
+            }
+            Ok(None) => {
+                info!("No update available. current={}", current_version);
+            }
+            Err(e) => {
+                warn!("Update check failed: {}", e);
+            }
+        }
+
+        // Exit early after update check
+        return Ok(());
+    }
 
     // --- Merge logic for namespace, pod_selector, container ---
     // 1. Command-line arg (already in args)
