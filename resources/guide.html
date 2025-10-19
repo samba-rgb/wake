@@ -402,12 +402,13 @@ wake -A -i "error"</code></pre>
 chmod +x data</code></pre>
                 <h4>1. Start OpenObserve with Docker:</h4>
                 <pre><code>docker run -d \
-      --name openobserve \
-      -v $PWD/data:/data \
-      -p 5080:5080 \
-      -e ZO_ROOT_USER_EMAIL="root@example.com" \
-      -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
-      public.ecr.aws/zinclabs/openobserve:latest</code></pre>
+  --name openobserve \
+  -v $PWD/data:/data \
+  -p 5080:5080 \
+  -e ZO_ROOT_USER_EMAIL="root@example.com" \
+  -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
+  -e ZO_COMPACT_DATA_RETENTION_DAYS=3 \
+  public.ecr.aws/zinclabs/openobserve:latest</code></pre>
                 <h4>2. Configure Wake to use the web endpoint:</h4>
                 <pre><code>wake setconfig web.endpoint "http://localhost:5080"
 wake setconfig web.user "root@example.com"

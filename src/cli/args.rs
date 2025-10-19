@@ -235,6 +235,10 @@ pub struct Args {
     /// Show interactive guide or help content
     #[arg(long, help = "Display interactive guide and help content")]
     pub guide: bool,
+
+    /// Check for updates via GitHub Releases
+    #[arg(long, help = "Check for updates via GitHub Releases")]
+    pub update: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -329,6 +333,7 @@ impl Default for Args {
             metrics_source: "kubectl".to_string(), // Default to kubectl
             web: false, // Default to false
             guide: false, // Default to false
+            update: false, // Default to false
         }
     }
 }

@@ -109,13 +109,7 @@ fn print_tabular_help() {
 
     println!("\nWeb Mode Setup (OpenObserve):");
     println!("  First, start OpenObserve with Docker:");
-    println!("  docker run -d \\");
-    println!("        --name openobserve \\");
-    println!("        -v $PWD/data:/data \\");
-    println!("        -p 5080:5080 \\");
-    println!("        -e ZO_ROOT_USER_EMAIL=\"root@example.com\" \\");
-    println!("        -e ZO_ROOT_USER_PASSWORD=\"Complexpass#123\" \\");
-    println!("        public.ecr.aws/zinclabs/openobserve:latest");
+    println!("  docker run -d   --name openobserve   -v $PWD/data:/data   -p 5080:5080   -e ZO_ROOT_USER_EMAIL=\"root@example.com\"   -e ZO_ROOT_USER_PASSWORD=\"Complexpass#123\"   -e ZO_COMPACT_DATA_RETENTION_DAYS=3   public.ecr.aws/zinclabs/openobserve:latest");
     println!();
     println!("  Then run wake in web mode:");
     println!("  wake --web");
@@ -549,7 +543,7 @@ async fn handle_template_execution(args: &Args, template_name: &str) -> Result<(
     let template_executor = TemplateExecutor::new(registry);
     
     // Check if template exists
-    if !template_executor.list_templates().contains(&template_name) {
+    if (!template_executor.list_templates().contains(&template_name)) {
         eprintln!("❌ Template '{template_name}' not found.");
         eprintln!();
         eprintln!("Available templates:");

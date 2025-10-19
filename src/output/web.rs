@@ -72,7 +72,7 @@ impl WebOutput {
 
         println!("🌐 Web mode started - sending logs to OpenObserve");
         println!("📊 Access OpenObserve dashboard at: http://localhost:5080/web/logs?stream_type=logs&stream={stream_name}&period=15m&refresh=0&fn_editor=false&type=stream_explorer&defined_schemas=user_defined_schema&org_identifier=default&quick_mode=false&show_histogram=true&logs_visualize_toggle=logs");
-        println!("🔐 Login credentials: {} / {}", web_user, "*".repeat(web_pass.len()));
+        println!("🔐 Login credentials: {} / {}", web_user, web_pass);
         println!("📝 Stream name: {stream_name}");
         //println!("🔗 Full endpoint: {endpoint}");
         println!();

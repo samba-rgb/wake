@@ -20,7 +20,7 @@ k8s-openapi = { version = "0.20.0", features = ["v1_27"] }
 
 # HTTP client
 http = "0.2.12"
-reqwest = { version = "0.11", features = ["json"], default-features = false }
+reqwest = { version = "0.11", features = ["json", "native-tls"], default-features = false }
 
 # Add OpenSSL for TLS operations in
 # Async runtime
@@ -50,6 +50,9 @@ serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.108"
 serde_yaml = "0.9.30"
 toml = "0.8.8"
+
+# Add semver for version parsing/classification
+semver = "1.0"
 
 # Configuration directories
 directories = "5.0.1"
@@ -85,6 +88,9 @@ io-uring = { version = "0.6.4", optional = true }
 
 # Archiving output files
 tar = "0.4"
+
+# Optional update notifier (checks GitHub Releases). Feature-gated so it's opt-in.
+update-informer = "0.5.0"
 
 [build-dependencies]
 serde = { version = "1.0", features = ["derive"] }
