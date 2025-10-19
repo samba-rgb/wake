@@ -12,12 +12,17 @@ use tracing::{debug, error, info, warn};
 const DEFAULT_WEB_USER: &str = "root@example.com";
 const DEFAULT_WEB_PASSWORD: &str = "Complexpass#123";
 
+// Default cache duration for updates (in seconds) and sensible maximum (30 days)
+pub const DEFAULT_UPDATES_CACHE_SECONDS: u64 = 60 * 60 * 24; // 1 day
+pub const MAX_UPDATES_CACHE_SECONDS: u64 = 60 * 60 * 24 * 30; // 30 days
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     pub autosave: AutosaveConfig,
     pub ui: UiConfig,
     pub history: HistoryConfig,
     pub web: WebConfig,
+    pub updates: CacheConfig,
     // Args defaultable fields
     pub pod_selector: Option<String>,
     pub container: Option<String>,
@@ -66,6 +71,17 @@ pub struct WebConfig {
     pub password: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CacheConfig {
+    /// Cache duration for release JSON in seconds
+    pub cache_seconds: u64,
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        Self { cache_seconds: DEFAULT_UPDATES_CACHE_SECONDS }
+    }
+}
 
 impl Default for UiConfig {
     fn default() -> Self {
@@ -309,6 +325,26 @@ impl Config {
                     Some(value.to_string())
                 };
             }
+            "updates.cache_seconds" => {
+                // Treat empty string as request to reset to default
+                if value.trim().is_empty() {
+                    self.updates.cache_seconds = DEFAULT_UPDATES_CACHE_SECONDS;
+                } else {
+                    let secs = value.parse::<u64>()
+                        .map_err(|_| anyhow!("Invalid updates.cache_seconds: '{}'. Must be a positive integer seconds", value))?;
+                    
+                    if secs == 0 {
+                        return Err(anyhow!("updates.cache_seconds must be at least 1 second (got: {})", secs));
+                    }
+                    
+                    // Cap to a sensible maximum
+                    if secs > MAX_UPDATES_CACHE_SECONDS {
+                        return Err(anyhow!("updates.cache_seconds too large: {}s (maximum: {}s)", secs, MAX_UPDATES_CACHE_SECONDS));
+                    }
+                    
+                    self.updates.cache_seconds = secs;
+                }
+            }
             _ => return Err(anyhow!("Unknown configuration key: '{}'. Available keys: autosave.enabled, autosave.path, ui.buffer_expansion, ui.theme, ui.show_timestamps, web.endpoint, web.batch_size, web.timeout_seconds, web.user, web.password", key))
         }
         
@@ -336,6 +372,7 @@ impl Config {
             "web.timeout_seconds".to_string(),
             "web.user".to_string(),
             "web.password".to_string(),
+            "updates.cache_seconds".to_string(),
             // Add new config keys here as needed
         ]
     }
@@ -406,6 +443,14 @@ impl Config {
                 } else {
                     Ok(DEFAULT_WEB_PASSWORD.to_string())
                 }
+            }
+            "updates.cache_seconds" => {
+                let secs = if self.updates.cache_seconds == 0 {
+                    DEFAULT_UPDATES_CACHE_SECONDS
+                } else {
+                    self.updates.cache_seconds
+                };
+                Ok(secs.to_string())
             }
             _ => Err(anyhow!("Configuration key not found: {}", key))
         }

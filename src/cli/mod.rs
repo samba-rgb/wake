@@ -543,7 +543,7 @@ async fn handle_template_execution(args: &Args, template_name: &str) -> Result<(
     let template_executor = TemplateExecutor::new(registry);
     
     // Check if template exists
-    if (!template_executor.list_templates().contains(&template_name)) {
+    if !template_executor.list_templates().contains(&template_name) {
         eprintln!("❌ Template '{template_name}' not found.");
         eprintln!();
         eprintln!("Available templates:");

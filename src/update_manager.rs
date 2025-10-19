@@ -76,8 +76,14 @@ impl UpdateManager {
             self.owner, self.repo
         );
 
-        // Try cache first (max age 1 day)
-        let cache_age = Duration::from_secs(60 * 60 * 24);
+        // Read cache age from config (updates.cache_seconds). Default to 1 day (86400s) on error.
+        let cache_secs = match crate::config::Config::load() {
+            Ok(cfg) => cfg.updates.cache_seconds,
+            Err(_) => 60 * 60 * 24,
+        };
+        debug!("using updates.cache_seconds={}s", cache_secs);
+        let cache_age = Duration::from_secs(cache_secs);
+
         if let Some(cache_path) = self.cache_file_path() {
             if cache_path.exists() && self.is_cache_fresh(&cache_path, cache_age) {
                 if let Ok(text) = fs::read_to_string(&cache_path) {
