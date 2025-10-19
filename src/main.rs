@@ -65,13 +65,9 @@ async fn main() -> Result<()> {
                     }
                     UpdateLevel::Patch => {
                         println!("A patch update is available: {}", info.version);
-                        print!("Show upgrade instruction? [y/N]: ");
-                        let _ = stdout().flush();
-                        let mut ans = String::new();
-                        let _ = stdin().read_line(&mut ans);
-                        if ans.trim().eq_ignore_ascii_case("y") {
-                            println!("Run to upgrade: {}", um.brew_update_command());
-                        }
+                        
+                        println!("Run to upgrade: {}", um.brew_update_command());
+                        
                     }
                     UpdateLevel::None => {
                         // info present but classified as None — treat as no-op
