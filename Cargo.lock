@@ -3334,7 +3334,7 @@ dependencies = [
 
 [[package]]
 name = "wake"
-version = "0.9.0"
+version = "0.9.4"
 dependencies = [
  "anyhow",
  "arboard",

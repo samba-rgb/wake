@@ -16,7 +16,7 @@ use ratatui::{
 use std::io;
 use tracing::{info, debug, error};
 
-use crate::config::Config;
+use crate::config::{Config, DEFAULT_UPDATES_CACHE_SECONDS};
 
 pub struct ConfigUI {
     config: Config,
@@ -144,26 +144,28 @@ impl ConfigUI {
             let key = &self.config_keys[self.selected_row];
             
             // Reset to default values based on key
-            let default_value = match key.as_str() {
-                "autosave.enabled" => "false",
-                "autosave.path" => "",
-                "ui.buffer_expansion" => "10.0",
-                "ui.theme" => "auto",
-                "ui.show_timestamps" => "false",
-                "web.endpoint" => "http://localhost:5080",
-                "web.batch_size" => "10",
-                "web.timeout_seconds" => "30",
-                "pod_selector" => ".*",
-                "container" => ".*",
-                "namespace" => "default",
-                "tail" => "10",
-                "follow" => "true",
-                "output" => "text",
-                "buffer_size" => "20000",
-                _ => "",
+            let default_value: String = match key.as_str() {
+                "autosave.enabled" => "false".to_string(),
+                "autosave.path" => "".to_string(),
+                "ui.buffer_expansion" => "10.0".to_string(),
+                "ui.theme" => "auto".to_string(),
+                "ui.show_timestamps" => "false".to_string(),
+                "web.endpoint" => "http://localhost:5080".to_string(),
+                "web.batch_size" => "10".to_string(),
+                "web.timeout_seconds" => "30".to_string(),
+                "pod_selector" => ".*".to_string(),
+                "container" => ".*".to_string(),
+                "namespace" => "default".to_string(),
+                "tail" => "10".to_string(),
+                "follow" => "true".to_string(),
+                "output" => "text".to_string(),
+                "buffer_size" => "20000".to_string(),
+                "updates.cache_seconds" => DEFAULT_UPDATES_CACHE_SECONDS.to_string(),
+                
+                _ => "".to_string(),
             };
 
-            match self.config.set_value(key, default_value) {
+            match self.config.set_value(key, &default_value) {
                 Ok(()) => {
                     self.success_message = Some(format!("🔄 Reset {key} to default: {default_value}"));
                     debug!("Config reset to default: {} = {}", key, default_value);
