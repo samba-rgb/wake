@@ -142,7 +142,7 @@ impl Config {
         match toml::from_str::<Config>(&content) {
             Ok(config) => Ok(config),
             Err(e) => {
-                eprintln!("⚠️  Warning: Failed to parse config file ({e}). Using defaults.");
+                //eprintln!("⚠️  Warning: Failed to parse config file ({e}). Using defaults.");
                 Ok(Self::default())
             }
         }
