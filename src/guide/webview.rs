@@ -37,8 +37,8 @@ impl WebView {
                 f.write_all(&icon_img).ok()?;
             }
             // Use only the file name for image src in HTML
-            let html = html.replace("resources/tui.png", "tui.png")
-                           .replace("resources/web.png", "web.png")
+            let html = html.replace("tui.png", "tui.png")
+                           .replace("web.png", "web.png")
                            .replace("wakeicon.png", "wakeicon.png");
             let mut f = File::create(&html_path).ok()?;
             f.write_all(html.as_bytes()).ok()?;
@@ -51,8 +51,16 @@ impl WebView {
     }
 
     pub fn show(&mut self) -> Result<()> {
-        // First try to open the online documentation. If that fails, fall back to the local embedded guide.
-        
+        // Try the online GitHub Pages URL first. If opening it fails, fall back to the local embedded guide.
+        let online_url = "https://samba-rgb.github.io/wake/guide.html";
+
+        // Simply try to open the online URL. If opener::open returns an error, we'll fall back.
+        println!("📖 Attempting to open online guide: {}", online_url);
+        if opener::open(online_url).is_ok() {
+            println!("✅ Online guide opened in your default browser");
+            return Ok(());
+        }
+
         // Fallback: serve local embedded guide and open it
         if let Some(path) = self.serve() {
             if path.exists() {
