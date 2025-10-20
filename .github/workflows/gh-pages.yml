@@ -1,8 +1,11 @@
 name: Deploy docs to GitHub Pages
 
+permissions:
+  contents: write
+
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -12,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Deploy docs/ to gh-pages
         uses: peaceiris/actions-gh-pages@v3
