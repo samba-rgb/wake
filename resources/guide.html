@@ -289,7 +289,7 @@
                 <li class="nav-item"><a href="#monitoring">Monitoring</a></li>
                 <li class="nav-item"><a href="#configuration">Configuration</a></li>
                 <li class="nav-item"><a href="#command-history">Command History</a></li>
-                <li class="nav-item"><a href="#update">Updating Wake</a></li>
+                <li class="nav-item"><a href="#installation">Installation</a></li>
                 <li class="nav-item"><a href="#support-issues">Support / Raise a Bug</a></li>
                 <li class="nav-item"><a href="https://github.com/samba-rgb/wake" target="_blank">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
@@ -509,6 +509,12 @@ wake getconfig
 
 # Get a specific configuration key
 wake getconfig web.endpoint</code></pre>
+
+                <details>
+                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show Configuration Screenshot</b></summary>
+                    <img src="config.png" alt="Configuration Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <p style="margin-top:0.5rem;">This image shows how the settings / configuration screen looks.</p>
+                </details>
             </div>
         </section>
 
@@ -535,19 +541,52 @@ wake --his</code></pre>
             </div>
         </section>
 
-        <section id="update" class="card">
+        <section id="installation" class="card">
             <div class="card-header">
-                <h2>Updating Wake</h2>
+                <h2>Installation (macOS) & Running from Source</h2>
             </div>
             <div class="card-body">
-                <p>Wake follows semantic versioning: major, minor, and patch releases.</p>
+                <p>Install or update Wake on macOS using Homebrew, or run from source using Cargo.</p>
+
+                <h3>Versioning</h3>
+                <p>Wake follows semantic versioning: <strong>MAJOR.MINOR.PATCH</strong>.</p>
                 <ul>
-                    <li><strong>Major</strong>: incompatible changes.</li>
-                    <li><strong>Minor</strong>: new features, backward compatible.</li>
-                    <li><strong>Patch</strong>: bug fixes and small improvements.</li>
+                    <li><strong>MAJOR</strong> — incompatible API or behaviour changes (breaking changes).</li>
+                    <li><strong>MINOR</strong> — new features, backwards-compatible.</li>
+                    <li><strong>PATCH</strong> — bug fixes and small improvements, backwards-compatible.</li>
                 </ul>
-                <p>To check for any available updates and run the updater:</p>
-                <pre><code>wake --update</code></pre>
+                <p>Examples: <code>1.2.0</code> → new features since <code>1.1.x</code>; <code>2.0.0</code> → breaking changes from <code>1.x</code>.</p>
+                <p>Check the Wake version locally:</p>
+                <pre><code>wake --version
+# or
+wake -V</code></pre>
+
+                <h3>1. Install</h3>
+                <p>Install via Homebrew (macOS):</p>
+                <pre><code>brew install samba-rgb/wake/wake</code></pre>
+                <p>Or build and run from source (developer / latest):</p>
+                <pre><code># Clone the repository
+git clone https://github.com/samba-rgb/wake.git
+cd wake
+
+# Build and run (debug)
+cargo run
+
+# Or build release and run
+cargo build --release
+./target/release/wake --help</code></pre>
+                <p>Source and contributions: <a href="https://github.com/samba-rgb/wake" target="_blank">https://github.com/samba-rgb/wake</a></p>
+
+                <h3>2. Update</h3>
+                <p>Update the Homebrew package on macOS:</p>
+                <pre><code>brew upgrade samba-rgb/wake/wake</code></pre>
+                <p>Or, if you installed from source, update and re-run:</p>
+                <pre><code>cd wake
+git pull origin main   # or the branch you track
+cargo run              # run latest changes
+# Or rebuild release
+cargo build --release
+./target/release/wake --help</code></pre>
             </div>
         </section>
 
@@ -555,7 +594,7 @@ wake --his</code></pre>
             <div class="card-header">
                 <h2>Support &amp; Issues</h2>
             </div>
-            <div class="card-body">
+            <div class="card-body"></div>
                 <p>If you encounter any issues, please raise them on the <a href="https://github.com/samba-rgb/wake/issues" target="_blank">GitHub Issues page</a>.<br>
                 For direct contact, you can reach the author at <a href="mailto:samba24052001@gmail.com">samba24052001@gmail.com</a>.</p>
             </div>
