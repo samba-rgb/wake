@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wake Guide</title>
-    <link rel="icon" type="image/png" href="../../wakeicon.png">
+    <link rel="icon" type="image/png" href="wakeicon.png">
     <style>
         :root {
             --sidebar-bg: #1a202c;
@@ -409,6 +409,8 @@ chmod +x data</code></pre>
   -e ZO_ROOT_USER_EMAIL="root@example.com" \
   -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
   -e ZO_COMPACT_DATA_RETENTION_DAYS=3 \
+  -e ZO_ORG_DATA_QUOTA=10737418240 \
+  -e ZO_STREAM_DATA_QUOTA=2147483648 \
   public.ecr.aws/zinclabs/openobserve:latest</code></pre>
                 <h4>2. Configure Wake to use the web endpoint:</h4>
                 <pre><code>wake setconfig web.endpoint "http://localhost:5080"
@@ -419,11 +421,21 @@ If you change the endpoint, user, or password, make sure to update the configura
                 <h4>3. Run Wake in web mode:</h4>
                 <pre><code># Send all logs from the "my-app" pod containing "error"
 wake "my-app" -i "error" --web</code></pre>
-                <p>Access the OpenObserve UI at <a href="http://localhost:5080/" target="_blank">http://localhost:5080</a>. The stream name will be auto-generated daily (e.g., <code>logs_wake_YYYY_MM_DD</code>).</p>
+                <p>Access the OpenObserve UI at <a href="http://localhost:5080/" target="_blank">http://localhost:5080</a>. The stream name will be auto-generated daily (e.g., <code>logs_wake_{namespace}_YYYY_MM_DD</code>).</p>
                 <details>
                     <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show Web View Screenshot</b></summary>
                     <img src="resources/web.png" alt="Web View Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
                 </details>
+            </div>
+        </section>
+
+        <section id="openobserve-guide" class="card">
+            <div class="card-header">
+                <h2>OpenObserve User Guide</h2>
+            </div>
+            <div class="card-body">
+                <p>For detailed usage of OpenObserve's search and "Search Around" features, see the official user guide:</p>
+                <p><a href="https://openobserve.ai/docs/user-guide/logs/search-around/#how-to-use" target="_blank">OpenObserve — Search Around: How to use</a></p>
             </div>
         </section>
 

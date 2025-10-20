@@ -41,7 +41,17 @@ impl OutputFactory {
             
             // Create dynamic stream name with today's date
             let today = chrono::Local::now().format("%Y_%m_%d").to_string();
-            let stream_name = format!("logs_wake_{today}");
+            // Determine namespace from CLI args (use 'all' when --all-namespaces), fallback to args.namespace
+            let namespace = if args.all_namespaces {
+                "all".to_string()
+            } else {
+                args.namespace.clone()
+            };
+            // sanitize namespace for use in stream name (replace non-alphanumeric with underscore)
+            let ns = namespace.chars()
+                .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+                .collect::<String>();
+            let stream_name = format!("logs_wake_{}_{today}", ns);
             let full_endpoint = format!("{clean_base_url}/api/default/{stream_name}/_json");
             
             let batch_size = config.get_value("web.batch_size")

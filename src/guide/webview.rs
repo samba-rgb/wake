@@ -51,15 +51,19 @@ impl WebView {
     }
 
     pub fn show(&mut self) -> Result<()> {
-        // Always serve before show to ensure temp files are ready
-        self.serve();
-        if self.content_path.exists() {
-            println!("📖 Opening guide at: {}", self.content_path.display());
-            opener::open(&self.content_path)?;
-            println!("✅ Guide opened in your default browser");
-        } else {
-            println!("❌ Guide file not found at: {}", self.content_path.display());
+        // First try to open the online documentation. If that fails, fall back to the local embedded guide.
+        
+        // Fallback: serve local embedded guide and open it
+        if let Some(path) = self.serve() {
+            if path.exists() {
+                println!("📖 Opening local guide at: {}", path.display());
+                opener::open(&path)?;
+                println!("✅ Local guide opened in your default browser");
+                return Ok(());
+            }
         }
+
+        eprintln!("❌ Guide not available online or locally.");
         Ok(())
     }
 
