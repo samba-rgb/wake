@@ -47,9 +47,9 @@ impl OutputFactory {
             } else {
                 args.namespace.clone()
             };
-            // sanitize namespace for use in stream name (replace non-alphanumeric with underscore)
+            // sanitize namespace for use in stream name (allow only ASCII letters, digits, and underscore)
             let ns = namespace.chars()
-                .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+                .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
                 .collect::<String>();
             let stream_name = format!("logs_wake_{}_{today}", ns);
             let full_endpoint = format!("{clean_base_url}/api/default/{stream_name}/_json");
