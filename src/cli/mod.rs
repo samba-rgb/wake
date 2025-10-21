@@ -292,6 +292,10 @@ pub async fn run(mut args: Args) -> Result<()> {
         
         info!("CLI: Web mode enabled - endpoint: {}, batch_size: {}, timeout: {}s", 
               endpoint, batch_size, timeout);
+
+        // Force timestamps on in web mode so streamed entries include timestamps
+        args.timestamps = true;
+        info!("CLI: Forcing timestamps on in web mode (-T)");
     }
 
     info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
