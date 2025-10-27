@@ -1,13 +1,628 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="refresh" content="0; url=/">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Redirecting…</title>
-  </head>
-  <body>
-    <p>Redirecting to <a href="/">/</a> — if your browser doesn't redirect, click the link.</p>
-    <script>location.replace('/');</script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wake Guide</title>
+    <link rel="icon" type="image/png" href="wakeicon.png">
+    <style>
+        :root {
+            --sidebar-bg: #1a202c;
+            --main-bg: #f7fafc;
+            --text-color: #2d3748;
+            --header-color: #1a202c;
+            --accent-color: #4299e1;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --code-bg: #edf2f7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            margin: 0;
+            display: flex;
+            background-color: var(--main-bg);
+            color: var(--text-color);
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            padding: 2rem 1rem;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .wakeicon {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .nav {
+            width: 100%;
+        }
+
+        .nav-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item a {
+            display: block;
+            color: #a0aec0;
+            text-decoration: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-item a svg {
+            margin-right: 0.75rem;
+            width: 20px;
+            height: 20px;
+        }
+
+        .nav-item a:hover, .nav-item a.active {
+            background-color: #2d3748;
+            color: white;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 2rem 3rem;
+            width: calc(100% - 250px);
+        }
+
+        .page-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            color: var(--header-color);
+            margin: 0;
+        }
+
+        .page-header p {
+            font-size: 1.125rem;
+            color: #718096;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1.5rem;
+            background-color: #fdfdfe;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--header-color);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .card-body p {
+            line-height: 1.6;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            padding: 1rem;
+            border-radius: 0.375rem;
+            overflow-x: auto;
+            font-family: "Fira Mono", monospace;
+        }
+
+        code {
+            font-family: "Fira Mono", monospace;
+        }
+
+        .command {
+            background-color: var(--code-bg);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #edf2f7;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+                flex-direction: row;
+                justify-content: space-between;
+                padding: 1rem;
+            }
+            .logo {
+                flex-direction: row;
+                align-items: center;
+                margin-bottom: 0;
+            }
+            .wakeicon {
+                width: 40px;
+                height: 40px;
+                margin-right: 0.5rem;
+                margin-bottom: 0;
+            }
+            .logo h1 {
+                font-size: 1.25rem;
+            }
+            .nav {
+                display: none;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                width: 100%;
+                background: var(--sidebar-bg);
+                z-index: 10;
+            }
+            .nav.open {
+                display: block;
+            }
+            .nav-list {
+                flex-direction: column;
+            }
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 1.5rem;
+            }
+            .page-header h1 {
+                font-size: 2rem;
+            }
+            .card {
+                margin-bottom: 1rem;
+                border-radius: 0.25rem;
+                box-shadow: none;
+            }
+            .card-header, .card-body {
+                padding: 1rem;
+            }
+            table, pre {
+                font-size: 0.95rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .card-header h2 {
+                font-size: 1.1rem;
+            }
+            .page-header h1 {
+                font-size: 1.3rem;
+            }
+            .main-content {
+                padding: 0.5rem;
+            }
+        }
+        /* Responsive table and code blocks */
+        .card-body table, .card-body pre {
+            display: block;
+            overflow-x: auto;
+            width: 100%;
+        }
+        .mobile-nav-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            margin-left: auto;
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .mobile-nav-toggle {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">
+            <img src="wakeicon.png" alt="Wake Icon" class="wakeicon" />
+            <h1>Wake</h1>
+        </div>
+        <button class="mobile-nav-toggle" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+        <nav class="nav">
+            <ul class="nav-list">
+                <li class="nav-item"><a href="#getting-started" class="active">Getting Started</a></li>
+                <li class="nav-item"><a href="#all-arguments">All Arguments</a></li>
+                <li class="nav-item"><a href="#tui-view">TUI View</a></li>
+                <li class="nav-item"><a href="#web-view">Web View</a></li>
+                <li class="nav-item"><a href="#filtering">Filtering Logs</a></li>
+                <li class="nav-item"><a href="#templates">Running Templates</a></li>
+                <li class="nav-item"><a href="#scripts">Running Scripts</a></li>
+                <li class="nav-item"><a href="#monitoring">Monitoring</a></li>
+                <li class="nav-item"><a href="#configuration">Configuration</a></li>
+                <li class="nav-item"><a href="#command-history">Command History</a></li>
+                <li class="nav-item"><a href="#installation">Installation</a></li>
+                <li class="nav-item"><a href="#support-issues">Support / Raise a Bug</a></li>
+                <li class="nav-item"><a href="https://github.com/samba-rgb/wake" target="_blank">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                    Contribute on GitHub
+                </a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <div style="background: #e6f7ff; color: #1a202c; border-left: 5px solid #4299e1; padding: 1rem 1.5rem; margin-bottom: 2rem; font-size: 1.1rem;">
+            <strong>Tip for Mac OS users:</strong> For the best experience with Wake, use <a href="https://iterm2.com/" target="_blank" style="color: #2563eb; text-decoration: underline;">iTerm2</a> as your terminal emulator.
+        </div>
+        <header class="page-header">
+            <h1>Welcome to the Wake Guide</h1>
+            <p>Your comprehensive guide to advanced Kubernetes log tailing.</p>
+        </header>
+
+        <section id="getting-started" class="card">
+            <div class="card-header">
+                <h2>Getting Started: Basic Log Tailing</h2>
+            </div>
+            <div class="card-body">
+                <p>Use Wake to tail logs from Kubernetes pods. This is the default mode and provides a straightforward stream of log data.</p>
+                <pre><code># Tail logs for kube-proxy in kube-system namespace
+wake -n kube-system "kube-proxy"
+
+# Tail logs across all namespaces, including the string 'error'
+wake -A -i "error"</code></pre>
+            </div>
+        </section>
+
+        <section id="all-arguments" class="card">
+            <div class="card-header">
+                <h2>All Command-Line Arguments</h2>
+            </div>
+            <div class="card-body">
+                <p>This section provides a complete list of all available command-line arguments for Wake.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Argument</th>
+                            <th>Description</th>
+                            <th>Default</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>POD_SELECTOR</code></td><td>Pod selector regex (positional)</td><td><code>.*</code></td></tr>
+                        <tr><td><code>-c</code>, <code>--container &lt;REGEX&gt;</code></td><td>Container selector regex</td><td><code>.*</code></td></tr>
+                        <tr><td><code>-s</code>, <code>--sample &lt;N&gt;</code></td><td>Randomly sample up to N matching pods</td><td><code>all</code></td></tr>
+                        <tr><td><code>-L</code>, <code>--list-containers</code></td><td>List all containers in matched pods (no streaming)</td><td>-</td></tr>
+                        <tr><td><code>--all-containers</code></td><td>Show logs from all containers in pods</td><td>-</td></tr>
+                        <tr><td><code>-n</code>, <code>--namespace &lt;NAME&gt;</code></td><td>Kubernetes namespace</td><td>current context</td></tr>
+                        <tr><td><code>-A</code>, <code>--all-namespaces</td><td>Show logs from all namespaces</td><td>-</td></tr>
+                        <tr><td><code>-k</code>, <code>--kubeconfig &lt;PATH&gt;</code></td><td>Path to kubeconfig file</td><td>-</td></tr>
+                        <tr><td><code>-x</code>, <code>--context &lt;NAME&gt;</code></td><td>Kubernetes context to use</td><td>-</td></tr>
+                        <tr><td><code>-t</code>, <code>--tail &lt;LINES&gt;</code></td><td>Lines of logs to display from beginning</td><td><code>10</code></td></tr>
+                        <tr><td><code>-f</code>, <code>--follow [true|false]</code></td><td>Follow logs (stream)</td><td><code>true</code></td></tr>
+                        <tr><td><code>-i</code>, <code>--include &lt;PATTERN&gt;</code></td><td>Include logs matching advanced pattern (&&, ||, !, quotes, regex)</td><td>-</td></tr>
+                        <tr><td><code>-e</code>, <code>--exclude &lt;PATTERN&gt;</code></td><td>Exclude logs matching advanced pattern</td><td>-</td></tr>
+                        <tr><td><code>-T</code>, <code>--timestamps</code></td><td>Show timestamps in logs</td><td>-</td></tr>
+                        <tr><td><code>-o</code>, <code>--output &lt;FORMAT&gt;</code></td><td>Output format (<code>text</code>, <code>json</code>, <code>raw</code>)</td><td><code>text</code></td></tr>
+                        <tr><td><code>-w</code>, <code>--output-file &lt;FILE&gt;</code></td><td>Write logs to file (use with <code>--ui</code> for both file and UI)</td><td>-</td></tr>
+                        <tr><td><code>-r</code>, <code>--resource &lt;KIND/NAME&gt;</code></td><td>Select pods by resource owner (e.g., <code>deploy/foo</code>, <code>sts/bar</code>)</td><td>-</td></tr>
+                        <tr><td><code>--exec-template &lt;NAME&gt;</code></td><td>Execute predefined template (<code>jfr</code>, <code>heap-dump</code>, <code>thread-dump</code>)</td><td>-</td></tr>
+                        <tr><td><code>--template-args &lt;ARGS&gt;...</code></td><td>Arguments to pass to the template</td><td>-</td></tr>
+                        <tr><td><code>--list-templates</code></td><td>List available templates</td><td>-</td></tr>
+                        <tr><td><code>--template-output &lt;DIR&gt;</code></td><td>Directory to save template outputs</td><td>-</td></tr>
+                        <tr><td><code>--since &lt;DURATION&gt;</code></td><td>Show logs since duration (e.g., <code>5s</code>, <code>2m</code>, <code>3h</code>)</td><td>-</td></tr>
+                        <tr><td><code>--threads &lt;N&gt;</code></td><td>Threads for log filtering</td><td><code>2x CPU cores</code></td></tr>
+                        <tr><td><code>--ui</code></td><td>Enable interactive UI mode with dynamic filtering</td><td>-</td></tr>
+                        <tr><td><code>--no-ui</code></td><td>Disable UI and force CLI output</td><td>-</td></tr>
+                        <tr><td><code>--dev</code></td><td>Enable development mode (internal logs)</td><td>-</td></tr>
+                        <tr><td><code>--buffer-size &lt;N&gt;</code></td><td>Number of log entries to keep in memory</td><td><code>20000</code></td></tr>
+                        <tr><td><code>-v</code>, <code>--verbosity &lt;LEVEL&gt;</code></td><td>Verbosity for internal debug output</td><td><code>0</code></td></tr>
+                        <tr><td><code>--script-in &lt;PATH&gt;</code></td><td>Run a script in each selected pod and collect output</td><td>-</td></tr>
+                        <tr><td><code>--script-outdir &lt;DIR&gt;</code></td><td>Directory to save script outputs (overrides config)</td><td>-</td></tr>
+                        <tr><td><code>--his [QUERY]</code></td><td>Show command history or search saved commands using TF-IDF</td><td>-</td></tr>
+                        <tr><td><code>--web</code></td><td>Send filtered logs to web endpoint via HTTP (configure with <code>wake setconfig web.*</code>)</td><td>-</td></tr>
+                        <tr><td><code>--guide</code></td><td>Open the interactive HTML guide in your browser</td><td>-</td></tr>
+                        <tr><td><code>-h</code>, <code>--help</code></td><td>Print this help</td><td>-</td></tr>
+                        <tr><td><code>-V</code>, <code>--version</code></td><td>Print version</td><td>-</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tui-view" class="card">
+            <div class="card-header">
+                <h2>TUI View</h2>
+            </div>
+            <div class="card-body">
+                <p>For an interactive experience, launch the Terminal UI (TUI) mode. This allows for real-time filtering, searching, and navigation within your terminal.</p>
+                <pre><code>wake --ui</code></pre>
+                <p>Use arrow keys to scroll, <span class="command">f</span> to filter, and <span class="command">q</span> to quit.</p>
+                <details>
+                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show TUI Screenshot</b></summary>
+                    <img src="tui.png" alt="TUI Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                </details>
+            </div>
+        </section>
+
+        <section id="web-view" class="card">
+            <div class="card-header">
+                <h2>Web View (with OpenObserve)</h2>
+            </div>
+            <div class="card-body">
+                <p>Wake can send filtered logs to a web endpoint for viewing. This is great for sharing and collaboration. It integrates with OpenObserve.</p>
+                <h4>Before you start:</h4>
+                <pre><code>mkdir -p data
+chmod +x data</code></pre>
+                <h4>1. Start OpenObserve with Docker:</h4>
+                <pre><code>docker run -d \
+  --name openobserve \
+  -v $PWD/data:/data \
+  -p 5080:5080 \
+  -e ZO_ROOT_USER_EMAIL="root@example.com" \
+  -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
+  -e ZO_COMPACT_DATA_RETENTION_DAYS=3 \
+  -e ZO_ORG_DATA_QUOTA=10737418240 \
+  -e ZO_STREAM_DATA_QUOTA=2147483648 \
+  public.ecr.aws/zinclabs/openobserve:latest</code></pre>
+                <h4>2. Configure Wake to use the web endpoint:</h4>
+                <pre><code>wake setconfig web.endpoint "http://localhost:5080"
+wake setconfig web.user "root@example.com"
+wake setconfig web.password "Complexpass#123"</code></pre>
+                <p><strong>Note:</strong> The default web endpoint is <code>http://localhost:5080</code>, user email is <code>root@example.com</code>, and password is <code>Complexpass#123</code>.<br>
+If you change the endpoint, user, or password, make sure to update the configuration using the above <code>wake setconfig</code> commands.</p>
+                <h4>3. Run Wake in web mode:</h4>
+                <pre><code># Send all logs from the "my-app" pod containing "error"
+wake "my-app" -i "error" --web</code></pre>
+                <p>Access the OpenObserve UI at <a href="http://localhost:5080/" target="_blank">http://localhost:5080</a>. The stream name will be auto-generated daily (e.g., <code>logs_wake_{namespace}_YYYY_MM_DD</code>).</p>
+                <details>
+                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show Web View Screenshot</b></summary>
+                    <img src="web.png" alt="Web View Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                </details>
+            </div>
+        </section>
+
+        <section id="openobserve-guide" class="card">
+            <div class="card-header">
+                <h2>OpenObserve User Guide</h2>
+            </div>
+            <div class="card-body">
+                <p>For detailed usage of OpenObserve's search and "Search Around" features, see the official user guide:</p>
+                <p><a href="https://openobserve.ai/docs/user-guide/logs/search-around/#how-to-use" target="_blank">OpenObserve — Search Around: How to use</a></p>
+            </div>
+        </section>
+
+        <section id="filtering" class="card">
+            <div class="card-header">
+                <h2>Advanced Log Filtering</h2>
+            </div>
+            <div class="card-body">
+                <p>Wake supports advanced filtering to help you find exactly what you need.</p>
+                <pre><code># Include logs that contain "error" OR "warn"
+wake "my-app" -i '"error" || "warn"'
+
+# Exclude logs that contain "debug"
+wake "my-app" -e "debug"
+
+# Complex query: (error OR warn)
+wake "my-app" -i '"error" || "warn"'</code></pre>
+            </div>
+        </section>
+
+        <section id="monitoring" class="card">
+            <div class="card-header">
+                <h2>Monitoring CPU & Memory</h2>
+            </div>
+            <div class="card-body">
+                <p>Wake can monitor resource usage of your pods, providing real-time insights into CPU and memory consumption.</p>
+                <pre><code>wake --monitor</code></pre>
+                <p>Configure monitoring options in your <span class="command">wake.yaml</span> or via command-line flags.</p>
+            </div>
+        </section>
+
+        <section id="templates" class="card">
+            <div class="card-header">
+                <h2>Running Templates</h2>
+            </div>
+            <div class="card-body">
+                <p>Templates allow you to execute predefined commands inside your pods. This is useful for diagnostics like thread dumps or heap dumps.</p>
+                <pre><code># List available templates
+wake --list-templates
+
+# Execute the 'thread-dump' template on 'my-app'
+wake "my-app" --exec-template thread-dump
+
+# Save the output to a specific directory
+wake "my-app" --exec-template heap-dump --template-output /tmp/heap-dumps</code></pre>
+            </div>
+        </section>
+
+        <section id="scripts" class="card">
+            <div class="card-header">
+                <h2>Running Scripts</h2>
+            </div>
+            <div class="card-body">
+                <p>Execute custom scripts inside each selected pod and collect the output.</p>
+                <pre><code># Run a script to check disk usage
+wake "my-app" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usage</code></pre>
+            </div>
+        </section>
+
+        <section id="configuration" class="card">
+            <div class="card-header">
+                <h2>Configuration Management</h2>
+            </div>
+            <div class="card-body">
+                <p>Customize Wake's behavior through configuration commands.</p>
+                <pre><code># Open an interactive UI to edit all settings
+wake setconfig
+
+# Show all current configuration
+wake getconfig
+
+# Get a specific configuration key
+wake getconfig web.endpoint</code></pre>
+
+                <details>
+                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show Configuration Screenshot</b></summary>
+                    <img src="config.png" alt="Configuration Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <p style="margin-top:0.5rem;">This image shows how the settings / configuration screen looks.</p>
+                </details>
+            </div>
+        </section>
+
+        <section id="command-history" class="card">
+            <div class="card-header">
+                <h2>Command History (TF-IDF Search)</h2>
+            </div>
+            <div class="card-body">
+                <p>Wake saves your command history and allows you to search it using TF-IDF for intelligent retrieval.</p>
+                <pre><code># Search for commands related to "error logs"
+wake --his "error logs"
+
+# Show all command history
+wake --his</code></pre>
+                <h3>Example: <code>wake --his jfr</code></h3>
+                <div style="background: #f6f8fa; border-left: 4px solid #4299e1; padding: 1rem; margin-bottom: 1rem;">
+                    <strong>Response:</strong><br>
+                    <span style="font-size: 1.1em;">🚀 Command:</span> <code>wake --exec-template jfr --template-args 1234 30s</code><br>
+                    <span style="font-size: 1.1em;">📝 Description:</span> Execute Java Flight Recorder template with process ID 1234 for 30 seconds profiling duration.<br>
+                    Useful args: <code>-c &lt;container&gt;</code>, <code>-n &lt;namespace&gt;</code>, <code>-s &lt;sample&gt;</code>, <code>-i &lt;include&gt;</code>, <code>-e &lt;exclude&gt;</code>.<br>
+                    Pod selector: positional regex after namespace (default: <code>.*</code>)
+                </div>
+               
+            </div>
+        </section>
+
+        <section id="installation" class="card">
+            <div class="card-header">
+                <h2>Installation (macOS) & Running from Source</h2>
+            </div>
+            <div class="card-body">
+                <p>Install or update Wake on macOS using Homebrew, or run from source using Cargo.</p>
+
+                <h3>Versioning</h3>
+                <p>Wake follows semantic versioning: <strong>MAJOR.MINOR.PATCH</strong>.</p>
+                <ul>
+                    <li><strong>MAJOR</strong> — incompatible API or behaviour changes (breaking changes).</li>
+                    <li><strong>MINOR</strong> — new features, backwards-compatible.</li>
+                    <li><strong>PATCH</strong> — bug fixes and small improvements, backwards-compatible.</li>
+                </ul>
+                <p>Examples: <code>1.2.0</code> → new features since <code>1.1.x</code>; <code>2.0.0</code> → breaking changes from <code>1.x</code>.</p>
+                <p>Check the Wake version locally:</p>
+                <pre><code>wake --version
+# or
+wake -V</code></pre>
+
+                <h3>1. Install</h3>
+                <p>Install via Homebrew (macOS):</p>
+                <pre><code>brew install samba-rgb/wake/wake</code></pre>
+                <p>Or build and run from source (developer / latest):</p>
+                <pre><code># Clone the repository
+git clone https://github.com/samba-rgb/wake.git
+cd wake
+
+# Build and run (debug)
+cargo run
+
+# Or build release and run
+cargo build --release
+./target/release/wake --help</code></pre>
+                <p>Source and contributions: <a href="https://github.com/samba-rgb/wake" target="_blank">https://github.com/samba-rgb/wake</a></p>
+
+                <h3>2. Update</h3>
+                <p>Update the Homebrew package on macOS:</p>
+                <pre><code>brew upgrade samba-rgb/wake/wake</code></pre>
+                <p>Or, if you installed from source, update and re-run:</p>
+                <pre><code>cd wake
+git pull origin main   # or the branch you track
+cargo run              # run latest changes
+# Or rebuild release
+cargo build --release
+./target/release/wake --help</code></pre>
+            </div>
+        </section>
+
+        <section id="support-issues" class="card">
+            <div class="card-header">
+                <h2>Support &amp; Issues</h2>
+            </div>
+            <div class="card-body"></div>
+                <p>If you encounter any issues, please raise them on the <a href="https://github.com/samba-rgb/wake/issues" target="_blank">GitHub Issues page</a>.<br>
+                For direct contact, you can reach the author at <a href="mailto:samba24052001@gmail.com">samba24052001@gmail.com</a>.</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.querySelectorAll('.nav-item a').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                if (document.querySelector('.nav-item a.active')) {
+                    document.querySelector('.nav-item a.active').classList.remove('active');
+                }
+                this.classList.add('active');
+            });
+        });
+        // Mobile nav toggle
+        function toggleNav() {
+            var nav = document.querySelector('.nav');
+            nav.classList.toggle('open');
+        }
+        // Close nav on click outside (mobile)
+        document.addEventListener('click', function(e) {
+            var nav = document.querySelector('.nav');
+            var toggle = document.querySelector('.mobile-nav-toggle');
+            if (nav.classList.contains('open') && !nav.contains(e.target) && e.target !== toggle) {
+                nav.classList.remove('open');
+            }
+        });
+    </script>
+</body>
 </html>
