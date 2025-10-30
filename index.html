@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wake Guide</title>
     <link rel="icon" type="image/png" href="wakeicon.png">
     <style>
@@ -83,6 +83,17 @@
             margin-right: 0.75rem;
             width: 20px;
             height: 20px;
+        }
+
+        /* removed sidebar star styling */
+
+        .gh-star-inline {
+            margin-left: 0.4rem;
+            color: #ffcc00;
+            font-size: 1.05rem;
+            display: inline-flex;
+            align-items: center;
+            line-height: 1;
         }
 
         .nav-item a:hover, .nav-item a.active {
@@ -594,9 +605,10 @@ cargo build --release
             <div class="card-header">
                 <h2>Support &amp; Issues</h2>
             </div>
-            <div class="card-body"></div>
+            <div class="card-body">
                 <p>If you encounter any issues, please raise them on the <a href="https://github.com/samba-rgb/wake/issues" target="_blank">GitHub Issues page</a>.<br>
                 For direct contact, you can reach the author at <a href="mailto:samba24052001@gmail.com">samba24052001@gmail.com</a>.</p>
+                <p style="margin-top:0.75rem;">If you like the application, please consider giving it a star on GitHub — it really helps the project: <a href="https://github.com/samba-rgb/wake" target="_blank">Star Wake on GitHub <span class="gh-star-inline">⭐</span></a></p>
             </div>
         </section>
     </main>
