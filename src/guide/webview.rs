@@ -52,7 +52,8 @@ impl WebView {
 
     pub fn show(&mut self) -> Result<()> {
         // Try the online GitHub Pages URL first. If opening it fails, fall back to the local embedded guide.
-        let online_url = "https://samba-rgb.github.io/wake/guide.html";
+        // Open the site root (simple domain) instead of the /guide.html path
+        let online_url = "https://samba-rgb.github.io/wake/";
 
         // Simply try to open the online URL. If opener::open returns an error, we'll fall back.
         println!("📖 Attempting to open online guide: {}", online_url);

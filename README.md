@@ -1,5 +1,7 @@
 # <img src="wakeicon.png" alt="Wake Icon" width="100" height="100" style="vertical-align: middle;"> <span style="font-size: 48px;">Wake</span>
 
+Website: https://www.wakelog.in
+
 Wake is a command-line tool for tailing multiple pods and containers in Kubernetes clusters, inspired by [stern](https://github.com/stern/stern).
 
 ## Installation
@@ -650,3 +652,8 @@ wake -r sts/database --all-containers
 ## License
 
 MIT License
+
+## Contribute & Support
+
+- If you find Wake useful, please star the repo — it helps a lot. [⭐ Star Wake on GitHub](https://github.com/samba-rgb/wake)
+- Contributions are welcome! Feel free to open issues or submit pull requests.
