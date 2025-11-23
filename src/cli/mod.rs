@@ -221,9 +221,6 @@ pub async fn run(mut args: Args) -> Result<()> {
         return webview.show();    
     }
 
-    // Store command in history before execution (save early to prevent data loss)
-    store_command_in_history(&args)?;
-    
     if args.author {
         let author_path = std::path::Path::new("author.txt");
         if let Ok(content) = std::fs::read_to_string(author_path) {
@@ -293,13 +290,12 @@ pub async fn run(mut args: Args) -> Result<()> {
         info!("CLI: Web mode enabled - endpoint: {}, batch_size: {}, timeout: {}s", 
               endpoint, batch_size, timeout);
 
-        // Force timestamps on in web mode so streamed entries include timestamps
-        args.timestamps = true;
-        info!("CLI: Forcing timestamps on in web mode (-T)");
+        // Note: timestamps are already forced to true in main.rs for web mode
+        info!("CLI: Web mode - timestamps should already be enabled from main.rs");
     }
 
-    info!("CLI: UI flags - ui: {}, no_ui: {}, output_file: {:?}", 
-          args.ui, args.no_ui, args.output_file);
+    // Store command in history AFTER web mode modifications (so -T flag is included when --web is used)
+    store_command_in_history(&args)?;
 
     // Handle configuration commands first
     if let Some(command) = &args.command {
@@ -707,6 +703,10 @@ fn store_command_in_history(args: &Args) -> Result<()> {
             if !history.is_empty() {
                 command_parts.push(history.clone());
             }
+        }
+        
+        if args.web {
+            command_parts.push("--web".to_string());
         }
     }
     

@@ -250,19 +250,59 @@ impl BatchingWebOutput {
     fn convert_log_entry(&self, entry: &LogEntry) -> WebLogEntry {
         let cleaned_message_bytes = strip_ansi_escapes::strip(&entry.message);
         let cleaned_message = String::from_utf8_lossy(&cleaned_message_bytes).to_string();
+        
+        // Strip timestamp prefix if present since we already have timestamp in separate field
+        let message_without_timestamp = strip_timestamp_prefix(&cleaned_message);
 
         WebLogEntry {
             timestamp: entry.timestamp
                 .map(|ts| ts.to_rfc3339())
                 .unwrap_or_else(|| Utc::now().to_rfc3339()),
-            level: extract_log_level(&cleaned_message).unwrap_or_else(|| "info".to_string()),
-            message: cleaned_message,
+            level: extract_log_level(&message_without_timestamp).unwrap_or_else(|| "info".to_string()),
+            message: message_without_timestamp,
             service: extract_service_name(&entry.pod_name),
             pod_name: entry.pod_name.clone(),
             namespace: entry.namespace.clone(),
             container: entry.container_name.clone(),
         }
     }
+}
+
+/// Strip timestamp prefix from log message if present
+/// Handles formats like: "[2023-11-23T10:30:45Z] message" -> "message"
+/// Also handles: "2023-11-23T10:30:45.123Z message" -> "message"
+fn strip_timestamp_prefix(message: &str) -> String {
+    // Pattern 1: [timestamp] format
+    if let Some(bracket_end) = message.find("] ") {
+        if message.starts_with('[') {
+            return message[bracket_end + 2..].to_string();
+        }
+    }
+    
+    // Pattern 2: ISO timestamp at start of line
+    if let Some(space_pos) = message.find(' ') {
+        let potential_timestamp = &message[..space_pos];
+        // Check if it looks like an ISO timestamp (contains 'T' and either 'Z' or '+'/'-')
+        if potential_timestamp.contains('T') && 
+           (potential_timestamp.contains('Z') || 
+            potential_timestamp.contains('+') || 
+            potential_timestamp.contains('-')) {
+            return message[space_pos + 1..].to_string();
+        }
+    }
+    
+    // Pattern 3: Simple timestamp format like "2023-11-23 10:30:45 message"
+    // Look for date-like pattern at start
+    if message.len() > 19 {
+        let potential_date = &message[..19];
+        if potential_date.matches('-').count() >= 2 && 
+           potential_date.matches(':').count() >= 2 {
+            return message[19..].trim_start().to_string();
+        }
+    }
+    
+    // If no timestamp pattern found, return original message
+    message.to_string()
 }
 
 #[async_trait]
