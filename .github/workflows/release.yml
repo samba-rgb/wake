@@ -51,9 +51,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.toml') }}-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.toml') }}-
             ${{ runner.os }}-${{ matrix.target }}-cargo-
             
       - name: Build
