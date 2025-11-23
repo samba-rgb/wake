@@ -152,6 +152,10 @@ async fn main() -> Result<()> {
     // 3. Config file
     // 4. Default (already in args::default)
 
+    if args.web {
+        args.timestamps = true;
+    }
+    
     // Namespace
     if args.namespace == "default" || args.namespace.is_empty() {
         // Try kube context

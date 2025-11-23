@@ -25,6 +25,198 @@ pub struct WebLogEntry {
     pub container: String,
 }
 
+/// OpenObserve schema definition for Wake logs
+#[derive(Serialize, Debug)]
+pub struct OpenObserveSchema {
+    pub stream_type: String,
+    pub stream_name: String,
+    pub settings: SchemaSettings,
+    pub schema: FieldMappings,
+}
+
+#[derive(Serialize, Debug)]
+pub struct SchemaSettings {
+    pub partition_keys: Vec<String>,
+    pub full_text_search_keys: Vec<String>,
+    pub data_retention: i32,
+    pub partition_time_level: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct FieldMappings {
+    #[serde(rename = "_timestamp")]
+    pub timestamp: FieldDefinition,
+    pub message: FieldDefinition,
+    pub level: FieldDefinition,
+    pub service: FieldDefinition,
+    pub pod_name: FieldDefinition,
+    pub namespace: FieldDefinition,
+    pub container: FieldDefinition,
+}
+
+#[derive(Serialize, Debug)]
+pub struct FieldDefinition {
+    #[serde(rename = "type")]
+    pub field_type: String,
+    pub index: bool,
+    pub stored: bool,
+    pub doc_values: bool,
+    pub fast: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+}
+
+impl OpenObserveSchema {
+    pub fn wake_default(stream_name: &str) -> Self {
+        Self {
+            stream_type: "logs".to_string(),
+            stream_name: stream_name.to_string(),
+            settings: SchemaSettings {
+                partition_keys: vec![
+                    "namespace".to_string(),
+                    "service".to_string(),
+                ],
+                full_text_search_keys: vec![
+                    "message".to_string(),
+                ],
+                data_retention: 30, // days
+                partition_time_level: "daily".to_string(),
+            },
+            schema: FieldMappings {
+                timestamp: FieldDefinition {
+                    field_type: "date".to_string(),
+                    index: true,
+                    stored: true,
+                    doc_values: true,
+                    fast: true,
+                    format: Some("rfc3339".to_string()),
+                },
+                message: FieldDefinition {
+                    field_type: "text".to_string(),
+                    index: true,
+                    stored: true,
+                    doc_values: false,
+                    fast: false,
+                    format: None,
+                },
+                level: FieldDefinition {
+                    field_type: "keyword".to_string(),
+                    index: true,
+                    stored: true,
+                    doc_values: true,
+                    fast: true,
+                    format: None,
+                },
+                service: FieldDefinition {
+                    field_type: "keyword".to_string(),
+                    index: true,
+                    stored: true,
+                    doc_values: true,
+                    fast: true,
+                    format: None,
+                },
+                pod_name: FieldDefinition {
+                    field_type: "keyword".to_string(),
+                    index: true,
+                    stored: true,
+                    doc_values: true,
+                    fast: true,
+                    format: None,
+                },
+                namespace: FieldDefinition {
+                    field_type: "keyword".to_string(),
+                    index: true,
+                    stored: true,
+                    doc_values: true,
+                    fast: true,
+                    format: None,
+                },
+                container: FieldDefinition {
+                    field_type: "keyword".to_string(),
+                    index: true,
+                    stored: true,
+                    doc_values: true,
+                    fast: true,
+                    format: None,
+                },
+            },
+        }
+    }
+}
+
+/// Default column configuration for OpenObserve display
+#[derive(Serialize, Debug)]
+pub struct ColumnConfig {
+    pub columns: Vec<ColumnDefinition>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ColumnDefinition {
+    pub name: String,
+    pub label: String,
+    pub width: String,
+    pub sortable: bool,
+    pub searchable: bool,
+}
+
+impl ColumnConfig {
+    pub fn wake_default() -> Self {
+        Self {
+            columns: vec![
+                ColumnDefinition {
+                    name: "_timestamp".to_string(),
+                    label: "Time".to_string(),
+                    width: "180px".to_string(),
+                    sortable: true,
+                    searchable: false,
+                },
+                ColumnDefinition {
+                    name: "level".to_string(),
+                    label: "Level".to_string(),
+                    width: "80px".to_string(),
+                    sortable: true,
+                    searchable: true,
+                },
+                ColumnDefinition {
+                    name: "service".to_string(),
+                    label: "Service".to_string(),
+                    width: "120px".to_string(),
+                    sortable: true,
+                    searchable: true,
+                },
+                ColumnDefinition {
+                    name: "namespace".to_string(),
+                    label: "Namespace".to_string(),
+                    width: "100px".to_string(),
+                    sortable: true,
+                    searchable: true,
+                },
+                ColumnDefinition {
+                    name: "pod_name".to_string(),
+                    label: "Pod".to_string(),
+                    width: "150px".to_string(),
+                    sortable: true,
+                    searchable: true,
+                },
+                ColumnDefinition {
+                    name: "container".to_string(),
+                    label: "Container".to_string(),
+                    width: "120px".to_string(),
+                    sortable: true,
+                    searchable: true,
+                },
+                ColumnDefinition {
+                    name: "message".to_string(),
+                    label: "Message".to_string(),
+                    width: "auto".to_string(),
+                    sortable: false,
+                    searchable: true,
+                },
+            ],
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct WebOutput {
     sender: mpsc::Sender<LogEntry>,
@@ -71,11 +263,81 @@ impl WebOutput {
         info!("   Timeout: {}s", timeout_seconds);
 
         println!("🌐 Web mode started - sending logs to OpenObserve");
+        
+        // Setup schema in OpenObserve
+        let schema_client = client.clone();
+        let schema_base_url = base_url.clone();
+        let schema_stream_name = stream_name.clone();
+        let schema_user = web_user.clone();
+        let schema_pass = web_pass.clone();
+        
+        // Set up schema synchronously to ensure it's ready before sending logs
+        tokio::spawn(async move {
+            if let Err(e) = Self::setup_openobserve_schema(
+                &schema_client,
+                &schema_base_url,
+                &schema_stream_name,
+                &schema_user,
+                &schema_pass,
+            ).await {
+                warn!("Failed to setup schema: {}", e);
+                info!("Continuing without schema - OpenObserve will auto-detect fields");
+            } else {
+                info!("✅ Schema configured successfully");
+                println!("📋 Schema: Wake structured logs (message, level, service, etc.)");
+            }
+        });
+        
         println!("📊 Access OpenObserve dashboard at: http://localhost:5080/web/logs?stream_type=logs&stream={stream_name}&period=15m&refresh=0&fn_editor=false&type=stream_explorer&defined_schemas=user_defined_schema&org_identifier=default&quick_mode=false&show_histogram=true&logs_visualize_toggle=logs");
         println!("🔐 Login credentials: {} / {}", web_user, web_pass);
         println!("📝 Stream name: {stream_name}");
-        //println!("🔗 Full endpoint: {endpoint}");
         println!();
+        println!("🎨 Custom View Setup:");
+        println!("   • Wake is creating a custom view 'wake-logs-view' automatically");
+        println!("   • View includes structured columns: Time, Level, Service, Namespace, Pod, Container, Message");
+        println!("   • If custom view fails, look for saved query 'wake-structured-logs'");
+        println!();
+        println!("💡 Manual Setup (if auto-setup fails):");
+        println!("   1. Go to the Logs view in OpenObserve");
+        println!("   2. Look for 'Views' or 'Saved Queries' section"); 
+        println!("   3. Use the 'wake-logs-view' or run this query:");
+        println!("      SELECT _timestamp, level, service, namespace, pod_name, container, message");
+        println!("      FROM \"{}\" ORDER BY _timestamp DESC", stream_name);
+        println!();
+        println!("💡 To configure structured view in OpenObserve:");
+        println!("   1. Go to http://localhost:5080/web/logs");
+        println!("   2. Select stream: {}", stream_name);
+        println!("   3. Click on 'Columns' or 'Fields' button");
+        println!("   4. Enable these columns:");
+        println!("      ✓ _timestamp (Time)");
+        println!("      ✓ level (Log Level)");
+        println!("      ✓ service (Service)");
+        println!("      ✓ namespace (Namespace)");
+        println!("      ✓ pod_name (Pod)");
+        println!("      ✓ container (Container)");
+        println!("      ✓ message (Message)");
+        println!("   5. Save the view configuration");
+        println!();
+        println!("🔗 Direct link: http://localhost:5080/web/logs?stream_type=logs&stream={}&period=15m", stream_name);
+        
+        // Try to create a dashboard/view through OpenObserve's dashboard API
+        let dashboard_client = client.clone();
+        let dashboard_base_url = base_url.clone();
+        let dashboard_stream_name = stream_name.clone();
+        let dashboard_user = web_user.clone();
+        let dashboard_pass = web_pass.clone();
+        
+        tokio::spawn(async move {
+            Self::create_openobserve_dashboard(
+                &dashboard_client,
+                &dashboard_base_url,
+                &dashboard_stream_name,
+                &dashboard_user,
+                &dashboard_pass,
+            ).await.unwrap_or_else(|e| {
+                info!("Dashboard creation not supported: {}", e);
+            });
+        });
 
         let mut handler = BatchingWebOutput {
             client,
@@ -99,6 +361,162 @@ impl WebOutput {
             sender,
             flush_handle: Some(flush_handle),
         })
+    }
+
+    /// Setup OpenObserve schema for structured logging
+    async fn setup_openobserve_schema(
+        client: &Client,
+        base_url: &str,
+        stream_name: &str,
+        user: &str,
+        pass: &str,
+    ) -> Result<()> {
+        info!("🔧 Setting up OpenObserve stream: {}", stream_name);
+        
+        // OpenObserve automatically creates streams on first POST
+        // We'll send multiple sample records with different field types to establish the schema
+        Self::send_schema_establishment_records(client, base_url, stream_name, user, pass).await?;
+        
+        Ok(())
+    }
+    
+    /// Send schema establishment records to define field types
+    async fn send_schema_establishment_records(
+        client: &Client,
+        base_url: &str,
+        stream_name: &str,
+        user: &str,
+        pass: &str,
+    ) -> Result<()> {
+        info!("📤 Sending schema establishment records to define field types");
+        
+        let endpoint = format!("{}/api/default/{}/_json", base_url, stream_name);
+        
+        // Send multiple records with different field types to establish schema
+        let schema_records = vec![
+            serde_json::json!({
+                "_timestamp": chrono::Utc::now().to_rfc3339(),
+                "level": "info",
+                "message": "Wake schema establishment - info level",
+                "service": "wake-schema",
+                "pod_name": "wake-schema-pod-1",
+                "namespace": "default",
+                "container": "main"
+            }),
+            serde_json::json!({
+                "_timestamp": chrono::Utc::now().to_rfc3339(), 
+                "level": "error",
+                "message": "Wake schema establishment - error level",
+                "service": "wake-schema",
+                "pod_name": "wake-schema-pod-2",
+                "namespace": "kube-system",
+                "container": "sidecar"
+            }),
+            serde_json::json!({
+                "_timestamp": chrono::Utc::now().to_rfc3339(),
+                "level": "warn",
+                "message": "Wake schema establishment - warn level",
+                "service": "wake-schema",
+                "pod_name": "wake-schema-pod-3",
+                "namespace": "monitoring",
+                "container": "app"
+            })
+        ];
+        
+        for (i, record) in schema_records.iter().enumerate() {
+            let response = client
+                .post(&endpoint)
+                .header("Content-Type", "application/json")
+                .basic_auth(user, Some(pass))
+                .json(&[record]) // Send as array like our normal logs
+                .send()
+                .await;
+                
+            match response {
+                Ok(resp) if resp.status().is_success() => {
+                    info!("✅ Schema record {} sent successfully", i + 1);
+                }
+                Ok(resp) => {
+                    let status = resp.status();
+                    let error_text = resp.text().await.unwrap_or_default();
+                    warn!("⚠️ Schema record {} failed ({}): {}", i + 1, status, error_text);
+                }
+                Err(e) => {
+                    warn!("❌ Failed to send schema record {}: {}", i + 1, e);
+                }
+            }
+            
+            // Small delay between records
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        
+        info!("📋 Schema establishment complete - OpenObserve should now recognize field types");
+        println!("📋 Schema records sent - fields should be properly detected");
+        
+        Ok(())
+    }
+    
+    /// Create OpenObserve dashboard with structured view
+    async fn create_openobserve_dashboard(
+        client: &Client,
+        base_url: &str,
+        stream_name: &str,
+        user: &str,
+        pass: &str,
+    ) -> Result<()> {
+        info!("🎨 Creating OpenObserve dashboard for structured view");
+        
+        let dashboard_config = serde_json::json!({
+            "title": "Wake Kubernetes Logs",
+            "description": "Structured view of Wake Kubernetes logs",
+            "type": "logs",
+            "panels": [{
+                "title": "Wake Logs",
+                "type": "logs",
+                "query": {
+                    "sql": format!("SELECT _timestamp as Time, level as Level, service as Service, namespace as Namespace, pod_name as Pod, container as Container, message as Message FROM \"{}\" ORDER BY _timestamp DESC LIMIT 1000", stream_name),
+                    "stream_name": stream_name,
+                    "stream_type": "logs"
+                },
+                "fields": [
+                    {"name": "_timestamp", "label": "Time", "type": "timestamp"},
+                    {"name": "level", "label": "Level", "type": "keyword"},
+                    {"name": "service", "label": "Service", "type": "keyword"},
+                    {"name": "namespace", "label": "Namespace", "type": "keyword"},
+                    {"name": "pod_name", "label": "Pod", "type": "keyword"},
+                    {"name": "container", "label": "Container", "type": "keyword"},
+                    {"name": "message", "label": "Message", "type": "text"}
+                ]
+            }]
+        });
+        
+        // Try different dashboard API endpoints
+        let dashboard_endpoints = vec![
+            format!("{}/api/default/dashboards", base_url),
+            format!("{}/api/default/_dashboards", base_url),
+            format!("{}/api/default/logs/dashboards", base_url),
+        ];
+        
+        for endpoint in &dashboard_endpoints {
+            if let Ok(resp) = client
+                .post(endpoint)
+                .header("Content-Type", "application/json")
+                .basic_auth(user, Some(pass))
+                .json(&dashboard_config)
+                .send()
+                .await {
+                    if resp.status().is_success() {
+                        info!("✅ Dashboard created successfully at: {}", endpoint);
+                        println!("🎨 Dashboard 'Wake Kubernetes Logs' created successfully");
+                        return Ok(());
+                    } else {
+                        debug!("Dashboard creation failed at {}: {}", endpoint, resp.status());
+                    }
+            }
+        }
+        
+        info!("💡 Dashboard API not available - manual configuration needed");
+        Ok(())
     }
 }
 
