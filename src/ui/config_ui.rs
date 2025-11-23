@@ -209,15 +209,15 @@ impl ConfigUI {
 
         // Title
         let title = Paragraph::new("Wake Configuration Editor")
-            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .style(Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD))
             .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
+            .block(Block::default().borders(Borders::ALL).style(Style::default().fg(Color::White).bg(Color::Black)));
         frame.render_widget(title, chunks[0]);
 
         // Configuration table
         let header_cells = ["Key", "Value"]
             .iter()
-            .map(|h| Cell::from(*h).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+            .map(|h| Cell::from(*h).style(Style::default().fg(Color::Yellow).bg(Color::Black).add_modifier(Modifier::BOLD)));
         let header = Row::new(header_cells).height(1).bottom_margin(1);
 
         let rows: Vec<Row> = self.config_keys.iter().enumerate().map(|(i, key)| {
@@ -235,7 +235,7 @@ impl ConfigUI {
                     Style::default().fg(Color::Black).bg(Color::White)
                 }
             } else {
-                Style::default()
+                Style::default().fg(Color::White).bg(Color::Black)
             };
 
             Row::new(vec![
@@ -250,54 +250,59 @@ impl ConfigUI {
 
         let table = Table::new(rows, [Constraint::Percentage(40), Constraint::Percentage(60)])
             .header(header)
-            .block(Block::default().borders(Borders::ALL).title("Configuration Values"));
+            .block(Block::default().borders(Borders::ALL).title("Configuration Values").style(Style::default().fg(Color::White).bg(Color::Black)))
+            .style(Style::default().bg(Color::Black));
 
         frame.render_widget(table, chunks[1]);
 
         // Status messages
         let status_text = if let Some(ref error) = self.error_message {
-            vec![Line::from(Span::styled(error, Style::default().fg(Color::Red)))]
+            vec![Line::from(Span::styled(error, Style::default().fg(Color::Red).bg(Color::Black)))]
         } else if let Some(ref success) = self.success_message {
-            vec![Line::from(Span::styled(success, Style::default().fg(Color::Green)))]
+            vec![Line::from(Span::styled(success, Style::default().fg(Color::Green).bg(Color::Black)))]
         } else if self.editing {
-            vec![Line::from(Span::styled("Editing mode - Press Enter to save, Esc to cancel", Style::default().fg(Color::Yellow)))]
+            vec![Line::from(Span::styled("Editing mode - Press Enter to save, Esc to cancel", Style::default().fg(Color::Yellow).bg(Color::Black)))]
         } else {
-            vec![Line::from(Span::styled("Ready - Press Enter to edit selected value", Style::default().fg(Color::Blue)))]
+            vec![Line::from(Span::styled("Ready - Press Enter to edit selected value", Style::default().fg(Color::Blue).bg(Color::Black)))]
         };
 
         let status = Paragraph::new(status_text)
-            .block(Block::default().borders(Borders::ALL).title("Status"));
+            .block(Block::default().borders(Borders::ALL).title("Status").style(Style::default().fg(Color::White).bg(Color::Black)))
+            .style(Style::default().bg(Color::Black));
         frame.render_widget(status, chunks[2]);
 
         // Help text
         let help_lines = vec![
             Line::from(vec![
-                Span::styled("↑/↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                Span::raw(" Navigate | "),
-                Span::styled("Enter/e", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                Span::raw(" Edit | "),
-                Span::styled("r", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                Span::raw(" Reset | "),
-                Span::styled("s", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                Span::raw(" Save"),
+                Span::styled("↑/↓", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
+                Span::styled(" Navigate | ", Style::default().fg(Color::White).bg(Color::Black)),
+                Span::styled("Enter/e", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
+                Span::styled(" Edit | ", Style::default().fg(Color::White).bg(Color::Black)),
+                Span::styled("r", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
+                Span::styled(" Reset | ", Style::default().fg(Color::White).bg(Color::Black)),
+                Span::styled("s", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
+                Span::styled(" Save", Style::default().fg(Color::White).bg(Color::Black)),
             ]),
             Line::from(vec![
-                Span::styled("h/?", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                Span::raw(" Help | "),
-                Span::styled("q/Esc", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                Span::raw(" Quit"),
+                Span::styled("h/?", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
+                Span::styled(" Help | ", Style::default().fg(Color::White).bg(Color::Black)),
+                Span::styled("q/Esc", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
+                Span::styled(" Quit", Style::default().fg(Color::White).bg(Color::Black)),
             ]),
         ];
 
         let help = Paragraph::new(help_lines)
-            .block(Block::default().borders(Borders::ALL).title("Controls"));
+            .block(Block::default().borders(Borders::ALL).title("Controls").style(Style::default().fg(Color::White).bg(Color::Black)))
+            .style(Style::default().bg(Color::Black));
         frame.render_widget(help, chunks[3]);
     }
 
     fn render_help(&mut self, frame: &mut Frame) {
         let area = frame.size();
         
-        // Clear the background
+        // Clear the background with black
+        let clear_block = Block::default().style(Style::default().bg(Color::Black));
+        frame.render_widget(clear_block, area);
         frame.render_widget(Clear, area);
         
         // Create popup area
@@ -320,40 +325,40 @@ impl ConfigUI {
             .split(popup_area)[1];
 
         let help_text = vec![
-            Line::from(Span::styled("Wake Configuration Editor Help", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled("Wake Configuration Editor Help", Style::default().fg(Color::Yellow).bg(Color::Black).add_modifier(Modifier::BOLD))),
             Line::from(""),
-            Line::from("Navigation:"),
-            Line::from("  ↑/↓, j/k    - Move up/down in the configuration list"),
+            Line::from(Span::styled("Navigation:", Style::default().fg(Color::Cyan).bg(Color::Black))),
+            Line::from(Span::styled("  ↑/↓, j/k    - Move up/down in the configuration list", Style::default().fg(Color::White).bg(Color::Black))),
             Line::from(""),
-            Line::from("Editing:"),
-            Line::from("  Enter, e    - Start editing the selected configuration value"),
-            Line::from("  Enter       - Save changes (when editing)"),
-            Line::from("  Esc         - Cancel editing (when editing)"),
+            Line::from(Span::styled("Editing:", Style::default().fg(Color::Cyan).bg(Color::Black))),
+            Line::from(Span::styled("  Enter, e    - Start editing the selected configuration value", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  Enter       - Save changes (when editing)", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  Esc         - Cancel editing (when editing)", Style::default().fg(Color::White).bg(Color::Black))),
             Line::from(""),
-            Line::from("Actions:"),
-            Line::from("  r           - Reset selected value to default"),
-            Line::from("  s           - Save all configuration changes to file"),
+            Line::from(Span::styled("Actions:", Style::default().fg(Color::Cyan).bg(Color::Black))),
+            Line::from(Span::styled("  r           - Reset selected value to default", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  s           - Save all configuration changes to file", Style::default().fg(Color::White).bg(Color::Black))),
             Line::from(""),
-            Line::from("Other:"),
-            Line::from("  h, ?        - Show/hide this help"),
-            Line::from("  q, Esc      - Quit configuration editor"),
+            Line::from(Span::styled("Other:", Style::default().fg(Color::Cyan).bg(Color::Black))),
+            Line::from(Span::styled("  h, ?        - Show/hide this help", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  q, Esc      - Quit configuration editor", Style::default().fg(Color::White).bg(Color::Black))),
             Line::from(""),
-            Line::from("Configuration Keys:"),
-            Line::from("  autosave.*      - Automatic log saving settings"),
-            Line::from("  ui.*            - User interface preferences"),
-            Line::from("  web.*           - Web output configuration"),
-            Line::from("  pod_selector    - Default pod selection pattern"),
-            Line::from("  namespace       - Default Kubernetes namespace"),
-            Line::from("  buffer_size     - Log buffer size in memory"),
+            Line::from(Span::styled("Configuration Keys:", Style::default().fg(Color::Cyan).bg(Color::Black))),
+            Line::from(Span::styled("  autosave.*      - Automatic log saving settings", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  ui.*            - User interface preferences", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  web.*           - Web output configuration", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  pod_selector    - Default pod selection pattern", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  namespace       - Default Kubernetes namespace", Style::default().fg(Color::White).bg(Color::Black))),
+            Line::from(Span::styled("  buffer_size     - Log buffer size in memory", Style::default().fg(Color::White).bg(Color::Black))),
             Line::from(""),
-            Line::from(Span::styled("Press any key to close help", Style::default().fg(Color::Green))),
+            Line::from(Span::styled("Press any key to close help", Style::default().fg(Color::Green).bg(Color::Black))),
         ];
 
         let help_paragraph = Paragraph::new(help_text)
             .block(Block::default()
                 .borders(Borders::ALL)
                 .title("Help")
-                .style(Style::default().bg(Color::Black)))
+                .style(Style::default().fg(Color::White).bg(Color::Black)))
             .style(Style::default().fg(Color::White).bg(Color::Black));
 
         frame.render_widget(help_paragraph, popup_area);
