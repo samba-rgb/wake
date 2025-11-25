@@ -666,6 +666,254 @@
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
         }
+
+        /* Template States and Comparison */
+        .template-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .template-state {
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition);
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .template-state:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
+        }
+
+        .template-state-header {
+            padding: 1.5rem;
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: white;
+        }
+
+        .template-state.running .template-state-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .template-state.completed .template-state-header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .template-state-icon {
+            font-size: 1.5rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .template-state.running .template-state-icon {
+            animation: spin 1.5s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .template-state-content {
+            padding: 2rem;
+            background: var(--card-bg);
+        }
+
+        .template-details {
+            margin-bottom: 1.5rem;
+        }
+
+        .template-detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+
+        .template-detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .template-detail-label {
+            font-weight: 600;
+            color: var(--header-color);
+        }
+
+        .template-detail-value {
+            color: var(--accent-color);
+            font-family: "Fira Code", monospace;
+        }
+
+        .template-state.running .template-detail-value {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .progress-indicator {
+            margin-top: 1.5rem;
+        }
+
+        .progress-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--header-color);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-light));
+            border-radius: 10px;
+            width: 45%;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .template-state.completed .progress-bar-fill {
+            width: 100%;
+        }
+
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4));
+            animation: shimmer 1.5s infinite;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 1rem;
+        }
+
+        .status-badge.running {
+            background: rgba(245, 158, 11, 0.2);
+            color: #d97706;
+        }
+
+        .status-badge.completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #059669;
+        }
+
+        .pod-results {
+            margin-top: 1.5rem;
+        }
+
+        .pod-results-title {
+            font-weight: 600;
+            color: var(--header-color);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .pod-result-item {
+            padding: 0.75rem;
+            background: var(--code-bg);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .pod-result-status {
+            font-size: 1.2rem;
+        }
+
+        .pod-result-name {
+            font-family: "Fira Code", monospace;
+            color: var(--accent-color);
+            flex: 1;
+        }
+
+        .pod-result-time {
+            font-size: 0.85rem;
+            color: #718096;
+        }
+
+        .results-summary {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+            border-left: 4px solid #10b981;
+            border-radius: 0.5rem;
+        }
+
+        .results-summary-title {
+            font-weight: 700;
+            color: var(--header-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .results-summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.35rem 0;
+            font-size: 0.9rem;
+        }
+
+        .download-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid var(--border-color);
+        }
+
+        .download-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.95rem;
+        }
+
+        .download-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            background: linear-gradient(135deg, #2563eb, var(--accent-color));
+        }
+
+        @media (max-width: 768px) {
+            .template-comparison {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
