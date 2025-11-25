@@ -2,32 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wake Guide</title>
     <link rel="icon" type="image/png" href="wakeicon.png">
     <style>
         :root {
-            --sidebar-bg: #1a202c;
-            --main-bg: #f7fafc;
+            --sidebar-bg: linear-gradient(135deg, #1a202c 0%, #0f1419 100%);
+            --main-bg: linear-gradient(135deg, #f7fafc 0%, #e8f1f8 100%);
             --text-color: #2d3748;
             --header-color: #1a202c;
             --accent-color: #4299e1;
+            --accent-light: #63b3ed;
             --border-color: #e2e8f0;
             --card-bg: #ffffff;
             --code-bg: #edf2f7;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        * { scroll-behavior: smooth; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
             display: flex;
-            background-color: var(--main-bg);
+            background: var(--main-bg);
             color: var(--text-color);
+            line-height: 1.6;
         }
 
         .sidebar {
             width: 250px;
-            background-color: var(--sidebar-bg);
+            background: var(--sidebar-bg);
             color: white;
             padding: 2rem 1rem;
             height: 100vh;
@@ -38,160 +46,425 @@
             flex-direction: column;
             align-items: center;
             overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
         }
+
+        .sidebar::-webkit-scrollbar { width: 8px; }
+        .sidebar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
 
         .logo {
             display: flex;
             flex-direction: column;
             align-items: center;
             margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
         }
 
         .wakeicon {
             width: 80px;
             height: 80px;
             margin-bottom: 0.5rem;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+            transition: transform 0.3s ease;
         }
+
+        .wakeicon:hover { transform: scale(1.05) rotate(5deg); }
 
         .logo h1 {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             margin: 0;
+            background: linear-gradient(135deg, #63b3ed, #4299e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
-        .nav {
-            width: 100%;
-        }
-
-        .nav-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
+        .nav { width: 100%; }
+        .nav-list { list-style: none; padding: 0; margin: 0; }
 
         .nav-item a {
-            display: block;
-            color: #a0aec0;
-            text-decoration: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s, color 0.2s;
-            font-weight: 500;
             display: flex;
             align-items: center;
+            color: #cbd5e0;
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            margin: 0.25rem 0;
+            border-radius: 0.5rem;
+            transition: var(--transition);
+            font-weight: 500;
+            font-size: 0.95rem;
+            position: relative;
+            overflow: hidden;
         }
 
-        .nav-item a svg {
-            margin-right: 0.75rem;
-            width: 20px;
-            height: 20px;
+        .nav-item a::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: var(--accent-light);
+            transform: scaleY(0);
+            transform-origin: bottom;
+            transition: transform 0.3s ease;
         }
 
-        /* removed sidebar star styling */
+        .nav-item a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding-left: 1.5rem;
+        }
+
+        .nav-item a:hover::before {
+            transform: scaleY(1);
+            transform-origin: top;
+        }
+
+        .nav-item a.active {
+            background: rgba(66, 153, 225, 0.2);
+            color: var(--accent-light);
+            border-left: 3px solid var(--accent-light);
+            padding-left: 1.25rem;
+        }
+
+        .nav-item a svg { margin-right: 0.75rem; width: 20px; height: 20px; }
 
         .gh-star-inline {
             margin-left: 0.4rem;
-            color: #ffcc00;
+            color: #ffd700;
             font-size: 1.05rem;
             display: inline-flex;
             align-items: center;
             line-height: 1;
+            animation: twinkle 2s infinite;
         }
 
-        .nav-item a:hover, .nav-item a.active {
-            background-color: #2d3748;
-            color: white;
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
 
         .main-content {
             margin-left: 250px;
             padding: 2rem 3rem;
             width: calc(100% - 250px);
+            animation: fadeInUp 0.6s ease-out;
         }
 
         .page-header {
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 2rem;
             margin-bottom: 2rem;
+            animation: slideInDown 0.5s ease-out;
         }
 
         .page-header h1 {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
             color: var(--header-color);
-            margin: 0;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(135deg, #2d3748, #4299e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            letter-spacing: -1px;
         }
 
         .page-header p {
-            font-size: 1.125rem;
+            font-size: 1.2rem;
             color: #718096;
+            margin: 0;
+            font-weight: 500;
         }
 
         .card {
-            background-color: var(--card-bg);
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background: var(--card-bg);
+            border-radius: 1rem;
+            box-shadow: var(--shadow-md);
             margin-bottom: 2rem;
             overflow: hidden;
+            transition: var(--transition);
+            animation: fadeInUp 0.6s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
         }
 
         .card-header {
-            padding: 1.5rem;
-            background-color: #fdfdfe;
-            border-bottom: 1px solid var(--border-color);
+            padding: 1.75rem;
+            background: linear-gradient(135deg, #f7fafc 0%, #eef2f7 100%);
+            border-bottom: 2px solid var(--border-color);
+            position: relative;
+        }
+
+        .card-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-light));
         }
 
         .card-header h2 {
             margin: 0;
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             color: var(--header-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
         }
 
         .card-body {
-            padding: 1.5rem;
+            padding: 2rem;
         }
 
         .card-body p {
-            line-height: 1.6;
+            line-height: 1.8;
+            margin: 1rem 0;
+        }
+
+        .card-body h3 {
+            font-size: 1.35rem;
+            color: var(--header-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--accent-light);
+        }
+
+        .card-body h4 {
+            font-size: 1.1rem;
+            color: var(--accent-color);
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #718096;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            font-size: 0.95rem;
+            position: relative;
+        }
+
+        .tab-button:hover { color: var(--accent-color); }
+        .tab-button.active { color: var(--accent-color); border-bottom-color: var(--accent-color); }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .code-block-wrapper {
+            position: relative;
+            margin: 1rem 0;
+            animation: slideInUp 0.4s ease-out;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .code-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--code-bg);
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .code-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .copy-button:hover {
+            background: var(--accent-light);
+            transform: scale(1.05);
+        }
+
+        .copy-button.copied {
+            background: #48bb78;
         }
 
         pre {
-            background-color: var(--code-bg);
+            background: var(--code-bg);
             padding: 1rem;
-            border-radius: 0.375rem;
             overflow-x: auto;
-            font-family: "Fira Mono", monospace;
+            font-family: "Fira Code", "Courier New", monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin: 0;
+            border: 1px solid var(--border-color);
+            border-top: none;
+        }
+
+        pre::-webkit-scrollbar { height: 6px; }
+        pre::-webkit-scrollbar-track { background: var(--border-color); }
+        pre::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 3px;
         }
 
         code {
-            font-family: "Fira Mono", monospace;
+            font-family: "Fira Code", "Courier New", monospace;
+            font-size: 0.9rem;
+            color: #2d3748;
         }
 
         .command {
-            background-color: var(--code-bg);
-            padding: 0.25rem 0.5rem;
+            background: linear-gradient(135deg, var(--code-bg), #e8f1f8);
+            padding: 0.3rem 0.6rem;
             border-radius: 0.25rem;
             font-weight: 600;
+            color: var(--accent-color);
+            border: 1px solid var(--accent-light);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1rem;
+            margin-top: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
         }
 
         th, td {
             text-align: left;
-            padding: 0.75rem;
+            padding: 1rem;
             border-bottom: 1px solid var(--border-color);
         }
 
         th {
-            background-color: #edf2f7;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
+            color: white;
+            font-weight: 700;
+            text-transform: capitalize;
+            letter-spacing: 0.3px;
+        }
+
+        tr:hover { background: rgba(66, 153, 225, 0.05); }
+        tr:last-child td { border-bottom: none; }
+
+        details {
+            margin: 1.5rem 0;
+        }
+
+        summary {
+            cursor: pointer;
+            padding: 1rem;
+            background: linear-gradient(135deg, #f7fafc, #eef2f7);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: var(--transition);
+            user-select: none;
+        }
+
+        summary:hover {
+            background: linear-gradient(135deg, #eef2f7, #e8f1f8);
+            box-shadow: var(--shadow-sm);
+        }
+
+        details[open] summary {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-color: transparent;
+            background: linear-gradient(135deg, var(--accent-light), var(--accent-color));
+            color: white;
+        }
+
+        details > img {
+            margin-top: 1rem;
+            border-radius: 0.5rem;
+            max-width: 100%;
+            box-shadow: var(--shadow-md);
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @media (max-width: 768px) {
-            body {
-                flex-direction: column;
-            }
+            body { flex-direction: column; }
             .sidebar {
                 width: 100%;
                 height: auto;
@@ -199,6 +472,8 @@
                 flex-direction: row;
                 justify-content: space-between;
                 padding: 1rem;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             }
             .logo {
                 flex-direction: row;
@@ -211,9 +486,7 @@
                 margin-right: 0.5rem;
                 margin-bottom: 0;
             }
-            .logo h1 {
-                font-size: 1.25rem;
-            }
+            .logo h1 { font-size: 1.35rem; }
             .nav {
                 display: none;
                 position: absolute;
@@ -223,62 +496,47 @@
                 background: var(--sidebar-bg);
                 z-index: 10;
             }
-            .nav.open {
-                display: block;
-            }
-            .nav-list {
-                flex-direction: column;
-            }
+            .nav.open { display: block; }
             .main-content {
                 margin-left: 0;
                 width: 100%;
                 padding: 1.5rem;
             }
-            .page-header h1 {
-                font-size: 2rem;
-            }
-            .card {
-                margin-bottom: 1rem;
-                border-radius: 0.25rem;
-                box-shadow: none;
-            }
-            .card-header, .card-body {
-                padding: 1rem;
-            }
-            table, pre {
-                font-size: 0.95rem;
-            }
+            .page-header h1 { font-size: 2rem; }
+            .card { border-radius: 0.75rem; }
+            .card-header, .card-body { padding: 1.25rem; }
+            table, pre { font-size: 0.9rem; }
         }
+
         @media (max-width: 480px) {
-            .card-header h2 {
-                font-size: 1.1rem;
-            }
-            .page-header h1 {
-                font-size: 1.3rem;
-            }
-            .main-content {
-                padding: 0.5rem;
-            }
+            .card-header h2 { font-size: 1.2rem; }
+            .page-header h1 { font-size: 1.5rem; }
+            .main-content { padding: 1rem; }
+            .card-body { padding: 1rem; }
+            .tabs { gap: 0.25rem; }
+            .tab-button { padding: 0.5rem 1rem; font-size: 0.85rem; }
         }
-        /* Responsive table and code blocks */
-        .card-body table, .card-body pre {
-            display: block;
-            overflow-x: auto;
-            width: 100%;
-        }
+
         .mobile-nav-toggle {
             display: none;
-            background: none;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
             border: none;
             color: #fff;
             font-size: 1.5rem;
             margin-left: auto;
             cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            transition: var(--transition);
         }
+
+        .mobile-nav-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-sm);
+        }
+
         @media (max-width: 768px) {
-            .mobile-nav-toggle {
-                display: block;
-            }
+            .mobile-nav-toggle { display: block; }
         }
     </style>
 </head>
@@ -326,28 +584,53 @@
             </div>
             <div class="card-body">
                 <div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 1rem; margin-bottom: 1.5rem; border-radius: 6px;">
-                    <p style="margin: 0; font-size: 1.05rem; color: #0c4a6e;"><strong>Wake</strong> is a powerful multi-pod log grepping tool designed for Kubernetes environments. It allows you to efficiently tail, filter, and search logs across multiple pods in real-time, with advanced pattern matching and interactive UI capabilities.</p>
+                    <p style="margin: 0; font-size: 1.05rem; color: #0c4a6e;"><strong>Wake</strong> is a powerful, multi-pod Kubernetes log analysis and diagnostics platform. Beyond traditional log tailing and grepping, Wake enables real-time log filtering with advanced pattern matching, interactive terminal UI (TUI), web-based viewing with OpenObserve integration, template-based diagnostics (JFR, heap dumps, thread dumps), custom script execution across pods, and intelligent command history powered by TF-IDF search. All with seamless multi-pod support, intelligent sampling, and multi-threaded processing for massive clusters.</p>
                 </div>
 
                 <h3>Quick Start</h3>
                 <p>Use Wake to tail logs from Kubernetes pods. This is the default mode and provides a straightforward stream of log data.</p>
                 
                 <h4>Basic Examples:</h4>
-                <pre><code># Tail logs for kube-proxy in kube-system namespace
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Tail logs for kube-proxy in kube-system namespace
 wake -n kube-system "kube-proxy"
 
 # Tail logs across all namespaces, including the string 'error'
 wake -A -i "error"</code></pre>
+                </div>
 
                 <h3>Installation</h3>
                 
-                <h4>Option 1: Install via Homebrew (Recommended)</h4>
-                <p>The easiest way to install Wake on macOS:</p>
-                <pre><code>brew install samba-rgb/wake/wake</code></pre>
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab(event, 'homebrew')">🍺 Homebrew</button>
+                    <button class="tab-button" onclick="switchTab(event, 'source')">⚙️ Build from Source</button>
+                </div>
 
-                <h4>Option 2: Build from Source</h4>
-                <p>Clone the repository and build Wake locally:</p>
-                <pre><code># Clone the repository
+                <div id="homebrew" class="tab-content active">
+                    <h4>Option 1: Install via Homebrew (Recommended)</h4>
+                    <p>The easiest way to install Wake on macOS:</p>
+                    <div class="code-block-wrapper">
+                        <div class="code-block-header">
+                            <span class="code-label">bash</span>
+                            <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                        </div>
+                        <pre><code>brew install samba-rgb/wake/wake</code></pre>
+                    </div>
+                </div>
+
+                <div id="source" class="tab-content">
+                    <h4>Option 2: Build from Source</h4>
+                    <p>Clone the repository and build Wake locally:</p>
+                    <div class="code-block-wrapper">
+                        <div class="code-block-header">
+                            <span class="code-label">bash</span>
+                            <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                        </div>
+                        <pre><code># Clone the repository
 git clone https://github.com/samba-rgb/wake.git
 cd wake
 
@@ -357,6 +640,8 @@ cargo run
 # Or build release and run
 cargo build --release
 ./target/release/wake --help</code></pre>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -421,11 +706,17 @@ cargo build --release
             </div>
             <div class="card-body">
                 <p>For an interactive experience, launch the Terminal UI (TUI) mode. This allows for real-time filtering, searching, and navigation within your terminal.</p>
-                <pre><code>wake --ui</code></pre>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>wake --ui</code></pre>
+                </div>
                 <p>Use arrow keys to scroll, <span class="command">f</span> to filter, and <span class="command">q</span> to quit.</p>
                 <details>
-                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show TUI Screenshot</b></summary>
-                    <img src="tui.png" alt="TUI Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <summary>🔍 <b>Show TUI Screenshot</b></summary>
+                    <img src="tui.png" alt="TUI Screenshot">
                 </details>
             </div>
         </section>
@@ -437,10 +728,21 @@ cargo build --release
             <div class="card-body">
                 <p>Wake can send filtered logs to a web endpoint for viewing. This is great for sharing and collaboration. It integrates with OpenObserve.</p>
                 <h4>Before you start:</h4>
-                <pre><code>mkdir -p data
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>mkdir -p data
 chmod +x data</code></pre>
+                </div>
                 <h4>1. Start OpenObserve with Docker:</h4>
-                <pre><code>docker run -d \
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>docker run -d \
   --name openobserve \
   -v $PWD/data:/data \
   -p 5080:5080 \
@@ -450,30 +752,32 @@ chmod +x data</code></pre>
   -e ZO_ORG_DATA_QUOTA=10737418240 \
   -e ZO_STREAM_DATA_QUOTA=2147483648 \
   public.ecr.aws/zinclabs/openobserve:latest</code></pre>
+                </div>
                 <h4>2. Configure Wake to use the web endpoint:</h4>
-                <pre><code>wake setconfig web.endpoint "http://localhost:5080"
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>wake setconfig web.endpoint "http://localhost:5080"
 wake setconfig web.user "root@example.com"
 wake setconfig web.password "Complexpass#123"</code></pre>
-                <p><strong>Note:</strong> The default web endpoint is <code>http://localhost:5080</code>, user email is <code>root@example.com</code>, and password is <code>Complexpass#123</code>.<br>
-If you change the endpoint, user, or password, make sure to update the configuration using the above <code>wake setconfig</code> commands.</p>
+                </div>
+                <p><strong>Note:</strong> The default web endpoint is <code>http://localhost:5080</code>, user email is <code>root@example.com</code>, and password is <code>Complexpass#123</code>.<br>If you change the endpoint, user, or password, make sure to update the configuration using the above commands.</p>
                 <h4>3. Run Wake in web mode:</h4>
-                <pre><code># Send all logs from the "my-app" pod containing "error"
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Send all logs from the "my-app" pod containing "error"
 wake "my-app" -i "error" --web</code></pre>
+                </div>
                 <p>Access the OpenObserve UI at <a href="http://localhost:5080/" target="_blank">http://localhost:5080</a>. The stream name will be auto-generated daily (e.g., <code>logs_wake_{namespace}_YYYY_MM_DD</code>).</p>
                 <details>
-                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show Web View Screenshot</b></summary>
-                    <img src="web.png" alt="Web View Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <summary>🔍 <b>Show Web View Screenshot</b></summary>
+                    <img src="web.png" alt="Web View Screenshot">
                 </details>
-            </div>
-        </section>
-
-        <section id="openobserve-guide" class="card">
-            <div class="card-header">
-                <h2>OpenObserve User Guide</h2>
-            </div>
-            <div class="card-body">
-                <p>For detailed usage of OpenObserve's search and "Search Around" features, see the official user guide:</p>
-                <p><a href="https://openobserve.ai/docs/user-guide/logs/search-around/#how-to-use" target="_blank">OpenObserve — Search Around: How to use</a></p>
             </div>
         </section>
 
@@ -483,7 +787,12 @@ wake "my-app" -i "error" --web</code></pre>
             </div>
             <div class="card-body">
                 <p>Wake supports advanced filtering to help you find exactly what you need.</p>
-                <pre><code># Include logs that contain "error" OR "warn"
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Include logs that contain "error" OR "warn"
 wake "my-app" -i '"error" || "warn"'
 
 # Exclude logs that contain "debug"
@@ -491,6 +800,168 @@ wake "my-app" -e "debug"
 
 # Complex query: (error OR warn)
 wake "my-app" -i '"error" || "warn"'</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="templates" class="card">
+            <div class="card-header">
+                <h2>Templates</h2>
+            </div>
+            <div class="card-body">
+                <p>Templates enable you to execute predefined diagnostic commands inside your pods with support for multiple execution modes. Run diagnostics like Java Flight Recorder (JFR), heap dumps, and thread dumps efficiently across your entire cluster.</p>
+
+                <h3>Template Types</h3>
+                <p>Wake supports multiple diagnostic templates:</p>
+                <ul>
+                    <li><strong>JFR (Java Flight Recorder)</strong> - Profile Java applications with low overhead</li>
+                    <li><strong>Heap Dump</strong> - Capture heap snapshots for memory analysis</li>
+                    <li><strong>Thread Dump</strong> - Analyze thread states and stack traces</li>
+                </ul>
+
+                <h3>List Available Templates</h3>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>wake --list-templates</code></pre>
+                </div>
+
+                <h3>Execution Modes</h3>
+                <p>Templates support flexible execution across different pod selection strategies:</p>
+
+                <h4>Execute on Single Pod</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute thread-dump on a specific pod
+wake "my-app" --exec-template thread-dump --template-output /tmp/dumps</code></pre>
+                </div>
+
+                <h4>Execute on All Matching Pods (Multi-threaded)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute heap-dump on all pods matching "backend" in all namespaces
+wake -A "backend" --exec-template heap-dump --template-output /tmp/heaps</code></pre>
+                </div>
+
+                <h4>Execute with Pod Selector (Regex)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute JFR on pods matching a regex pattern in namespace
+wake -n production "^api-service-.*" --exec-template jfr --template-args "30s" --template-output /tmp/jfr</code></pre>
+                </div>
+
+                <h4>Execute with Sampling (Random Subset)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute thread-dump on a random sample of 5 pods from matching selection
+wake -A "worker" -s 5 --exec-template thread-dump --template-output /tmp/samples</code></pre>
+                </div>
+
+                <h4>Execute with Thread Control</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute with custom thread count for parallel execution
+wake -A "db-pod" --exec-template heap-dump --threads 8 --template-output /tmp/heaps</code></pre>
+                </div>
+
+                <h3>Template Results</h3>
+                <p>View and manage template execution results:</p>
+                <details>
+                    <summary>🔍 <b>Show Template Results Screenshot</b></summary>
+                    <img src="template_result.png" alt="Template Results Screenshot">
+                    <p style="margin-top:0.5rem;">This shows the organized view of collected diagnostic results from template executions.</p>
+                </details>
+
+                <h3>Running Templates in Action</h3>
+                <details>
+                    <summary>🎬 <b>Show Template Execution Screenshot</b></summary>
+                    <img src="template_running.png" alt="Template Running Screenshot">
+                    <p style="margin-top:0.5rem;">Real-time progress view of templates running across multiple pods with status updates.</p>
+                </details>
+            </div>
+        </section>
+
+        <section id="scripts" class="card">
+            <div class="card-header">
+                <h2>Scripts</h2>
+            </div>
+            <div class="card-body">
+                <p>Execute custom scripts inside your pods with flexible pod selection and multi-threaded parallel execution. Perfect for running diagnostics, health checks, or maintenance tasks across your cluster.</p>
+
+                <h3>Execution Modes</h3>
+                <p>Scripts support multiple execution strategies for different use cases:</p>
+
+                <h4>Execute on Single Pod</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Run a script on a specific pod
+wake "my-app" --script-in ./scripts/check_health.sh --script-outdir /tmp/results</code></pre>
+                </div>
+
+                <h4>Execute on All Matching Pods (Multi-threaded)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Run script on all pods matching a pattern across all namespaces
+wake -A "worker" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usage</code></pre>
+                </div>
+
+                <h4>Execute with Pod Selector (Regex)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Run script on pods matching regex in specific namespace
+wake -n production "^cache-.*" --script-in ./scripts/cache_stats.sh --script-outdir /tmp/cache</code></pre>
+                </div>
+
+                <h4>Execute with Sampling (Random Subset)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Run script on a random sample of 10 pods (useful for large clusters)
+wake -A "service" -s 10 --script-in ./scripts/performance_check.sh --script-outdir /tmp/perf</code></pre>
+                </div>
+
+                <h4>Execute with Thread Control</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute scripts with custom thread count for parallel processing
+wake -A "api" --script-in ./scripts/collect_metrics.sh --threads 16 --script-outdir /tmp/metrics</code></pre>
+                </div>
+
+                <h3>Upcoming Features</h3>
+                <div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 1rem; margin-bottom: 1.5rem; border-radius: 6px;">
+                    <p style="margin: 0; font-size: 1rem; color: #0c4a6e;"><strong>🚀 Coming Soon:</strong> We are actively developing an interactive UI for script execution and management, similar to the template interface. This will provide real-time progress tracking, live output streaming, and result visualization.</p>
+                </div>
             </div>
         </section>
 
@@ -499,37 +970,28 @@ wake "my-app" -i '"error" || "warn"'</code></pre>
                 <h2>Monitoring CPU & Memory</h2>
             </div>
             <div class="card-body">
-                <p>Wake can monitor resource usage of your pods, providing real-time insights into CPU and memory consumption.</p>
-                <pre><code>wake --monitor</code></pre>
-                <p>Configure monitoring options in your <span class="command">wake.yaml</span> or via command-line flags.</p>
-            </div>
-        </section>
+                <p>Wake can monitor resource usage of your pods, providing real-time insights into CPU and memory consumption across your cluster. Track performance metrics and identify resource bottlenecks instantly.</p>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Start monitoring pod resources
+wake --monitor
 
-        <section id="templates" class="card">
-            <div class="card-header">
-                <h2>Running Templates</h2>
-            </div>
-            <div class="card-body">
-                <p>Templates allow you to execute predefined commands inside your pods. This is useful for diagnostics like thread dumps or heap dumps.</p>
-                <pre><code># List available templates
-wake --list-templates
+# Monitor specific namespace
+wake -n production --monitor
 
-# Execute the 'thread-dump' template on 'my-app'
-wake "my-app" --exec-template thread-dump
+# Monitor with specific pod selector
+wake "my-app" --monitor</code></pre>
+                </div>
 
-# Save the output to a specific directory
-wake "my-app" --exec-template heap-dump --template-output /tmp/heap-dumps</code></pre>
-            </div>
-        </section>
-
-        <section id="scripts" class="card">
-            <div class="card-header">
-                <h2>Running Scripts</h2>
-            </div>
-            <div class="card-body">
-                <p>Execute custom scripts inside each selected pod and collect the output.</p>
-                <pre><code># Run a script to check disk usage
-wake "my-app" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usage</code></pre>
+                <h3>Monitoring in Action</h3>
+                <details>
+                    <summary>📊 <b>Show Monitoring Dashboard Screenshot</b></summary>
+                    <img src="monitor.png" alt="Monitoring Dashboard Screenshot">
+                    <p style="margin-top:0.5rem;">Real-time CPU and memory usage metrics displayed in an interactive dashboard view.</p>
+                </details>
             </div>
         </section>
 
@@ -539,7 +1001,12 @@ wake "my-app" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usag
             </div>
             <div class="card-body">
                 <p>Customize Wake's behavior through configuration commands.</p>
-                <pre><code># Open an interactive UI to edit all settings
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Open an interactive UI to edit all settings
 wake setconfig
 
 # Show all current configuration
@@ -547,10 +1014,10 @@ wake getconfig
 
 # Get a specific configuration key
 wake getconfig web.endpoint</code></pre>
-
+                </div>
                 <details>
-                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show Configuration Screenshot</b></summary>
-                    <img src="config.png" alt="Configuration Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <summary>🔍 <b>Show Configuration Screenshot</b></summary>
+                    <img src="config.png" alt="Configuration Screenshot">
                     <p style="margin-top:0.5rem;">This image shows how the settings / configuration screen looks.</p>
                 </details>
             </div>
@@ -562,11 +1029,17 @@ wake getconfig web.endpoint</code></pre>
             </div>
             <div class="card-body">
                 <p>Wake saves your command history and allows you to search it using TF-IDF for intelligent retrieval.</p>
-                <pre><code># Search for commands related to "error logs"
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Search for commands related to "error logs"
 wake --his "error logs"
 
 # Show all command history
 wake --his</code></pre>
+                </div>
                 <h3>Example: <code>wake --his jfr</code></h3>
                 <div style="background: #f6f8fa; border-left: 4px solid #4299e1; padding: 1rem; margin-bottom: 1rem;">
                     <strong>Response:</strong><br>
@@ -575,7 +1048,6 @@ wake --his</code></pre>
                     Useful args: <code>-c &lt;container&gt;</code>, <code>-n &lt;namespace&gt;</code>, <code>-s &lt;sample&gt;</code>, <code>-i &lt;include&gt;</code>, <code>-e &lt;exclude&gt;</code>.<br>
                     Pod selector: positional regex after namespace (default: <code>.*</code>)
                 </div>
-               
             </div>
         </section>
 
@@ -595,23 +1067,41 @@ wake --his</code></pre>
                 </ul>
                 <p>Examples: <code>1.2.0</code> → new features since <code>1.1.x</code>; <code>2.0.0</code> → breaking changes from <code>1.x</code>.</p>
                 <p>Check the Wake version locally:</p>
-                <pre><code>wake --version
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>wake --version
 # or
 wake -V</code></pre>
+                </div>
 
                 <h3>Update via Homebrew (macOS)</h3>
                 <p>Update the Homebrew package on macOS:</p>
-                <pre><code>brew upgrade samba-rgb/wake/wake</code></pre>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>brew upgrade samba-rgb/wake/wake</code></pre>
+                </div>
 
                 <h3>Update from Source</h3>
                 <p>If you installed from source, update and re-run:</p>
-                <pre><code>cd wake
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>cd wake
 git pull origin main   # or the branch you track
 cargo run              # run latest changes
 
 # Or rebuild release
 cargo build --release
 ./target/release/wake --help</code></pre>
+                </div>
             </div>
         </section>
 
@@ -628,48 +1118,64 @@ cargo build --release
     </main>
 
     <script>
-        // Handle nav item clicks and active state
-        document.querySelectorAll('.nav-item a').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                if (document.querySelector('.nav-item a.active')) {
-                    document.querySelector('.nav-item a.active').classList.remove('active');
-                }
+        function switchTab(event, tabId) {
+            event.preventDefault();
+            const allTabs = event.target.parentElement.parentElement.querySelectorAll('.tab-content');
+            allTabs.forEach(tab => tab.classList.remove('active'));
+            const allButtons = event.target.parentElement.querySelectorAll('.tab-button');
+            allButtons.forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function copyToClipboard(button) {
+            const codeBlock = button.closest('.code-block-wrapper').querySelector('code');
+            const text = codeBlock.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                button.classList.add('copied');
+                button.innerHTML = '✅ Copied!';
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                    button.innerHTML = '📋 Copy';
+                }, 2000);
+            });
+        }
+
+        function toggleNav() {
+            const nav = document.querySelector('.nav');
+            nav.classList.toggle('open');
+        }
+
+        document.querySelectorAll('.nav-item a:not([target])').forEach(anchor => {
+            anchor.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item a').forEach(a => a.classList.remove('active'));
                 this.classList.add('active');
             });
         });
-        
-        // Scroll spy - update active nav item based on scroll position
+
         window.addEventListener('scroll', function() {
             let current = '';
             const sections = document.querySelectorAll('section[id]');
             
             sections.forEach(section => {
                 const sectionTop = section.offsetTop;
-                const sectionHeight = section.clientHeight;
                 if (pageYOffset >= (sectionTop - 100)) {
                     current = section.getAttribute('id');
                 }
             });
             
-            document.querySelectorAll('.nav-item a').forEach(link => {
+            document.querySelectorAll('.nav-item a:not([target])').forEach(link => {
                 link.classList.remove('active');
                 if (link.getAttribute('href') === '#' + current) {
                     link.classList.add('active');
-                    // Scroll the active link into view within the sidebar
                     link.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
             });
         });
-        
-        // Mobile nav toggle
-        function toggleNav() {
-            var nav = document.querySelector('.nav');
-            nav.classList.toggle('open');
-        }
-        // Close nav on click outside (mobile)
+
         document.addEventListener('click', function(e) {
-            var nav = document.querySelector('.nav');
-            var toggle = document.querySelector('.mobile-nav-toggle');
+            const nav = document.querySelector('.nav');
+            const toggle = document.querySelector('.mobile-nav-toggle');
             if (nav.classList.contains('open') && !nav.contains(e.target) && e.target !== toggle) {
                 nav.classList.remove('open');
             }
