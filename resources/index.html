@@ -1362,18 +1362,30 @@ wake -A "worker" -s 5 --exec-template thread-dump --template-args 1234</code></p
 
                 <h3>Template Results</h3>
                 <p>View and manage template execution results:</p>
-                <details>
-                    <summary>🔍 <b>Show Template Results Screenshot</b></summary>
-                    <img src="template_result.png" alt="Template Results Screenshot">
-                    <p style="margin-top:0.5rem;">This shows the organized view of collected diagnostic results from template executions.</p>
-                </details>
 
-                <h3>Running Templates in Action</h3>
-                <details>
-                    <summary>🎬 <b>Show Template Execution Screenshot</b></summary>
-                    <img src="template_running.png" alt="Template Running Screenshot">
-                    <p style="margin-top:0.5rem;">Real-time progress view of templates running across multiple pods with status updates.</p>
-                </details>
+                <!-- Template Results Tabs -->
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab(event, 'template-running')">🚀 Running</button>
+                    <button class="tab-button" onclick="switchTab(event, 'template-completed')">✅ Completed</button>
+                </div>
+
+                <!-- Running Template Tab -->
+                <div id="template-running" class="tab-content active">
+                    <details open>
+                        <summary>📊 <b>Real-Time Template Execution</b></summary>
+                        <img src="template_running.png" alt="Template Running Screenshot" style="max-width: 100%; height: auto; border-radius: 0.75rem; margin-top: 1rem; box-shadow: var(--shadow-md);">
+                        <p style="margin-top: 1rem; font-size: 0.95rem; color: #718096;"><strong>Real-time progress view:</strong> Templates running across multiple pods with live status updates, progress indicators, and pod-by-pod execution tracking. Watch as diagnostics complete on each pod in parallel.</p>
+                    </details>
+                </div>
+
+                <!-- Completed Template Tab -->
+                <div id="template-completed" class="tab-content">
+                    <details open>
+                        <summary>📦 <b>Completed Results & Downloads</b></summary>
+                        <img src="template_result.png" alt="Template Results Screenshot" style="max-width: 100%; height: auto; border-radius: 0.75rem; margin-top: 1rem; box-shadow: var(--shadow-md);">
+                        <p style="margin-top: 1rem; font-size: 0.95rem; color: #718096;"><strong>Results summary:</strong> View organized diagnostic results from all pods, success/failure statistics, execution times, and download all collected artifacts. Results are indexed by pod and timestamp for easy navigation.</p>
+                    </details>
+                </div>
             </div>
         </section>
 
