@@ -554,8 +554,8 @@
                 <li class="nav-item"><a href="#tui-view">TUI View</a></li>
                 <li class="nav-item"><a href="#web-view">Web View</a></li>
                 <li class="nav-item"><a href="#filtering">Filtering Logs</a></li>
-                <li class="nav-item"><a href="#templates">Running Templates</a></li>
-                <li class="nav-item"><a href="#scripts">Running Scripts</a></li>
+                <li class="nav-item"><a href="#templates">Templates</a></li>
+                <li class="nav-item"><a href="#scripts">Scripts</a></li>
                 <li class="nav-item"><a href="#monitoring">Monitoring</a></li>
                 <li class="nav-item"><a href="#configuration">Configuration</a></li>
                 <li class="nav-item"><a href="#command-history">Command History</a></li>
@@ -838,7 +838,7 @@ wake "my-app" -i '"error" || "warn"'</code></pre>
                         <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
                     </div>
                     <pre><code># Execute thread-dump on a specific pod
-wake "my-app" --exec-template thread-dump --template-output /tmp/dumps</code></pre>
+wake "my-app" --exec-template thread-dump --template-args 1234</code></pre>
                 </div>
 
                 <h4>Execute on All Matching Pods (Multi-threaded)</h4>
@@ -848,7 +848,7 @@ wake "my-app" --exec-template thread-dump --template-output /tmp/dumps</code></p
                         <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
                     </div>
                     <pre><code># Execute heap-dump on all pods matching "backend" in all namespaces
-wake -A "backend" --exec-template heap-dump --template-output /tmp/heaps</code></pre>
+wake -A "backend" --exec-template heap-dump --template-args 1234</code></pre>
                 </div>
 
                 <h4>Execute with Pod Selector (Regex)</h4>
@@ -858,7 +858,7 @@ wake -A "backend" --exec-template heap-dump --template-output /tmp/heaps</code><
                         <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
                     </div>
                     <pre><code># Execute JFR on pods matching a regex pattern in namespace
-wake -n production "^api-service-.*" --exec-template jfr --template-args "30s" --template-output /tmp/jfr</code></pre>
+wake -n production "^api-service-.*" --exec-template jfr --template-args "30s"</code></pre>
                 </div>
 
                 <h4>Execute with Sampling (Random Subset)</h4>
@@ -868,17 +868,7 @@ wake -n production "^api-service-.*" --exec-template jfr --template-args "30s" -
                         <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
                     </div>
                     <pre><code># Execute thread-dump on a random sample of 5 pods from matching selection
-wake -A "worker" -s 5 --exec-template thread-dump --template-output /tmp/samples</code></pre>
-                </div>
-
-                <h4>Execute with Thread Control</h4>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
-                    </div>
-                    <pre><code># Execute with custom thread count for parallel execution
-wake -A "db-pod" --exec-template heap-dump --threads 8 --template-output /tmp/heaps</code></pre>
+wake -A "worker" -s 5 --exec-template thread-dump --template-args 1234</code></pre>
                 </div>
 
                 <h3>Template Results</h3>
@@ -944,242 +934,4 @@ wake -n production "^cache-.*" --script-in ./scripts/cache_stats.sh --script-out
                         <span class="code-label">bash</span>
                         <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
                     </div>
-                    <pre><code># Run script on a random sample of 10 pods (useful for large clusters)
-wake -A "service" -s 10 --script-in ./scripts/performance_check.sh --script-outdir /tmp/perf</code></pre>
-                </div>
-
-                <h4>Execute with Thread Control</h4>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
-                    </div>
-                    <pre><code># Execute scripts with custom thread count for parallel processing
-wake -A "api" --script-in ./scripts/collect_metrics.sh --threads 16 --script-outdir /tmp/metrics</code></pre>
-                </div>
-
-                <h3>Upcoming Features</h3>
-                <div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 1rem; margin-bottom: 1.5rem; border-radius: 6px;">
-                    <p style="margin: 0; font-size: 1rem; color: #0c4a6e;"><strong>🚀 Coming Soon:</strong> We are actively developing an interactive UI for script execution and management, similar to the template interface. This will provide real-time progress tracking, live output streaming, and result visualization.</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="monitoring" class="card">
-            <div class="card-header">
-                <h2>Monitoring CPU & Memory</h2>
-            </div>
-            <div class="card-body">
-                <p>Wake can monitor resource usage of your pods, providing real-time insights into CPU and memory consumption across your cluster. Track performance metrics and identify resource bottlenecks instantly.</p>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
-                    </div>
-                    <pre><code># Start monitoring pod resources
-wake --monitor
-
-# Monitor specific namespace
-wake -n production --monitor
-
-# Monitor with specific pod selector
-wake "my-app" --monitor</code></pre>
-                </div>
-
-                <h3>Monitoring in Action</h3>
-                <details>
-                    <summary>📊 <b>Show Monitoring Dashboard Screenshot</b></summary>
-                    <img src="monitor.png" alt="Monitoring Dashboard Screenshot">
-                    <p style="margin-top:0.5rem;">Real-time CPU and memory usage metrics displayed in an interactive dashboard view.</p>
-                </details>
-            </div>
-        </section>
-
-        <section id="configuration" class="card">
-            <div class="card-header">
-                <h2>Configuration Management</h2>
-            </div>
-            <div class="card-body">
-                <p>Customize Wake's behavior through configuration commands.</p>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
-                    </div>
-                    <pre><code># Open an interactive UI to edit all settings
-wake setconfig
-
-# Show all current configuration
-wake getconfig
-
-# Get a specific configuration key
-wake getconfig web.endpoint</code></pre>
-                </div>
-                <details>
-                    <summary>🔍 <b>Show Configuration Screenshot</b></summary>
-                    <img src="config.png" alt="Configuration Screenshot">
-                    <p style="margin-top:0.5rem;">This image shows how the settings / configuration screen looks.</p>
-                </details>
-            </div>
-        </section>
-
-        <section id="command-history" class="card">
-            <div class="card-header">
-                <h2>Command History (TF-IDF Search)</h2>
-            </div>
-            <div class="card-body">
-                <p>Wake saves your command history and allows you to search it using TF-IDF for intelligent retrieval.</p>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
-                    </div>
-                    <pre><code># Search for commands related to "error logs"
-wake --his "error logs"
-
-# Show all command history
-wake --his</code></pre>
-                </div>
-                <h3>Example: <code>wake --his jfr</code></h3>
-                <div style="background: #f6f8fa; border-left: 4px solid #4299e1; padding: 1rem; margin-bottom: 1rem;">
-                    <strong>Response:</strong><br>
-                    <span style="font-size: 1.1em;">🚀 Command:</span> <code>wake --exec-template jfr --template-args 1234 30s</code><br>
-                    <span style="font-size: 1.1em;">📝 Description:</span> Execute Java Flight Recorder template with process ID 1234 for 30 seconds profiling duration.<br>
-                    Useful args: <code>-c &lt;container&gt;</code>, <code>-n &lt;namespace&gt;</code>, <code>-s &lt;sample&gt;</code>, <code>-i &lt;include&gt;</code>, <code>-e &lt;exclude&gt;</code>.<br>
-                    Pod selector: positional regex after namespace (default: <code>.*</code>)
-                </div>
-            </div>
-        </section>
-
-        <section id="update-manager" class="card">
-            <div class="card-header">
-                <h2>Update Manager</h2>
-            </div>
-            <div class="card-body">
-                <p>Keep Wake up to date with the latest features and improvements.</p>
-
-                <h3>Versioning</h3>
-                <p>Wake follows semantic versioning: <strong>MAJOR.MINOR.PATCH</strong>.</p>
-                <ul>
-                    <li><strong>MAJOR</strong> — incompatible API or behaviour changes (breaking changes).</li>
-                    <li><strong>MINOR</strong> — new features, backwards-compatible.</li>
-                    <li><strong>PATCH</strong> — bug fixes and small improvements, backwards-compatible.</li>
-                </ul>
-                <p>Examples: <code>1.2.0</code> → new features since <code>1.1.x</code>; <code>2.0.0</code> → breaking changes from <code>1.x</code>.</p>
-                <p>Check the Wake version locally:</p>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
-                    </div>
-                    <pre><code>wake --version
-# or
-wake -V</code></pre>
-                </div>
-
-                <h3>Update via Homebrew (macOS)</h3>
-                <p>Update the Homebrew package on macOS:</p>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
-                    </div>
-                    <pre><code>brew upgrade samba-rgb/wake/wake</code></pre>
-                </div>
-
-                <h3>Update from Source</h3>
-                <p>If you installed from source, update and re-run:</p>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
-                    </div>
-                    <pre><code>cd wake
-git pull origin main   # or the branch you track
-cargo run              # run latest changes
-
-# Or rebuild release
-cargo build --release
-./target/release/wake --help</code></pre>
-                </div>
-            </div>
-        </section>
-
-        <section id="support-issues" class="card">
-            <div class="card-header">
-                <h2>Support &amp; Issues</h2>
-            </div>
-            <div class="card-body">
-                <p>If you encounter any issues, please raise them on the <a href="https://github.com/samba-rgb/wake/issues" target="_blank">GitHub Issues page</a>.<br>
-                For direct contact, you can reach the author at <a href="mailto:samba24052001@gmail.com">samba24052001@gmail.com</a>.</p>
-                <p style="margin-top:0.75rem;">If you like the application, please consider giving it a star on GitHub — it really helps the project: <a href="https://github.com/samba-rgb/wake" target="_blank">Star Wake on GitHub <span class="gh-star-inline">⭐</span></a></p>
-            </div>
-        </section>
-    </main>
-
-    <script>
-        function switchTab(event, tabId) {
-            event.preventDefault();
-            const allTabs = event.target.parentElement.parentElement.querySelectorAll('.tab-content');
-            allTabs.forEach(tab => tab.classList.remove('active'));
-            const allButtons = event.target.parentElement.querySelectorAll('.tab-button');
-            allButtons.forEach(btn => btn.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            event.target.classList.add('active');
-        }
-
-        function copyToClipboard(button) {
-            const codeBlock = button.closest('.code-block-wrapper').querySelector('code');
-            const text = codeBlock.innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                button.classList.add('copied');
-                button.innerHTML = '✅ Copied!';
-                setTimeout(() => {
-                    button.classList.remove('copied');
-                    button.innerHTML = '📋 Copy';
-                }, 2000);
-            });
-        }
-
-        function toggleNav() {
-            const nav = document.querySelector('.nav');
-            nav.classList.toggle('open');
-        }
-
-        document.querySelectorAll('.nav-item a:not([target])').forEach(anchor => {
-            anchor.addEventListener('click', function() {
-                document.querySelectorAll('.nav-item a').forEach(a => a.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-
-        window.addEventListener('scroll', function() {
-            let current = '';
-            const sections = document.querySelectorAll('section[id]');
-            
-            sections.forEach(section => {
-                const sectionTop = section.offsetTop;
-                if (pageYOffset >= (sectionTop - 100)) {
-                    current = section.getAttribute('id');
-                }
-            });
-            
-            document.querySelectorAll('.nav-item a:not([target])').forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href') === '#' + current) {
-                    link.classList.add('active');
-                    link.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-            });
-        });
-
-        document.addEventListener('click', function(e) {
-            const nav = document.querySelector('.nav');
-            const toggle = document.querySelector('.mobile-nav-toggle');
-            if (nav.classList.contains('open') && !nav.contains(e.target) && e.target !== toggle) {
-                nav.classList.remove('open');
-            }
-        });
-    </script>
-</body>
-</html>
+                    <pre><code># Run script on a random sample
