@@ -73,9 +73,19 @@
             margin-bottom: 0.5rem;
             filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
             transition: transform 0.3s ease;
+            position: relative;
+            animation: float 3s ease-in-out infinite;
         }
 
-        .wakeicon:hover { transform: scale(1.05) rotate(5deg); }
+        .wakeicon:hover { 
+            transform: scale(1.05) rotate(5deg);
+            filter: drop-shadow(0 8px 16px rgba(66, 153, 225, 0.4));
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
 
         .logo h1 {
             font-size: 1.8rem;
@@ -86,6 +96,27 @@
             background-clip: text;
             font-weight: 700;
             letter-spacing: -0.5px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo h1::before {
+            content: '⚡';
+            font-size: 1.5rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .logo h1::after {
+            content: '⚡';
+            font-size: 1.5rem;
+            animation: pulse 2s ease-in-out infinite 0.3s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
         }
 
         .nav { width: 100%; }
