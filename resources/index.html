@@ -37,6 +37,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-y: auto;
         }
 
         .logo {
@@ -300,7 +301,7 @@
                 <li class="nav-item"><a href="#monitoring">Monitoring</a></li>
                 <li class="nav-item"><a href="#configuration">Configuration</a></li>
                 <li class="nav-item"><a href="#command-history">Command History</a></li>
-                <li class="nav-item"><a href="#installation">Installation</a></li>
+                <li class="nav-item"><a href="#update-manager">Update Manager</a></li>
                 <li class="nav-item"><a href="#support-issues">Support / Raise a Bug</a></li>
                 <li class="nav-item"><a href="https://github.com/samba-rgb/wake" target="_blank">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
@@ -324,12 +325,38 @@
                 <h2>Getting Started: Basic Log Tailing</h2>
             </div>
             <div class="card-body">
+                <div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 1rem; margin-bottom: 1.5rem; border-radius: 6px;">
+                    <p style="margin: 0; font-size: 1.05rem; color: #0c4a6e;"><strong>Wake</strong> is a powerful multi-pod log grepping tool designed for Kubernetes environments. It allows you to efficiently tail, filter, and search logs across multiple pods in real-time, with advanced pattern matching and interactive UI capabilities.</p>
+                </div>
+
+                <h3>Quick Start</h3>
                 <p>Use Wake to tail logs from Kubernetes pods. This is the default mode and provides a straightforward stream of log data.</p>
+                
+                <h4>Basic Examples:</h4>
                 <pre><code># Tail logs for kube-proxy in kube-system namespace
 wake -n kube-system "kube-proxy"
 
 # Tail logs across all namespaces, including the string 'error'
 wake -A -i "error"</code></pre>
+
+                <h3>Installation</h3>
+                
+                <h4>Option 1: Install via Homebrew (Recommended)</h4>
+                <p>The easiest way to install Wake on macOS:</p>
+                <pre><code>brew install samba-rgb/wake/wake</code></pre>
+
+                <h4>Option 2: Build from Source</h4>
+                <p>Clone the repository and build Wake locally:</p>
+                <pre><code># Clone the repository
+git clone https://github.com/samba-rgb/wake.git
+cd wake
+
+# Build and run (debug)
+cargo run
+
+# Or build release and run
+cargo build --release
+./target/release/wake --help</code></pre>
             </div>
         </section>
 
@@ -552,12 +579,12 @@ wake --his</code></pre>
             </div>
         </section>
 
-        <section id="installation" class="card">
+        <section id="update-manager" class="card">
             <div class="card-header">
-                <h2>Installation (macOS) & Running from Source</h2>
+                <h2>Update Manager</h2>
             </div>
             <div class="card-body">
-                <p>Install or update Wake on macOS using Homebrew, or run from source using Cargo.</p>
+                <p>Keep Wake up to date with the latest features and improvements.</p>
 
                 <h3>Versioning</h3>
                 <p>Wake follows semantic versioning: <strong>MAJOR.MINOR.PATCH</strong>.</p>
@@ -572,29 +599,16 @@ wake --his</code></pre>
 # or
 wake -V</code></pre>
 
-                <h3>1. Install</h3>
-                <p>Install via Homebrew (macOS):</p>
-                <pre><code>brew install samba-rgb/wake/wake</code></pre>
-                <p>Or build and run from source (developer / latest):</p>
-                <pre><code># Clone the repository
-git clone https://github.com/samba-rgb/wake.git
-cd wake
-
-# Build and run (debug)
-cargo run
-
-# Or build release and run
-cargo build --release
-./target/release/wake --help</code></pre>
-                <p>Source and contributions: <a href="https://github.com/samba-rgb/wake" target="_blank">https://github.com/samba-rgb/wake</a></p>
-
-                <h3>2. Update</h3>
+                <h3>Update via Homebrew (macOS)</h3>
                 <p>Update the Homebrew package on macOS:</p>
                 <pre><code>brew upgrade samba-rgb/wake/wake</code></pre>
-                <p>Or, if you installed from source, update and re-run:</p>
+
+                <h3>Update from Source</h3>
+                <p>If you installed from source, update and re-run:</p>
                 <pre><code>cd wake
 git pull origin main   # or the branch you track
 cargo run              # run latest changes
+
 # Or rebuild release
 cargo build --release
 ./target/release/wake --help</code></pre>
@@ -614,6 +628,7 @@ cargo build --release
     </main>
 
     <script>
+        // Handle nav item clicks and active state
         document.querySelectorAll('.nav-item a').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 if (document.querySelector('.nav-item a.active')) {
@@ -622,6 +637,30 @@ cargo build --release
                 this.classList.add('active');
             });
         });
+        
+        // Scroll spy - update active nav item based on scroll position
+        window.addEventListener('scroll', function() {
+            let current = '';
+            const sections = document.querySelectorAll('section[id]');
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= (sectionTop - 100)) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            document.querySelectorAll('.nav-item a').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                    // Scroll the active link into view within the sidebar
+                    link.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        });
+        
         // Mobile nav toggle
         function toggleNav() {
             var nav = document.querySelector('.nav');
