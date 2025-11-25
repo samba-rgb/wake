@@ -2,32 +2,72 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wake Guide</title>
     <link rel="icon" type="image/png" href="wakeicon.png">
     <style>
         :root {
-            --sidebar-bg: #1a202c;
-            --main-bg: #f7fafc;
+            --sidebar-bg: linear-gradient(135deg, #1a202c 0%, #0f1419 100%);
+            --main-bg: linear-gradient(135deg, #f7fafc 0%, #e8f1f8 100%);
             --text-color: #2d3748;
             --header-color: #1a202c;
             --accent-color: #4299e1;
+            --accent-light: #63b3ed;
             --border-color: #e2e8f0;
             --card-bg: #ffffff;
             --code-bg: #edf2f7;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        * { scroll-behavior: smooth; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
             display: flex;
-            background-color: var(--main-bg);
+            background: var(--main-bg);
             color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        /* Custom Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: linear-gradient(180deg, rgba(247, 250, 252, 0.5) 0%, rgba(232, 241, 248, 0.5) 100%);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #4299e1 0%, #63b3ed 100%);
+            border-radius: 10px;
+            border: 2px solid rgba(247, 250, 252, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #2563eb 0%, #4299e1 100%);
+            box-shadow: 0 0 10px rgba(66, 153, 225, 0.5);
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
+        /* Firefox Scrollbar */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #4299e1 rgba(247, 250, 252, 0.5);
         }
 
         .sidebar {
             width: 250px;
-            background-color: var(--sidebar-bg);
+            background: var(--sidebar-bg);
             color: white;
             padding: 2rem 1rem;
             height: 100vh;
@@ -37,160 +77,457 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
         }
+
+        .sidebar::-webkit-scrollbar { width: 8px; }
+        .sidebar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
 
         .logo {
             display: flex;
             flex-direction: column;
             align-items: center;
             margin-bottom: 2rem;
+            animation: fadeInDown 0.6s ease-out;
         }
 
         .wakeicon {
             width: 80px;
             height: 80px;
             margin-bottom: 0.5rem;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+            transition: transform 0.3s ease;
+            position: relative;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .wakeicon:hover { 
+            transform: scale(1.05) rotate(5deg);
+            filter: drop-shadow(0 8px 16px rgba(66, 153, 225, 0.4));
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
         }
 
         .logo h1 {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             margin: 0;
-        }
-
-        .nav {
-            width: 100%;
-        }
-
-        .nav-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .nav-item a {
-            display: block;
-            color: #a0aec0;
-            text-decoration: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s, color 0.2s;
-            font-weight: 500;
+            background: linear-gradient(135deg, #63b3ed, #4299e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            position: relative;
             display: flex;
             align-items: center;
+            gap: 0.5rem;
         }
 
-        .nav-item a svg {
-            margin-right: 0.75rem;
-            width: 20px;
-            height: 20px;
+        .logo h1::before {
+            content: '⚡';
+            font-size: 1.5rem;
+            animation: pulse 2s ease-in-out infinite;
         }
 
-        /* removed sidebar star styling */
+        .logo h1::after {
+            content: '⚡';
+            font-size: 1.5rem;
+            animation: pulse 2s ease-in-out infinite 0.3s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .nav { width: 100%; }
+        .nav-list { list-style: none; padding: 0; margin: 0; }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            color: #cbd5e0;
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            margin: 0.25rem 0;
+            border-radius: 0.5rem;
+            transition: var(--transition);
+            font-weight: 500;
+            font-size: 0.95rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-item a::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: var(--accent-light);
+            transform: scaleY(0);
+            transform-origin: bottom;
+            transition: transform 0.3s ease;
+        }
+
+        .nav-item a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding-left: 1.5rem;
+        }
+
+        .nav-item a:hover::before {
+            transform: scaleY(1);
+            transform-origin: top;
+        }
+
+        .nav-item a.active {
+            background: rgba(66, 153, 225, 0.2);
+            color: var(--accent-light);
+            border-left: 3px solid var(--accent-light);
+            padding-left: 1.25rem;
+        }
+
+        .nav-item a svg { margin-right: 0.75rem; width: 20px; height: 20px; }
 
         .gh-star-inline {
             margin-left: 0.4rem;
-            color: #ffcc00;
+            color: #ffd700;
             font-size: 1.05rem;
             display: inline-flex;
             align-items: center;
             line-height: 1;
+            animation: twinkle 2s infinite;
         }
 
-        .nav-item a:hover, .nav-item a.active {
-            background-color: #2d3748;
-            color: white;
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
 
         .main-content {
             margin-left: 250px;
             padding: 2rem 3rem;
             width: calc(100% - 250px);
+            animation: fadeInUp 0.6s ease-out;
         }
 
         .page-header {
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 2rem;
             margin-bottom: 2rem;
+            animation: slideInDown 0.5s ease-out;
         }
 
         .page-header h1 {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
             color: var(--header-color);
-            margin: 0;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(135deg, #2d3748, #4299e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            letter-spacing: -1px;
         }
 
         .page-header p {
-            font-size: 1.125rem;
+            font-size: 1.2rem;
             color: #718096;
+            margin: 0;
+            font-weight: 500;
         }
 
         .card {
-            background-color: var(--card-bg);
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background: var(--card-bg);
+            border-radius: 1rem;
+            box-shadow: var(--shadow-md);
             margin-bottom: 2rem;
             overflow: hidden;
+            transition: var(--transition);
+            animation: fadeInUp 0.6s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
         }
 
         .card-header {
-            padding: 1.5rem;
-            background-color: #fdfdfe;
-            border-bottom: 1px solid var(--border-color);
+            padding: 1.75rem;
+            background: linear-gradient(135deg, #f7fafc 0%, #eef2f7 100%);
+            border-bottom: 2px solid var(--border-color);
+            position: relative;
+        }
+
+        .card-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-light));
         }
 
         .card-header h2 {
             margin: 0;
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             color: var(--header-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
         }
 
         .card-body {
-            padding: 1.5rem;
+            padding: 2rem;
         }
 
         .card-body p {
-            line-height: 1.6;
+            line-height: 1.8;
+            margin: 1rem 0;
+        }
+
+        .card-body h3 {
+            font-size: 1.35rem;
+            color: var(--header-color);
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--accent-light);
+        }
+
+        .card-body h4 {
+            font-size: 1.1rem;
+            color: var(--accent-color);
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #718096;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            font-size: 0.95rem;
+            position: relative;
+        }
+
+        .tab-button:hover { color: var(--accent-color); }
+        .tab-button.active { color: var(--accent-color); border-bottom-color: var(--accent-color); }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .code-block-wrapper {
+            position: relative;
+            margin: 1rem 0;
+            animation: slideInUp 0.4s ease-out;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .code-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--code-bg);
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .code-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .copy-button:hover {
+            background: var(--accent-light);
+            transform: scale(1.05);
+        }
+
+        .copy-button.copied {
+            background: #48bb78;
         }
 
         pre {
-            background-color: var(--code-bg);
+            background: var(--code-bg);
             padding: 1rem;
-            border-radius: 0.375rem;
             overflow-x: auto;
-            font-family: "Fira Mono", monospace;
+            font-family: "Fira Code", "Courier New", monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin: 0;
+            border: 1px solid var(--border-color);
+            border-top: none;
+        }
+
+        pre::-webkit-scrollbar { height: 6px; }
+        pre::-webkit-scrollbar-track { background: var(--border-color); }
+        pre::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 3px;
         }
 
         code {
-            font-family: "Fira Mono", monospace;
+            font-family: "Fira Code", "Courier New", monospace;
+            font-size: 0.9rem;
+            color: #2d3748;
         }
 
         .command {
-            background-color: var(--code-bg);
-            padding: 0.25rem 0.5rem;
+            background: linear-gradient(135deg, var(--code-bg), #e8f1f8);
+            padding: 0.3rem 0.6rem;
             border-radius: 0.25rem;
             font-weight: 600;
+            color: var(--accent-color);
+            border: 1px solid var(--accent-light);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1rem;
+            margin-top: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
         }
 
         th, td {
             text-align: left;
-            padding: 0.75rem;
+            padding: 1rem;
             border-bottom: 1px solid var(--border-color);
         }
 
         th {
-            background-color: #edf2f7;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
+            color: white;
+            font-weight: 700;
+            text-transform: capitalize;
+            letter-spacing: 0.3px;
+        }
+
+        tr:hover { background: rgba(66, 153, 225, 0.05); }
+        tr:last-child td { border-bottom: none; }
+
+        details {
+            margin: 1.5rem 0;
+        }
+
+        summary {
+            cursor: pointer;
+            padding: 1rem;
+            background: linear-gradient(135deg, #f7fafc, #eef2f7);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: var(--transition);
+            user-select: none;
+        }
+
+        summary:hover {
+            background: linear-gradient(135deg, #eef2f7, #e8f1f8);
+            box-shadow: var(--shadow-sm);
+        }
+
+        details[open] summary {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-color: transparent;
+            background: linear-gradient(135deg, var(--accent-light), var(--accent-color));
+            color: white;
+        }
+
+        details > img {
+            margin-top: 1rem;
+            border-radius: 0.5rem;
+            max-width: 100%;
+            box-shadow: var(--shadow-md);
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @media (max-width: 768px) {
-            body {
-                flex-direction: column;
-            }
+            body { flex-direction: column; }
             .sidebar {
                 width: 100%;
                 height: auto;
@@ -198,6 +535,8 @@
                 flex-direction: row;
                 justify-content: space-between;
                 padding: 1rem;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             }
             .logo {
                 flex-direction: row;
@@ -210,9 +549,7 @@
                 margin-right: 0.5rem;
                 margin-bottom: 0;
             }
-            .logo h1 {
-                font-size: 1.25rem;
-            }
+            .logo h1 { font-size: 1.35rem; }
             .nav {
                 display: none;
                 position: absolute;
@@ -222,61 +559,359 @@
                 background: var(--sidebar-bg);
                 z-index: 10;
             }
-            .nav.open {
-                display: block;
-            }
-            .nav-list {
-                flex-direction: column;
-            }
+            .nav.open { display: block; }
             .main-content {
                 margin-left: 0;
                 width: 100%;
                 padding: 1.5rem;
             }
-            .page-header h1 {
-                font-size: 2rem;
-            }
-            .card {
-                margin-bottom: 1rem;
-                border-radius: 0.25rem;
-                box-shadow: none;
-            }
-            .card-header, .card-body {
-                padding: 1rem;
-            }
-            table, pre {
-                font-size: 0.95rem;
-            }
+            .page-header h1 { font-size: 2rem; }
+            .card { border-radius: 0.75rem; }
+            .card-header, .card-body { padding: 1.25rem; }
+            table, pre { font-size: 0.9rem; }
         }
+
         @media (max-width: 480px) {
-            .card-header h2 {
-                font-size: 1.1rem;
-            }
-            .page-header h1 {
-                font-size: 1.3rem;
-            }
-            .main-content {
-                padding: 0.5rem;
-            }
+            .card-header h2 { font-size: 1.2rem; }
+            .page-header h1 { font-size: 1.5rem; }
+            .main-content { padding: 1rem; }
+            .card-body { padding: 1rem; }
+            .tabs { gap: 0.25rem; }
+            .tab-button { padding: 0.5rem 1rem; font-size: 0.85rem; }
         }
-        /* Responsive table and code blocks */
-        .card-body table, .card-body pre {
-            display: block;
-            overflow-x: auto;
-            width: 100%;
-        }
+
         .mobile-nav-toggle {
             display: none;
-            background: none;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
             border: none;
             color: #fff;
             font-size: 1.5rem;
             margin-left: auto;
             cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            transition: var(--transition);
         }
+
+        .mobile-nav-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-sm);
+        }
+
         @media (max-width: 768px) {
-            .mobile-nav-toggle {
-                display: block;
+            .mobile-nav-toggle { display: block; }
+        }
+
+        /* Back-to-Top Button */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 99;
+            animation: slideInUp 0.4s ease-out forwards;
+        }
+
+        .back-to-top.show {
+            display: flex;
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 8px 24px rgba(66, 153, 225, 0.6);
+            background: linear-gradient(135deg, #2563eb, var(--accent-color));
+        }
+
+        .back-to-top:active {
+            transform: translateY(-2px) scale(1.05);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-light));
+            width: 0%;
+            transition: width 0.1s linear;
+            z-index: 101;
+            box-shadow: 0 2px 8px rgba(66, 153, 225, 0.5);
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Template States and Comparison */
+        .template-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .template-state {
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition);
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .template-state:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
+        }
+
+        .template-state-header {
+            padding: 1.5rem;
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: white;
+        }
+
+        .template-state.running .template-state-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .template-state.completed .template-state-header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .template-state-icon {
+            font-size: 1.5rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .template-state.running .template-state-icon {
+            animation: spin 1.5s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .template-state-content {
+            padding: 2rem;
+            background: var(--card-bg);
+        }
+
+        .template-details {
+            margin-bottom: 1.5rem;
+        }
+
+        .template-detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+
+        .template-detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .template-detail-label {
+            font-weight: 600;
+            color: var(--header-color);
+        }
+
+        .template-detail-value {
+            color: var(--accent-color);
+            font-family: "Fira Code", monospace;
+        }
+
+        .template-state.running .template-detail-value {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .progress-indicator {
+            margin-top: 1.5rem;
+        }
+
+        .progress-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--header-color);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-light));
+            border-radius: 10px;
+            width: 45%;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .template-state.completed .progress-bar-fill {
+            width: 100%;
+        }
+
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4));
+            animation: shimmer 1.5s infinite;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 1rem;
+        }
+
+        .status-badge.running {
+            background: rgba(245, 158, 11, 0.2);
+            color: #d97706;
+        }
+
+        .status-badge.completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #059669;
+        }
+
+        .pod-results {
+            margin-top: 1.5rem;
+        }
+
+        .pod-results-title {
+            font-weight: 600;
+            color: var(--header-color);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .pod-result-item {
+            padding: 0.75rem;
+            background: var(--code-bg);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .pod-result-status {
+            font-size: 1.2rem;
+        }
+
+        .pod-result-name {
+            font-family: "Fira Code", monospace;
+            color: var(--accent-color);
+            flex: 1;
+        }
+
+        .pod-result-time {
+            font-size: 0.85rem;
+            color: #718096;
+        }
+
+        .results-summary {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+            border-left: 4px solid #10b981;
+            border-radius: 0.5rem;
+        }
+
+        .results-summary-title {
+            font-weight: 700;
+            color: var(--header-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .results-summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.35rem 0;
+            font-size: 0.9rem;
+        }
+
+        .download-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid var(--border-color);
+        }
+
+        .download-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.95rem;
+        }
+
+        .download-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            background: linear-gradient(135deg, #2563eb, var(--accent-color));
+        }
+
+        @media (max-width: 768px) {
+            .template-comparison {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
             }
         }
     </style>
@@ -295,12 +930,13 @@
                 <li class="nav-item"><a href="#tui-view">TUI View</a></li>
                 <li class="nav-item"><a href="#web-view">Web View</a></li>
                 <li class="nav-item"><a href="#filtering">Filtering Logs</a></li>
-                <li class="nav-item"><a href="#templates">Running Templates</a></li>
-                <li class="nav-item"><a href="#scripts">Running Scripts</a></li>
+                <li class="nav-item"><a href="#kubernetes-context">Kubernetes Context</a></li>
+                <li class="nav-item"><a href="#templates">Templates</a></li>
+                <li class="nav-item"><a href="#scripts">Scripts</a></li>
                 <li class="nav-item"><a href="#monitoring">Monitoring</a></li>
                 <li class="nav-item"><a href="#configuration">Configuration</a></li>
                 <li class="nav-item"><a href="#command-history">Command History</a></li>
-                <li class="nav-item"><a href="#installation">Installation</a></li>
+                <li class="nav-item"><a href="#update-manager">Update Manager</a></li>
                 <li class="nav-item"><a href="#support-issues">Support / Raise a Bug</a></li>
                 <li class="nav-item"><a href="https://github.com/samba-rgb/wake" target="_blank">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
@@ -324,12 +960,65 @@
                 <h2>Getting Started: Basic Log Tailing</h2>
             </div>
             <div class="card-body">
+                <div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 1rem; margin-bottom: 1.5rem; border-radius: 6px;">
+                    <p style="margin: 0; font-size: 1.05rem; color: #0c4a6e;"><strong>Wake</strong> is a powerful, multi-pod Kubernetes log analysis and diagnostics platform. Beyond traditional log tailing and grepping, Wake enables real-time log filtering with advanced pattern matching, interactive terminal UI (TUI), web-based viewing with OpenObserve integration, template-based diagnostics (JFR, heap dumps, thread dumps), custom script execution across pods, and intelligent command history powered by TF-IDF search. All with seamless multi-pod support, intelligent sampling, and multi-threaded processing for massive clusters.</p>
+                </div>
+
+                <h3>Quick Start</h3>
                 <p>Use Wake to tail logs from Kubernetes pods. This is the default mode and provides a straightforward stream of log data.</p>
-                <pre><code># Tail logs for kube-proxy in kube-system namespace
+                
+                <h4>Basic Examples:</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Tail logs for kube-proxy in kube-system namespace
 wake -n kube-system "kube-proxy"
 
 # Tail logs across all namespaces, including the string 'error'
 wake -A -i "error"</code></pre>
+                </div>
+
+                <h3>Installation</h3>
+                
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab(event, 'homebrew')">🍺 Homebrew</button>
+                    <button class="tab-button" onclick="switchTab(event, 'source')">⚙️ Build from Source</button>
+                </div>
+
+                <div id="homebrew" class="tab-content active">
+                    <h4>Option 1: Install via Homebrew (Recommended)</h4>
+                    <p>The easiest way to install Wake on macOS:</p>
+                    <div class="code-block-wrapper">
+                        <div class="code-block-header">
+                            <span class="code-label">bash</span>
+                            <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                        </div>
+                        <pre><code>brew install samba-rgb/wake/wake</code></pre>
+                    </div>
+                </div>
+
+                <div id="source" class="tab-content">
+                    <h4>Option 2: Build from Source</h4>
+                    <p>Clone the repository and build Wake locally:</p>
+                    <div class="code-block-wrapper">
+                        <div class="code-block-header">
+                            <span class="code-label">bash</span>
+                            <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                        </div>
+                        <pre><code># Clone the repository
+git clone https://github.com/samba-rgb/wake.git
+cd wake
+
+# Build and run (debug)
+cargo run
+
+# Or build release and run
+cargo build --release
+./target/release/wake --help</code></pre>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -380,7 +1069,6 @@ wake -A -i "error"</code></pre>
                         <tr><td><code>--script-outdir &lt;DIR&gt;</code></td><td>Directory to save script outputs (overrides config)</td><td>-</td></tr>
                         <tr><td><code>--his [QUERY]</code></td><td>Show command history or search saved commands using TF-IDF</td><td>-</td></tr>
                         <tr><td><code>--web</code></td><td>Send filtered logs to web endpoint via HTTP (configure with <code>wake setconfig web.*</code>)</td><td>-</td></tr>
-                        <tr><td><code>--guide</code></td><td>Open the interactive HTML guide in your browser</td><td>-</td></tr>
                         <tr><td><code>-h</code>, <code>--help</code></td><td>Print this help</td><td>-</td></tr>
                         <tr><td><code>-V</code>, <code>--version</code></td><td>Print version</td><td>-</td></tr>
                     </tbody>
@@ -394,11 +1082,17 @@ wake -A -i "error"</code></pre>
             </div>
             <div class="card-body">
                 <p>For an interactive experience, launch the Terminal UI (TUI) mode. This allows for real-time filtering, searching, and navigation within your terminal.</p>
-                <pre><code>wake --ui</code></pre>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>wake --ui</code></pre>
+                </div>
                 <p>Use arrow keys to scroll, <span class="command">f</span> to filter, and <span class="command">q</span> to quit.</p>
                 <details>
-                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show TUI Screenshot</b></summary>
-                    <img src="tui.png" alt="TUI Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <summary>🔍 <b>Show TUI Screenshot</b></summary>
+                    <img src="tui.png" alt="TUI Screenshot">
                 </details>
             </div>
         </section>
@@ -410,10 +1104,21 @@ wake -A -i "error"</code></pre>
             <div class="card-body">
                 <p>Wake can send filtered logs to a web endpoint for viewing. This is great for sharing and collaboration. It integrates with OpenObserve.</p>
                 <h4>Before you start:</h4>
-                <pre><code>mkdir -p data
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>mkdir -p data
 chmod +x data</code></pre>
+                </div>
                 <h4>1. Start OpenObserve with Docker:</h4>
-                <pre><code>docker run -d \
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>docker run -d \
   --name openobserve \
   -v $PWD/data:/data \
   -p 5080:5080 \
@@ -423,30 +1128,32 @@ chmod +x data</code></pre>
   -e ZO_ORG_DATA_QUOTA=10737418240 \
   -e ZO_STREAM_DATA_QUOTA=2147483648 \
   public.ecr.aws/zinclabs/openobserve:latest</code></pre>
+                </div>
                 <h4>2. Configure Wake to use the web endpoint:</h4>
-                <pre><code>wake setconfig web.endpoint "http://localhost:5080"
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>wake setconfig web.endpoint "http://localhost:5080"
 wake setconfig web.user "root@example.com"
 wake setconfig web.password "Complexpass#123"</code></pre>
-                <p><strong>Note:</strong> The default web endpoint is <code>http://localhost:5080</code>, user email is <code>root@example.com</code>, and password is <code>Complexpass#123</code>.<br>
-If you change the endpoint, user, or password, make sure to update the configuration using the above <code>wake setconfig</code> commands.</p>
+                </div>
+                <p><strong>Note:</strong> The default web endpoint is <code>http://localhost:5080</code>, user email is <code>root@example.com</code>, and password is <code>Complexpass#123</code>.<br>If you change the endpoint, user, or password, make sure to update the configuration using the above commands.</p>
                 <h4>3. Run Wake in web mode:</h4>
-                <pre><code># Send all logs from the "my-app" pod containing "error"
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Send all logs from the "my-app" pod containing "error"
 wake "my-app" -i "error" --web</code></pre>
+                </div>
                 <p>Access the OpenObserve UI at <a href="http://localhost:5080/" target="_blank">http://localhost:5080</a>. The stream name will be auto-generated daily (e.g., <code>logs_wake_{namespace}_YYYY_MM_DD</code>).</p>
                 <details>
-                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show Web View Screenshot</b></summary>
-                    <img src="web.png" alt="Web View Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <summary>🔍 <b>Show Web View Screenshot</b></summary>
+                    <img src="web.png" alt="Web View Screenshot">
                 </details>
-            </div>
-        </section>
-
-        <section id="openobserve-guide" class="card">
-            <div class="card-header">
-                <h2>OpenObserve User Guide</h2>
-            </div>
-            <div class="card-body">
-                <p>For detailed usage of OpenObserve's search and "Search Around" features, see the official user guide:</p>
-                <p><a href="https://openobserve.ai/docs/user-guide/logs/search-around/#how-to-use" target="_blank">OpenObserve — Search Around: How to use</a></p>
             </div>
         </section>
 
@@ -456,7 +1163,12 @@ wake "my-app" -i "error" --web</code></pre>
             </div>
             <div class="card-body">
                 <p>Wake supports advanced filtering to help you find exactly what you need.</p>
-                <pre><code># Include logs that contain "error" OR "warn"
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Include logs that contain "error" OR "warn"
 wake "my-app" -i '"error" || "warn"'
 
 # Exclude logs that contain "debug"
@@ -464,6 +1176,273 @@ wake "my-app" -e "debug"
 
 # Complex query: (error OR warn)
 wake "my-app" -i '"error" || "warn"'</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="kubernetes-context" class="card">
+            <div class="card-header">
+                <h2>Kubernetes Context Management</h2>
+            </div>
+            <div class="card-body">
+                <p>Wake automatically uses your current Kubernetes context. The context is detected from your kubeconfig, so you don't need to specify it explicitly in most cases. No namespace tensions or conflicts!</p>
+
+                <h3>How Context Detection Works</h3>
+                <p>Wake uses the context configured in your kubeconfig file. By default, it uses the current context set in your cluster. The context you're in determines which cluster Wake connects to.</p>
+
+                <h4>Check Your Current Context:</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># View current context
+kubectl config current-context
+
+# List all available contexts
+kubectl config get-contexts</code></pre>
+                </div>
+
+                <h3>Switch Kubernetes Context with kubectx (Recommended)</h3>
+                <p><strong>kubectx</strong> is a fast, interactive tool for switching between Kubernetes contexts. It's much faster and easier than kubectl:</p>
+
+                <h4>Install kubectx:</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># macOS with Homebrew
+brew install kubectx
+
+# Or download from GitHub
+# https://github.com/ahmetb/kubectx</code></pre>
+                </div>
+
+                <h4>Use kubectx to Switch Contexts:</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># List all contexts (interactive)
+kubectx
+
+# Switch to a specific context
+kubectx production-cluster
+
+# Switch to previous context (like 'cd -')
+kubectx -</code></pre>
+                </div>
+
+                <h3>Wake Automatically Uses Your Context</h3>
+                <p>Once you've switched contexts using kubectl or kubectx, Wake will automatically use that context for all commands. No configuration needed!</p>
+
+                <h4>Example Workflow:</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># 1. Switch context to production
+kubectx production-cluster
+
+# 2. Wake automatically uses this context
+wake "my-app" -i "error"
+
+# 3. Switch to staging
+kubectx staging-cluster
+
+# 4. Wake now uses staging context
+wake "my-app" -i "error"  # Same command, different cluster!</code></pre>
+                </div>
+
+                <h3>Override Context (Advanced)</h3>
+                <p>If needed, explicitly specify a context instead of using the current one:</p>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Use a specific context
+wake -x production-cluster "my-app" -i "error"
+
+# Use custom kubeconfig file
+wake -k ~/.kube/custom-config "my-app"</code></pre>
+                </div>
+
+                <h3>Context + Namespace (No Conflicts)</h3>
+                <p>Context and namespace work together seamlessly. No namespace tensions:</p>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Logs from 'default' namespace in current context
+wake "my-app"
+
+# Logs from 'production' namespace in current context
+wake -n production "my-app"
+
+# Logs from all namespaces in current context
+wake -A "my-app"
+
+# Switch context and get logs from specific namespace
+kubectx staging && wake -n payment-service "api-pod"</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="templates" class="card">
+            <div class="card-header">
+                <h2>Templates</h2>
+            </div>
+            <div class="card-body">
+                <p>Templates enable you to execute predefined diagnostic commands inside your pods with support for multiple execution modes. Run diagnostics like Java Flight Recorder (JFR), heap dumps, and thread dumps efficiently across your entire cluster.</p>
+
+                <h3>Template Types</h3>
+                <p>Wake supports multiple diagnostic templates:</p>
+                <ul>
+                    <li><strong>JFR (Java Flight Recorder)</strong> - Profile Java applications with low overhead</li>
+                    <li><strong>Heap Dump</strong> - Capture heap snapshots for memory analysis</li>
+                    <li><strong>Thread Dump</strong> - Analyze thread states and stack traces</li>
+                </ul>
+
+                <h3>List Available Templates</h3>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>wake --list-templates</code></pre>
+                </div>
+
+                <h3>Execution Modes</h3>
+                <p>Templates support flexible execution across different pod selection strategies:</p>
+
+                <h4>Execute on Single Pod</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute thread-dump on a specific pod
+wake "my-app" --exec-template thread-dump --template-args 1234</code></pre>
+                </div>
+
+                <h4>Execute on All Matching Pods (Multi-threaded)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute heap-dump on all pods matching "backend" in all namespaces
+wake -A "backend" --exec-template heap-dump --template-args 1234</code></pre>
+                </div>
+
+                <h4>Execute with Pod Selector (Regex)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute JFR on pods matching a regex pattern in namespace
+wake -n production "^api-service-.*" --exec-template jfr --template-args "30s"</code></pre>
+                </div>
+
+                <h4>Execute with Sampling (Random Subset)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Execute thread-dump on a random sample of 5 pods from matching selection
+wake -A "worker" -s 5 --exec-template thread-dump --template-args 1234</code></pre>
+                </div>
+
+                <h3>Template Results</h3>
+                <p>View and manage template execution results:</p>
+
+                <!-- Template Results Tabs -->
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab(event, 'template-running')">🚀 Running</button>
+                    <button class="tab-button" onclick="switchTab(event, 'template-completed')">✅ Completed</button>
+                </div>
+
+                <!-- Running Template Tab -->
+                <div id="template-running" class="tab-content active">
+                    <details open>
+                        <summary>📊 <b>Real-Time Template Execution</b></summary>
+                        <img src="template_running.png" alt="Template Running Screenshot" style="max-width: 100%; height: auto; border-radius: 0.75rem; margin-top: 1rem; box-shadow: var(--shadow-md);">
+                        <p style="margin-top: 1rem; font-size: 0.95rem; color: #718096;"><strong>Real-time progress view:</strong> Templates running across multiple pods with live status updates, progress indicators, and pod-by-pod execution tracking. Watch as diagnostics complete on each pod in parallel.</p>
+                    </details>
+                </div>
+
+                <!-- Completed Template Tab -->
+                <div id="template-completed" class="tab-content">
+                    <details open>
+                        <summary>📦 <b>Completed Results & Downloads</b></summary>
+                        <img src="template_result.png" alt="Template Results Screenshot" style="max-width: 100%; height: auto; border-radius: 0.75rem; margin-top: 1rem; box-shadow: var(--shadow-md);">
+                        <p style="margin-top: 1rem; font-size: 0.95rem; color: #718096;"><strong>Results summary:</strong> View organized diagnostic results from all pods, success/failure statistics, execution times, and download all collected artifacts. Results are indexed by pod and timestamp for easy navigation.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <section id="scripts" class="card">
+            <div class="card-header">
+                <h2>Scripts</h2>
+            </div>
+            <div class="card-body">
+                <p>Execute custom scripts inside your pods with flexible pod selection and multi-threaded parallel execution. Perfect for running diagnostics, health checks, or maintenance tasks across your cluster.</p>
+
+                <h3>Execution Modes</h3>
+                <p>Scripts support multiple execution strategies for different use cases:</p>
+
+                <h4>Execute on Single Pod</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Run a script on a specific pod
+wake "my-app" --script-in ./scripts/check_health.sh --script-outdir /tmp/results</code></pre>
+                </div>
+
+                <h4>Execute on All Matching Pods (Multi-threaded)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Run script on all pods matching a pattern across all namespaces
+wake -A "worker" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usage</code></pre>
+                </div>
+
+                <h4>Execute with Pod Selector (Regex)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Run script on pods matching regex in specific namespace
+wake -n production "^cache-.*" --script-in ./scripts/cache_stats.sh --script-outdir /tmp/cache</code></pre>
+                </div>
+
+                <h4>Execute with Sampling (Random Subset)</h4>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Run script on a random sample of 10 pods (useful for large clusters)
+wake -A "service" -s 10 --script-in ./scripts/performance_check.sh --script-outdir /tmp/perf</code></pre>
+                </div>
+
+                <h3>Upcoming Features</h3>
+                <div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 1rem; margin-bottom: 1.5rem; border-radius: 6px;">
+                    <p style="margin: 0; font-size: 1rem; color: #0c4a6e;"><strong>🚀 Coming Soon:</strong> We are actively developing an interactive UI for script execution and management, similar to the template interface. This will provide real-time progress tracking, live output streaming, and result visualization.</p>
+                </div>
             </div>
         </section>
 
@@ -472,37 +1451,28 @@ wake "my-app" -i '"error" || "warn"'</code></pre>
                 <h2>Monitoring CPU & Memory</h2>
             </div>
             <div class="card-body">
-                <p>Wake can monitor resource usage of your pods, providing real-time insights into CPU and memory consumption.</p>
-                <pre><code>wake --monitor</code></pre>
-                <p>Configure monitoring options in your <span class="command">wake.yaml</span> or via command-line flags.</p>
-            </div>
-        </section>
+                <p>Wake can monitor resource usage of your pods, providing real-time insights into CPU and memory consumption across your cluster. Track performance metrics and identify resource bottlenecks instantly.</p>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Start monitoring pod resources
+wake --monitor
 
-        <section id="templates" class="card">
-            <div class="card-header">
-                <h2>Running Templates</h2>
-            </div>
-            <div class="card-body">
-                <p>Templates allow you to execute predefined commands inside your pods. This is useful for diagnostics like thread dumps or heap dumps.</p>
-                <pre><code># List available templates
-wake --list-templates
+# Monitor specific namespace
+wake -n production --monitor
 
-# Execute the 'thread-dump' template on 'my-app'
-wake "my-app" --exec-template thread-dump
+# Monitor with specific pod selector
+wake "my-app" --monitor</code></pre>
+                </div>
 
-# Save the output to a specific directory
-wake "my-app" --exec-template heap-dump --template-output /tmp/heap-dumps</code></pre>
-            </div>
-        </section>
-
-        <section id="scripts" class="card">
-            <div class="card-header">
-                <h2>Running Scripts</h2>
-            </div>
-            <div class="card-body">
-                <p>Execute custom scripts inside each selected pod and collect the output.</p>
-                <pre><code># Run a script to check disk usage
-wake "my-app" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usage</code></pre>
+                <h3>Monitoring in Action</h3>
+                <details>
+                    <summary>📊 <b>Show Monitoring Dashboard Screenshot</b></summary>
+                    <img src="monitor.png" alt="Monitoring Dashboard Screenshot">
+                    <p style="margin-top:0.5rem;">Real-time CPU and memory usage metrics displayed in an interactive dashboard view.</p>
+                </details>
             </div>
         </section>
 
@@ -512,7 +1482,12 @@ wake "my-app" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usag
             </div>
             <div class="card-body">
                 <p>Customize Wake's behavior through configuration commands.</p>
-                <pre><code># Open an interactive UI to edit all settings
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Open an interactive UI to edit all settings
 wake setconfig
 
 # Show all current configuration
@@ -520,10 +1495,11 @@ wake getconfig
 
 # Get a specific configuration key
 wake getconfig web.endpoint</code></pre>
+                </div>
 
                 <details>
-                    <summary style="cursor:pointer;font-weight:600;color:#2563eb;background:#e6f7ff;padding:0.5em 1em;border-radius:6px;display:inline-block;">🔍 <b>Show Configuration Screenshot</b></summary>
-                    <img src="config.png" alt="Configuration Screenshot" style="max-width:100%;margin-top:1rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <summary>🔍 <b>Show Configuration Screenshot</b></summary>
+                    <img src="config.png" alt="Configuration Screenshot">
                     <p style="margin-top:0.5rem;">This image shows how the settings / configuration screen looks.</p>
                 </details>
             </div>
@@ -535,11 +1511,17 @@ wake getconfig web.endpoint</code></pre>
             </div>
             <div class="card-body">
                 <p>Wake saves your command history and allows you to search it using TF-IDF for intelligent retrieval.</p>
-                <pre><code># Search for commands related to "error logs"
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code># Search for commands related to "error logs"
 wake --his "error logs"
 
 # Show all command history
 wake --his</code></pre>
+                </div>
                 <h3>Example: <code>wake --his jfr</code></h3>
                 <div style="background: #f6f8fa; border-left: 4px solid #4299e1; padding: 1rem; margin-bottom: 1rem;">
                     <strong>Response:</strong><br>
@@ -548,16 +1530,15 @@ wake --his</code></pre>
                     Useful args: <code>-c &lt;container&gt;</code>, <code>-n &lt;namespace&gt;</code>, <code>-s &lt;sample&gt;</code>, <code>-i &lt;include&gt;</code>, <code>-e &lt;exclude&gt;</code>.<br>
                     Pod selector: positional regex after namespace (default: <code>.*</code>)
                 </div>
-               
             </div>
         </section>
 
-        <section id="installation" class="card">
+        <section id="update-manager" class="card">
             <div class="card-header">
-                <h2>Installation (macOS) & Running from Source</h2>
+                <h2>Update Manager</h2>
             </div>
             <div class="card-body">
-                <p>Install or update Wake on macOS using Homebrew, or run from source using Cargo.</p>
+                <p>Keep Wake up to date with the latest features and improvements.</p>
 
                 <h3>Versioning</h3>
                 <p>Wake follows semantic versioning: <strong>MAJOR.MINOR.PATCH</strong>.</p>
@@ -568,36 +1549,41 @@ wake --his</code></pre>
                 </ul>
                 <p>Examples: <code>1.2.0</code> → new features since <code>1.1.x</code>; <code>2.0.0</code> → breaking changes from <code>1.x</code>.</p>
                 <p>Check the Wake version locally:</p>
-                <pre><code>wake --version
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>wake --version
 # or
 wake -V</code></pre>
+                </div>
 
-                <h3>1. Install</h3>
-                <p>Install via Homebrew (macOS):</p>
-                <pre><code>brew install samba-rgb/wake/wake</code></pre>
-                <p>Or build and run from source (developer / latest):</p>
-                <pre><code># Clone the repository
-git clone https://github.com/samba-rgb/wake.git
-cd wake
-
-# Build and run (debug)
-cargo run
-
-# Or build release and run
-cargo build --release
-./target/release/wake --help</code></pre>
-                <p>Source and contributions: <a href="https://github.com/samba-rgb/wake" target="_blank">https://github.com/samba-rgb/wake</a></p>
-
-                <h3>2. Update</h3>
+                <h3>Update via Homebrew (macOS)</h3>
                 <p>Update the Homebrew package on macOS:</p>
-                <pre><code>brew upgrade samba-rgb/wake/wake</code></pre>
-                <p>Or, if you installed from source, update and re-run:</p>
-                <pre><code>cd wake
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>brew upgrade samba-rgb/wake/wake</code></pre>
+                </div>
+
+                <h3>Update from Source</h3>
+                <p>If you installed from source, update and re-run:</p>
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-label">bash</span>
+                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                    </div>
+                    <pre><code>cd wake
 git pull origin main   # or the branch you track
 cargo run              # run latest changes
+
 # Or rebuild release
 cargo build --release
 ./target/release/wake --help</code></pre>
+                </div>
             </div>
         </section>
 
@@ -614,6 +1600,7 @@ cargo build --release
     </main>
 
     <script>
+        // Handle nav item clicks and active state
         document.querySelectorAll('.nav-item a').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 if (document.querySelector('.nav-item a.active')) {
@@ -622,17 +1609,125 @@ cargo build --release
                 this.classList.add('active');
             });
         });
+        
+        // Scroll spy - update active nav item based on scroll position
+        window.addEventListener('scroll', function() {
+            let current = '';
+            const sections = document.querySelectorAll('section[id]');
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= (sectionTop - 100)) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            document.querySelectorAll('.nav-item a').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                    // Scroll the active link into view within the sidebar
+                    link.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        });
+        
+        // Tab switching functionality
+        function switchTab(event, tabName) {
+            event.preventDefault();
+            
+            // Hide all tab contents
+            const contents = event.target.parentElement.parentElement.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            
+            // Remove active class from all buttons
+            const buttons = event.target.parentElement.querySelectorAll('.tab-button');
+            buttons.forEach(button => button.classList.remove('active'));
+            
+            // Show selected tab and mark button as active
+            const tabElement = document.getElementById(tabName);
+            if (tabElement) {
+                tabElement.classList.add('active');
+                event.target.classList.add('active');
+            }
+        }
+        
+        // Copy to clipboard functionality
+        function copyToClipboard(button) {
+            const codeBlock = button.closest('.code-block-wrapper').querySelector('pre code');
+            const text = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = '✅ Copied!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = '📋 Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+        
         // Mobile nav toggle
         function toggleNav() {
             var nav = document.querySelector('.nav');
             nav.classList.toggle('open');
         }
+        
         // Close nav on click outside (mobile)
         document.addEventListener('click', function(e) {
             var nav = document.querySelector('.nav');
             var toggle = document.querySelector('.mobile-nav-toggle');
             if (nav.classList.contains('open') && !nav.contains(e.target) && e.target !== toggle) {
                 nav.classList.remove('open');
+            }
+        });
+
+        // Back-to-Top Button Functionality
+        const backToTopButton = document.createElement('button');
+        backToTopButton.className = 'back-to-top';
+        backToTopButton.innerHTML = '⬆️';
+        backToTopButton.setAttribute('aria-label', 'Back to top');
+        document.body.appendChild(backToTopButton);
+
+        // Progress Bar Element
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        document.body.appendChild(progressBar);
+
+        // Show/hide back-to-top button and update progress bar on scroll
+        window.addEventListener('scroll', function() {
+            // Back-to-top button logic
+            if (window.pageYOffset > 300) {
+                backToTopButton.classList.add('show');
+            } else {
+                backToTopButton.classList.remove('show');
+            }
+
+            // Progress bar logic
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrolled = (window.pageYOffset / docHeight) * 100;
+            progressBar.style.width = scrolled + '%';
+        });
+
+        // Back-to-top button click handler
+        backToTopButton.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Keyboard shortcut - Press 'H' to go home (top)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'h' || e.key === 'H') {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
             }
         });
     </script>
