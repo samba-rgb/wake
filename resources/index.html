@@ -601,6 +601,71 @@
         @media (max-width: 768px) {
             .mobile-nav-toggle { display: block; }
         }
+
+        /* Back-to-Top Button */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-light));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 99;
+            animation: slideInUp 0.4s ease-out forwards;
+        }
+
+        .back-to-top.show {
+            display: flex;
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 8px 24px rgba(66, 153, 225, 0.6);
+            background: linear-gradient(135deg, #2563eb, var(--accent-color));
+        }
+
+        .back-to-top:active {
+            transform: translateY(-2px) scale(1.05);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-light));
+            width: 0%;
+            transition: width 0.1s linear;
+            z-index: 101;
+            box-shadow: 0 2px 8px rgba(66, 153, 225, 0.5);
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
     </style>
 </head>
 <body>
@@ -1358,6 +1423,51 @@ cargo build --release
             var toggle = document.querySelector('.mobile-nav-toggle');
             if (nav.classList.contains('open') && !nav.contains(e.target) && e.target !== toggle) {
                 nav.classList.remove('open');
+            }
+        });
+
+        // Back-to-Top Button Functionality
+        const backToTopButton = document.createElement('button');
+        backToTopButton.className = 'back-to-top';
+        backToTopButton.innerHTML = '⬆️';
+        backToTopButton.setAttribute('aria-label', 'Back to top');
+        document.body.appendChild(backToTopButton);
+
+        // Progress Bar Element
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar';
+        document.body.appendChild(progressBar);
+
+        // Show/hide back-to-top button and update progress bar on scroll
+        window.addEventListener('scroll', function() {
+            // Back-to-top button logic
+            if (window.pageYOffset > 300) {
+                backToTopButton.classList.add('show');
+            } else {
+                backToTopButton.classList.remove('show');
+            }
+
+            // Progress bar logic
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrolled = (window.pageYOffset / docHeight) * 100;
+            progressBar.style.width = scrolled + '%';
+        });
+
+        // Back-to-top button click handler
+        backToTopButton.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Keyboard shortcut - Press 'H' to go home (top)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'h' || e.key === 'H') {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
             }
         });
     </script>
