@@ -14,6 +14,7 @@ mod templates; // Add the templates module declaration
 mod search; // Add the search module declaration
 mod guide; // Add the guide module declaration
 mod common;
+mod scripts;
 
 use anyhow::Result;
 use tracing_subscriber::layer::SubscriberExt; // Add missing import
