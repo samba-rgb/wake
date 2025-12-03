@@ -74,6 +74,9 @@ fn print_tabular_help() {
     add("--template-args <ARGS>...", "Arguments to pass to the template");
     add("--list-templates", "List available templates");
     add("--template-output <DIR>", "Directory to save template outputs");
+    add("--scripts [NAME]", "Open script manager TUI to create, edit, and execute saved scripts");
+    add("--script-in <PATH>", "Run an external script file on selected pods (one-time execution)");
+    add("--script-outdir <DIR>", "Directory to save script outputs (overrides config)");
     add("--since <DURATION>", "Show logs since duration (e.g., 5s, 2m, 3h)");
     add("--threads <N>", "Threads for log filtering (default: 2x CPU cores)");
     add("--ui", "Enable interactive UI mode with dynamic filtering");
@@ -81,8 +84,6 @@ fn print_tabular_help() {
     add("--dev", "Enable development mode (internal logs)");
     add("--buffer-size <N>", "Number of log entries to keep in memory (default: 20000)");
     add("-v, --verbosity <LEVEL>", "Verbosity for internal debug output (default: 0)");
-    add("--script-in <PATH>", "Run a script in each selected pod and collect output");
-    add("--script-outdir <DIR>", "Directory to save script outputs (overrides config)");
     add("--his [QUERY]", "Show command history or search saved commands using TF-IDF");
     add("--web", "Send filtered logs to web endpoint via HTTP (configure with 'wake setconfig web.*')");
     add("-h, --help", "Print this help");
@@ -90,45 +91,77 @@ fn print_tabular_help() {
 
     println!("{t}");
 
-    println!("\nExamples:");
+    println!("\n{}", "Examples:".bold());
     println!("  wake -n kube-system \"kube-proxy\"                # Tail logs for kube-proxy in kube-system namespace");
-    println!("  wake -A -i \"error\"                           # Tail logs across all namespaces, including 'error'");
+    println!("  wake -A -i \"error\"                              # Tail logs across all namespaces, including 'error'");
     println!("  wake --ui -o json                                # Use interactive UI mode with JSON output");
-    println!("  wake --his \"config\"                           # Search command history for 'config'");
-    println!("  wake \"my-app\" -i \"error\" --web              # Send error logs to configured web endpoint");
+    println!("  wake --his \"config\"                             # Search command history for 'config'");
+    println!("  wake \"my-app\" -i \"error\" --web                  # Send error logs to configured web endpoint");
 
-    println!("\nWeb Mode Examples:");
-    println!("  # First configure the web endpoint:");
-    println!("  wake setconfig web.endpoint \"https://logs.company.com/ingest\"");
-    println!("  wake setconfig web.batch_size 20");
-    println!("  wake setconfig web.timeout_seconds 60");
-    println!("  ");
-    println!("  Then run wake in web mode:");
-    println!("  wake --web");
-    println!("  Access OpenObserve UI at: http://localhost:5080");
-
-    println!("\nWeb Mode Setup (OpenObserve):");
-    println!("  First, start OpenObserve with Docker:");
-    println!("  docker run -d   --name openobserve   -v $PWD/data:/data   -p 5080:5080   -e ZO_ROOT_USER_EMAIL=\"root@example.com\"   -e ZO_ROOT_USER_PASSWORD=\"Complexpass#123\"   -e ZO_COMPACT_DATA_RETENTION_DAYS=3   public.ecr.aws/zinclabs/openobserve:latest");
+    println!("\n{}", "═══════════════════════════════════════════════════════════════════════════════".cyan());
+    println!("{}", "📜 SCRIPTS FEATURE - Two Ways to Execute Scripts on Pods".cyan().bold());
+    println!("{}", "═══════════════════════════════════════════════════════════════════════════════".cyan());
+    
+    println!("\n{}", "┌─ Option 1: Quick Script Execution (--script-in) ─────────────────────────────┐".yellow());
+    println!("│ Run any external script file directly on pods. Best for one-time execution.  │");
+    println!("└───────────────────────────────────────────────────────────────────────────────┘");
     println!();
-    println!("  Then run wake in web mode:");
+    println!("  # Run a health check script on a specific pod");
+    println!("  wake \"my-app\" --script-in ./scripts/check_health.sh --script-outdir /tmp/results");
+    println!();
+    println!("  # Run script on all pods matching pattern across namespaces");
+    println!("  wake -A \"worker-.*\" --script-in ./scripts/diagnostics.sh");
+    println!();
+    println!("  # Run script on sampled pods (useful for large clusters)");
+    println!("  wake -n production \"api-.*\" -s 5 --script-in ./check.sh");
+
+    println!("\n{}", "┌─ Option 2: Script Manager TUI (--scripts) ───────────────────────────────────┐".green());
+    println!("│ Create, save, edit, and reuse scripts stored inside Wake. Full TUI editor!   │");
+    println!("└───────────────────────────────────────────────────────────────────────────────┘");
+    println!();
+    println!("  wake --scripts                                   # Open script selector UI");
+    println!("  wake --scripts New                               # Create a new script with TUI editor");
+    println!("  wake --scripts ALL                               # List all saved scripts (view/edit/delete/execute)");
+    println!("  wake --scripts my_script                         # Execute saved script 'my_script'");
+    println!("  wake \"app-.*\" -n prod --scripts my_script        # Execute script on matching pods");
+
+    println!("\n{}", "  📝 Script Editor Features:".bold());
+    println!("     • Built-in TUI editor with syntax support");
+    println!("     • Define reusable arguments with defaults (e.g., ${{LOG_PATH}}, ${{TIMEOUT}})");
+    println!("     • Scripts stored in ~/.config/wake/scripts/");
+    println!("     • Export to TOML for version control");
+
+    println!("\n{}", "  ⌨️  Script Editor Keys:".bold());
+    println!("     F5  Save script       F2  Rename script     F3  Add argument");
+    println!("     Tab Switch panel      Esc Exit editor");
+    
+    println!("\n{}", "  📋 Arguments Panel Keys:".bold());
+    println!("     a   Add new argument  e/Enter  Edit         d   Delete");
+    println!("     ↑/↓ Navigate list");
+
+    println!("\n{}", "  🚀 Script Execution Flow:".bold());
+    println!("     1. Select script → 2. Enter argument values → 3. Execute on pods");
+    println!("     4. View live output → 5. Save results (merged or per-pod)");
+
+    println!("\n{}", "═══════════════════════════════════════════════════════════════════════════════".cyan());
+
+    println!("\n{}:", "Web Mode Setup (OpenObserve)".bold());
+    println!("  # Start OpenObserve:");
+    println!("  docker run -d --name openobserve -v $PWD/data:/data -p 5080:5080 \\");
+    println!("    -e ZO_ROOT_USER_EMAIL=\"root@example.com\" \\");
+    println!("    -e ZO_ROOT_USER_PASSWORD=\"Complexpass#123\" \\");
+    println!("    public.ecr.aws/zinclabs/openobserve:latest");
+    println!();
+    println!("  # Then run wake in web mode:");
     println!("  wake --web");
     println!("  Access OpenObserve UI at: http://localhost:5080");
-    println!("  Stream name: logs_wake_YYYY_MM_DD (auto-generated daily)");
 
-    println!("\nConfiguration Commands:");
+    println!("\n{}:", "Configuration Commands".bold());
     println!("  wake setconfig                                   # Open interactive configuration UI");
-    println!("  wake getconfig [<key>]                           # Get the value of a configuration key or all keys");
-    // Examples
-    println!("  wake setconfig                                    # Interactive UI to edit all settings");
-    println!("  wake getconfig                                    # Show all configuration");
-    println!("  wake getconfig autosave                           # Show only autosave configuration");
-    println!("  wake getconfig ui-buffer-expansion                # Show only buffer expansion setting");
+    println!("  wake getconfig [<key>]                           # Get configuration value(s)");
 
-    println!("\nTF-IDF Search Details:");
-    println!("  • Use --his \"query\" to search command history intelligently.");
-    println!("  • Example: wake --his \"error logs\" to find commands related to error logging.");
-    println!("  • Supports contextual suggestions when no exact matches are found.");
+    println!("\n{}:", "TF-IDF Search".bold());
+    println!("  wake --his \"query\"                               # Search command history intelligently");
 }
 
 /// Run a script in all selected pods and collect outputs as a zip file
@@ -240,6 +273,11 @@ pub async fn run(mut args: Args) -> Result<()> {
             // Search commands with TF-IDF (wake --his "query")
             return handle_search_commands(query).await;
         }
+    }
+
+    // Handle scripts command (--scripts flag)
+    if let Some(ref script_query) = args.scripts {
+        return handle_scripts_command(&args, script_query).await;
     }
 
     info!("=== CLI MODULE STARTING ===");
@@ -523,9 +561,151 @@ async fn handle_list_templates() -> Result<()> {
     println!("{table}");
     println!();
     println!("💡 Usage examples:");
-    println!("  wake -t thread-dump 1234");
-    println!("  wake -t jfr 1234 30s --template-output ./output");
-    println!("  wake -t heap-dump 1234 -n my-namespace");
+    println!("  wake --exec-template thread-dump \"my-pod\"");
+    
+    Ok(())
+}
+
+/// Handle scripts command (--scripts flag)
+/// This function handles the complete scripts workflow:
+/// 1. Show script selector with autocomplete (New, ALL, saved scripts)
+/// 2. Open editor for new scripts
+/// 3. Execute selected scripts on pods
+async fn handle_scripts_command(args: &Args, script_query: &str) -> Result<()> {
+    use crate::scripts::{run_script_selector, run_script_editor, run_script_executor, run_script_list_ui, ScriptSelection, ScriptManager, ListAction};
+    
+    info!("CLI: Scripts command triggered with query: '{}'", script_query);
+    
+    // Run the script selector UI to get user's choice
+    let selection = if script_query.is_empty() {
+        // No input - show interactive selector
+        run_script_selector(None).await?
+    } else {
+        // Has input - use it as initial filter or direct selection
+        run_script_selector(Some(script_query)).await?
+    };
+    
+    match selection {
+        ScriptSelection::Cancelled => {
+            println!("Script operation cancelled.");
+            return Ok(());
+        }
+        ScriptSelection::New => {
+            // Open the script editor for a new script
+            println!("📝 Opening script editor...");
+            if let Some(script) = run_script_editor(Some("New".to_string())).await? {
+                println!("✅ Script '{}' saved successfully!", script.name);
+            } else {
+                println!("Script creation cancelled.");
+            }
+        }
+        ScriptSelection::All => {
+            // Show the script list TUI for viewing/editing
+            loop {
+                let action = run_script_list_ui().await?;
+                
+                match action {
+                    ListAction::Cancelled => {
+                        break;
+                    }
+                    ListAction::CreateNew => {
+                        // Open editor for new script
+                        if let Some(script) = run_script_editor(Some("New".to_string())).await? {
+                            println!("✅ Script '{}' created!", script.name);
+                        }
+                        // Continue showing list after creating
+                        continue;
+                    }
+                    ListAction::Edit(script_name) => {
+                        // Open editor for the selected script
+                        if let Some(script) = run_script_editor(Some(script_name.clone())).await? {
+                            println!("✅ Script '{}' updated!", script.name);
+                        }
+                        // Continue showing list after editing
+                        continue;
+                    }
+                    ListAction::Execute(script_name) => {
+                        // Execute the script - need to select pods first
+                        let manager = ScriptManager::new()?;
+                        let script = manager.load(&script_name)?;
+                        
+                        // Get pods to execute on
+                        let client = crate::k8s::create_client(args).await?;
+                        let pod_regex = args.pod_regex().context("Invalid pod selector regex")?;
+                        let container_regex = args.container_regex().context("Invalid container regex")?;
+                        
+                        let pods = select_pods(
+                            &client,
+                            &args.namespace,
+                            &pod_regex,
+                            &container_regex,
+                            args.all_namespaces,
+                            args.resource.as_deref(),
+                            args.sample,
+                        ).await?;
+                        
+                        if pods.is_empty() {
+                            eprintln!("❌ No pods found matching the criteria.");
+                            eprintln!("   Namespace: {}", args.namespace);
+                            eprintln!("   Pod selector: {}", args.pod_selector);
+                            eprintln!();
+                            eprintln!("💡 Specify pods with: wake \"pod-pattern\" -n namespace --scripts {}", script_name);
+                            continue;
+                        }
+                        
+                        println!("🚀 Executing script '{}' on {} pod(s)...", script_name, pods.len());
+                        run_script_executor(script, pods).await?;
+                        break;
+                    }
+                    ListAction::Delete(_) => {
+                        // Delete is handled in the list UI itself
+                        continue;
+                    }
+                }
+            }
+        }
+        ScriptSelection::Script(script_name) => {
+            // Execute the selected script
+            println!("🚀 Executing script: {}", script_name);
+            
+            // Load the script
+            let manager = ScriptManager::new()?;
+            let script = manager.load(&script_name)?;
+            
+            // Get pods to execute on
+            let client = crate::k8s::create_client(args).await?;
+            let pod_regex = args.pod_regex().context("Invalid pod selector regex")?;
+            let container_regex = args.container_regex().context("Invalid container regex")?;
+            
+            let pods = select_pods(
+                &client,
+                &args.namespace,
+                &pod_regex,
+                &container_regex,
+                args.all_namespaces,
+                args.resource.as_deref(),
+                args.sample,
+            ).await?;
+            
+            if pods.is_empty() {
+                eprintln!("❌ No pods found matching the criteria.");
+                eprintln!("   Namespace: {}", args.namespace);
+                eprintln!("   Pod selector: {}", args.pod_selector);
+                eprintln!();
+                eprintln!("💡 Specify pods with: wake \"pod-pattern\" -n namespace --scripts {}", script_name);
+                return Ok(());
+            }
+            
+            println!("📍 Found {} pod(s) to execute script on:", pods.len());
+            for pod in &pods {
+                println!("  - {}/{}", pod.namespace, pod.name);
+            }
+            println!();
+            
+            // Run the executor UI
+            run_script_executor(script, pods).await?;
+        }
+    }
     
     Ok(())
 }

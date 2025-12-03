@@ -1,6 +1,6 @@
 [package]
 name = "wake"
-version = "0.9.12"
+version = "0.9.133"
 edition = "2024"
 
 # Add library target configuration

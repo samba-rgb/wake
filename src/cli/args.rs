@@ -236,6 +236,14 @@ pub struct Args {
     #[arg(long, help = "Display interactive guide and help content")]
     pub guide: bool,
 
+    /// Manage and execute saved scripts
+    /// Modes:
+    /// 1. No argument: Show available scripts with autocomplete (New, ALL, saved scripts)
+    /// 2. "New": Open script editor to create a new script
+    /// 3. Script name: Execute the script on selected pods
+    #[arg(long = "scripts", value_name = "SCRIPT", help = "Manage and execute saved scripts (New, ALL, or script name)", num_args = 0..=1, default_missing_value = "")]
+    pub scripts: Option<String>,
+
     /// Check for updates via GitHub Releases
     #[arg(long, help = "Check for updates via GitHub Releases")]
     pub update: bool,
@@ -333,6 +341,7 @@ impl Default for Args {
             metrics_source: "kubectl".to_string(), // Default to kubectl
             web: false, // Default to false
             guide: false, // Default to false
+            scripts: None, // Default to None
             update: false, // Default to false
         }
     }
