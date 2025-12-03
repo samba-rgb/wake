@@ -3,10 +3,24 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
 use anyhow::Result;
+
+/// Dark mode base style - black background
+fn dark_bg() -> Style {
+    Style::default().bg(Color::Black)
+}
+
+/// Dark mode block with black background
+fn dark_block<'a>(title: &'a str) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::DarkGray))
+        .title(Span::styled(title, Style::default().fg(Color::Cyan)))
+        .style(dark_bg())
+}
 
 /// Dialog state for output handling (merge vs. separate)
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -41,7 +55,11 @@ impl ScriptOutputDialogState {
 }
 
 pub fn draw_script_output_dialog(f: &mut Frame, state: &ScriptOutputDialogState) {
-    let area = f.size();
+    let area = f.area();
+    
+    // Clear entire screen with black background
+    f.render_widget(Clear, area);
+    f.render_widget(Block::default().style(dark_bg()), area);
     
     // Create a centered popup
     let popup_width = 60;
@@ -50,10 +68,11 @@ pub fn draw_script_output_dialog(f: &mut Frame, state: &ScriptOutputDialogState)
     let y = (area.height.saturating_sub(popup_height)) / 2;
     let popup = Rect::new(x, y, popup_width, popup_height);
 
-    // Draw background
+    // Draw popup background with dark style
     let bg = Block::default()
         .borders(Borders::ALL)
-        .style(Style::default().bg(Color::DarkGray));
+        .border_style(Style::default().fg(Color::Cyan))
+        .style(dark_bg());
     f.render_widget(bg, popup);
 
     let chunks = Layout::default()
@@ -70,17 +89,26 @@ pub fn draw_script_output_dialog(f: &mut Frame, state: &ScriptOutputDialogState)
 
     // Title
     let title = Paragraph::new("Script Execution Complete")
-        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .style(Style::default().fg(Color::Yellow).bg(Color::Black).add_modifier(Modifier::BOLD))
         .alignment(Alignment::Center);
     f.render_widget(title, chunks[0]);
 
     // Summary
     let summary_text = vec![
-        Line::from(format!("Total Pods: {}", state.total_pods)),
-        Line::from(format!("✅ Successful: {}", state.successful_pods)),
-        Line::from(format!("❌ Failed: {}", state.failed_pods)),
+        Line::from(vec![
+            Span::styled("Total Pods: ", Style::default().fg(Color::Gray)),
+            Span::styled(state.total_pods.to_string(), Style::default().fg(Color::White)),
+        ]),
+        Line::from(vec![
+            Span::styled("✅ Successful: ", Style::default().fg(Color::Green)),
+            Span::styled(state.successful_pods.to_string(), Style::default().fg(Color::Green)),
+        ]),
+        Line::from(vec![
+            Span::styled("❌ Failed: ", Style::default().fg(Color::Red)),
+            Span::styled(state.failed_pods.to_string(), Style::default().fg(Color::Red)),
+        ]),
     ];
-    let summary = Paragraph::new(summary_text);
+    let summary = Paragraph::new(summary_text).style(dark_bg());
     f.render_widget(summary, chunks[1]);
 
     // Merge option
@@ -90,14 +118,14 @@ pub fn draw_script_output_dialog(f: &mut Frame, state: &ScriptOutputDialogState)
             .bg(Color::Green)
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::Green)
+        Style::default().fg(Color::Green).bg(Color::Black)
     };
     let merge_line = Line::from(vec![
-        Span::raw("[ "),
+        Span::styled("[ ", Style::default().fg(Color::Gray).bg(Color::Black)),
         Span::styled("Merge", merge_style),
-        Span::raw(" ] - Combine all outputs into a single file"),
+        Span::styled(" ] - Combine all outputs into a single file", Style::default().fg(Color::Gray).bg(Color::Black)),
     ]);
-    let merge_para = Paragraph::new(merge_line);
+    let merge_para = Paragraph::new(merge_line).style(dark_bg());
     f.render_widget(merge_para, chunks[2]);
 
     // Separate option
@@ -107,23 +135,23 @@ pub fn draw_script_output_dialog(f: &mut Frame, state: &ScriptOutputDialogState)
             .bg(Color::Cyan)
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::Cyan)
+        Style::default().fg(Color::Cyan).bg(Color::Black)
     };
     let separate_line = Line::from(vec![
-        Span::raw("[ "),
+        Span::styled("[ ", Style::default().fg(Color::Gray).bg(Color::Black)),
         Span::styled("Separate", separate_style),
-        Span::raw(" ] - Save individual pod outputs"),
+        Span::styled(" ] - Save individual pod outputs", Style::default().fg(Color::Gray).bg(Color::Black)),
     ]);
-    let separate_para = Paragraph::new(separate_line);
+    let separate_para = Paragraph::new(separate_line).style(dark_bg());
     f.render_widget(separate_para, chunks[3]);
 
     // Help
     let help_text = Line::from(vec![
-        Span::styled("↑/↓", Style::default().fg(Color::Yellow)),
-        Span::raw(" Navigate  "),
-        Span::styled("Enter", Style::default().fg(Color::Yellow)),
-        Span::raw(" Select"),
+        Span::styled("↑/↓", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(" Navigate  ", Style::default().fg(Color::Gray)),
+        Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled(" Select", Style::default().fg(Color::Gray)),
     ]);
-    let help = Paragraph::new(help_text).alignment(Alignment::Center);
+    let help = Paragraph::new(help_text).style(dark_bg()).alignment(Alignment::Center);
     f.render_widget(help, chunks[4]);
 }

@@ -13,16 +13,34 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame, Terminal,
 };
 use std::io;
 
 use super::manager::ScriptManager;
 
-/// Black background style
-fn black_bg() -> Style {
+/// Black background style - forced dark mode
+fn dark_bg() -> Style {
     Style::default().bg(Color::Black)
+}
+
+/// Dark mode block with black background
+fn dark_block<'a>(title: &'a str) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::DarkGray))
+        .title(Span::styled(title, Style::default().fg(Color::Cyan)))
+        .style(dark_bg())
+}
+
+/// Dark mode block with highlighted border
+fn dark_block_highlight<'a>(title: &'a str, color: Color) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(color))
+        .title(Span::styled(title, Style::default().fg(color).add_modifier(Modifier::BOLD)))
+        .style(dark_bg())
 }
 
 /// Selection result from the selector UI
@@ -239,9 +257,10 @@ async fn run_selector_loop(
 }
 
 fn draw_selector(f: &mut Frame, state: &ScriptSelectorState) {
-    // Fill with black background
+    // Fill entire screen with black background
     let area = f.size();
-    f.render_widget(Block::default().style(black_bg()), area);
+    f.render_widget(Clear, area);
+    f.render_widget(Block::default().style(dark_bg()), area);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -252,68 +271,64 @@ fn draw_selector(f: &mut Frame, state: &ScriptSelectorState) {
             Constraint::Min(10),    // Suggestions
             Constraint::Length(3),  // Help
         ])
-        .split(f.size());
+        .split(area);
 
     // Title
     let title = Paragraph::new("📜 Wake Scripts")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-        .block(Block::default().borders(Borders::ALL).style(black_bg()));
+        .style(Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD))
+        .block(dark_block(""));
     f.render_widget(title, chunks[0]);
 
     // Input field with cursor
     let input_display = format!("{}│", state.input);
     let input = Paragraph::new(input_display)
-        .style(Style::default().fg(Color::Yellow))
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .title("Type to filter scripts")
-            .border_style(Style::default().fg(Color::Yellow))
-            .style(black_bg()));
+        .style(Style::default().fg(Color::Yellow).bg(Color::Black))
+        .block(dark_block_highlight("Type to filter scripts", Color::Yellow));
     f.render_widget(input, chunks[1]);
 
     // Suggestions list
     let items: Vec<ListItem> = state.suggestions.iter().enumerate().map(|(i, item)| {
         let (icon, color) = match item.item_type {
             SuggestionType::New => ("✨", Color::Green),
-            SuggestionType::All => ("📋", Color::Blue),
+            SuggestionType::All => ("📋", Color::Cyan),
             SuggestionType::Script => ("📄", Color::White),
         };
 
         let style = if i == state.selected_index {
-            Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+            Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
+            Style::default().bg(Color::Black).fg(Color::White)
         };
 
         let line = Line::from(vec![
-            Span::styled(format!("{} ", icon), Style::default().fg(color)),
+            Span::styled(format!("{} ", icon), Style::default().fg(color).bg(if i == state.selected_index { Color::DarkGray } else { Color::Black })),
             Span::styled(&item.name, style.fg(color)),
-            Span::styled(format!("  {}", item.description), Style::default().fg(Color::Gray)),
+            Span::styled(format!("  {}", item.description), Style::default().fg(Color::Gray).bg(if i == state.selected_index { Color::DarkGray } else { Color::Black })),
         ]);
 
         ListItem::new(line).style(style)
     }).collect();
 
-    let suggestions_block = Block::default()
-        .borders(Borders::ALL)
-        .title(format!("Suggestions ({})", state.suggestions.len()))
-        .style(black_bg());
-    
-    let suggestions = List::new(items).block(suggestions_block);
+    // Bind the title string to a variable to extend its lifetime
+    let suggestions_title = format!("Suggestions ({})", state.suggestions.len());
+    let suggestions = List::new(items)
+        .block(dark_block(&suggestions_title))
+        .style(dark_bg());
     f.render_widget(suggestions, chunks[2]);
 
     // Help bar
     let help_spans = vec![
-        Span::styled("↑/↓", Style::default().fg(Color::Green)),
-        Span::raw(" Select  "),
-        Span::styled("Tab", Style::default().fg(Color::Green)),
-        Span::raw(" Autocomplete  "),
-        Span::styled("Enter", Style::default().fg(Color::Green)),
-        Span::raw(" Confirm  "),
-        Span::styled("Esc", Style::default().fg(Color::Green)),
-        Span::raw(" Cancel"),
+        Span::styled("↑/↓", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled(" Select  ", Style::default().fg(Color::Gray)),
+        Span::styled("Tab", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(" Autocomplete  ", Style::default().fg(Color::Gray)),
+        Span::styled("Enter", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(" Confirm  ", Style::default().fg(Color::Gray)),
+        Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::styled(" Cancel", Style::default().fg(Color::Gray)),
     ];
     let help = Paragraph::new(Line::from(help_spans))
-        .block(Block::default().borders(Borders::ALL).style(black_bg()));
+        .block(dark_block(""))
+        .style(dark_bg());
     f.render_widget(help, chunks[3]);
 }

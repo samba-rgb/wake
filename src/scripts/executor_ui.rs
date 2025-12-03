@@ -28,6 +28,11 @@ use chrono::Local;
 use super::manager::{Script, ScriptArg};
 use crate::k8s::pod::PodInfo;
 
+/// Black background style for dark mode
+fn dark_style() -> Style {
+    Style::default().bg(Color::Black).fg(Color::White)
+}
+
 /// Pod execution status with live output
 #[derive(Debug, Clone)]
 pub enum PodStatus {

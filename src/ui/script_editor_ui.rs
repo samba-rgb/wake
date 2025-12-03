@@ -3,12 +3,35 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 use std::io;
 use anyhow::Result;
 use crate::scripts::manager::{SavedScript, ParameterDef, ParameterType};
+
+/// Dark mode base style - black background
+fn dark_bg() -> Style {
+    Style::default().bg(Color::Black)
+}
+
+/// Dark mode block with black background
+fn dark_block<'a>(title: &'a str) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::DarkGray))
+        .title(Span::styled(title, Style::default().fg(Color::Cyan)))
+        .style(dark_bg())
+}
+
+/// Dark mode block with highlighted border (for focused elements)
+fn dark_block_focused<'a>(title: &'a str) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow))
+        .title(Span::styled(title, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)))
+        .style(dark_bg())
+}
 
 /// State for the script editor
 pub struct ScriptEditorState {
@@ -103,6 +126,11 @@ pub async fn run_script_editor(initial_name: Option<String>) -> Result<Option<Sa
 }
 
 pub fn draw_script_editor(f: &mut Frame, state: &ScriptEditorState) {
+    // Clear with black background
+    let area = f.area();
+    f.render_widget(Clear, area);
+    f.render_widget(Block::default().style(dark_bg()), area);
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
@@ -112,77 +140,81 @@ pub fn draw_script_editor(f: &mut Frame, state: &ScriptEditorState) {
             Constraint::Percentage(70),
             Constraint::Percentage(30),
         ])
-        .split(f.size());
+        .split(f.area());
 
     // Script name input
-    let name_block = Block::default()
-        .borders(Borders::ALL)
-        .title("Script Name");
+    let name_block = if state.focus == EditorFocus::Name {
+        dark_block_focused("Script Name")
+    } else {
+        dark_block("Script Name")
+    };
     let name_para = Paragraph::new(state.script_name.as_str())
         .block(name_block)
-        .style(if state.focus == EditorFocus::Name {
-            Style::default().bg(Color::DarkGray)
-        } else {
-            Style::default()
-        });
+        .style(Style::default().fg(Color::White).bg(Color::Black));
     f.render_widget(name_para, chunks[0]);
 
     // Description input
-    let desc_block = Block::default()
-        .borders(Borders::ALL)
-        .title("Description (optional)");
+    let desc_block = if state.focus == EditorFocus::Description {
+        dark_block_focused("Description (optional)")
+    } else {
+        dark_block("Description (optional)")
+    };
     let desc_text = state.description.as_deref().unwrap_or("");
     let desc_para = Paragraph::new(desc_text)
         .block(desc_block)
-        .style(if state.focus == EditorFocus::Description {
-            Style::default().bg(Color::DarkGray)
-        } else {
-            Style::default()
-        });
+        .style(Style::default().fg(Color::Gray).bg(Color::Black));
     f.render_widget(desc_para, chunks[1]);
 
     // Script content editor
-    let script_block = Block::default()
-        .borders(Borders::ALL)
-        .title("Script Content")
-        .style(if state.focus == EditorFocus::Script {
-            Style::default().fg(Color::Cyan)
-        } else {
-            Style::default()
-        });
+    let script_block = if state.focus == EditorFocus::Script {
+        dark_block_focused("Script Content")
+    } else {
+        dark_block("Script Content")
+    };
     let script_para = Paragraph::new(state.script_content.as_str())
         .block(script_block)
+        .style(Style::default().fg(Color::Green).bg(Color::Black))
         .wrap(Wrap { trim: true });
     f.render_widget(script_para, chunks[2]);
 
     // Parameters and help
     let mut help_lines = vec![
         Line::from(vec![
-            Span::styled("Ctrl+S", Style::default().fg(Color::Yellow)),
-            Span::raw(" Save  "),
-            Span::styled("Tab", Style::default().fg(Color::Yellow)),
-            Span::raw(" Next Field  "),
-            Span::styled("Ctrl+C", Style::default().fg(Color::Yellow)),
-            Span::raw(" Cancel"),
+            Span::styled("Ctrl+S", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(" Save  ", Style::default().fg(Color::Gray)),
+            Span::styled("Tab", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" Next Field  ", Style::default().fg(Color::Gray)),
+            Span::styled("Ctrl+C", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(" Cancel", Style::default().fg(Color::Gray)),
         ]),
         Line::from(""),
-        Line::from(format!("Parameters: {}", state.parameters.len())),
+        Line::from(Span::styled(
+            format!("Parameters: {}", state.parameters.len()),
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        )),
     ];
 
     for param in &state.parameters {
-        help_lines.push(Line::from(format!(
-            "  • {}: {} {}",
-            param.name,
-            param.param_type.as_str(),
-            if param.required { "(required)" } else { "(optional)" }
-        )));
+        help_lines.push(Line::from(vec![
+            Span::styled("  • ", Style::default().fg(Color::DarkGray)),
+            Span::styled(&param.name, Style::default().fg(Color::Yellow)),
+            Span::styled(": ", Style::default().fg(Color::DarkGray)),
+            Span::styled(param.param_type.as_str(), Style::default().fg(Color::Green)),
+            Span::styled(
+                if param.required { " (required)" } else { " (optional)" },
+                Style::default().fg(Color::DarkGray)
+            ),
+        ]));
     }
 
-    let help_block = Block::default()
-        .borders(Borders::ALL)
-        .title("Help & Parameters");
+    let help_block = if state.focus == EditorFocus::Parameters {
+        dark_block_focused("Help & Parameters")
+    } else {
+        dark_block("Help & Parameters")
+    };
     let help_para = Paragraph::new(help_lines)
         .block(help_block)
+        .style(dark_bg())
         .wrap(Wrap { trim: true });
     f.render_widget(help_para, chunks[3]);
 }

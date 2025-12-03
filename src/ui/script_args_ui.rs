@@ -3,12 +3,26 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 use std::collections::HashMap;
 use anyhow::Result;
 use crate::scripts::manager::{ParameterDef, ParameterType};
+
+/// Dark mode base style - black background
+fn dark_bg() -> Style {
+    Style::default().bg(Color::Black)
+}
+
+/// Dark mode block with black background
+fn dark_block<'a>(title: &'a str) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::DarkGray))
+        .title(Span::styled(title, Style::default().fg(Color::Cyan)))
+        .style(dark_bg())
+}
 
 /// State for script argument input
 pub struct ScriptArgsInputState {
@@ -98,6 +112,11 @@ impl ScriptArgsInputState {
 }
 
 pub fn draw_script_args_input(f: &mut Frame, state: &ScriptArgsInputState) {
+    // Clear with black background
+    let area = f.area();
+    f.render_widget(Clear, area);
+    f.render_widget(Block::default().style(dark_bg()), area);
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(2)
@@ -107,7 +126,7 @@ pub fn draw_script_args_input(f: &mut Frame, state: &ScriptArgsInputState) {
             Constraint::Percentage(100),
             Constraint::Length(4),
         ])
-        .split(f.size());
+        .split(f.area());
 
     // Progress
     let progress = format!(
@@ -116,7 +135,7 @@ pub fn draw_script_args_input(f: &mut Frame, state: &ScriptArgsInputState) {
         state.parameters.len()
     );
     let progress_para = Paragraph::new(progress)
-        .style(Style::default().fg(Color::Cyan))
+        .style(Style::default().fg(Color::Cyan).bg(Color::Black))
         .alignment(Alignment::Center);
     f.render_widget(progress_para, chunks[0]);
 
@@ -124,59 +143,61 @@ pub fn draw_script_args_input(f: &mut Frame, state: &ScriptArgsInputState) {
     if let Some(param) = state.get_current_param() {
         let mut info_lines = vec![
             Line::from(vec![
-                Span::styled("Name: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(&param.name),
+                Span::styled("Name: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(&param.name, Style::default().fg(Color::White)),
             ]),
             Line::from(vec![
-                Span::styled("Type: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(param.param_type.as_str()),
+                Span::styled("Type: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(param.param_type.as_str(), Style::default().fg(Color::Green)),
             ]),
         ];
 
         if let Some(desc) = &param.description {
             info_lines.push(Line::from(vec![
-                Span::styled("Description: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(desc),
+                Span::styled("Description: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(desc, Style::default().fg(Color::Gray)),
             ]));
         }
 
         if let Some(default) = &param.default_value {
             info_lines.push(Line::from(vec![
-                Span::styled("Default: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(default),
+                Span::styled("Default: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Span::styled(default, Style::default().fg(Color::Magenta)),
             ]));
         }
 
         let info = Paragraph::new(info_lines)
-            .block(Block::default().borders(Borders::ALL).title("Parameter Info"))
-            .wrap(Wrap { trim: true });
+            .block(dark_block("Parameter Info"))
+            .wrap(Wrap { trim: true })
+            .style(dark_bg());
         f.render_widget(info, chunks[1]);
     }
 
     // Input area
-    let input_block = Block::default()
-        .borders(Borders::ALL)
-        .title("Enter Value")
-        .style(Style::default().fg(Color::Yellow));
+    let input_block = dark_block("Enter Value")
+        .border_style(Style::default().fg(Color::Yellow));
     let input_para = Paragraph::new(state.current_input.as_str())
         .block(input_block)
+        .style(Style::default().fg(Color::White).bg(Color::Black))
         .wrap(Wrap { trim: true });
     f.render_widget(input_para, chunks[2]);
 
     // Help and controls
     let help_text = vec![
         Line::from(vec![
-            Span::styled("Enter", Style::default().fg(Color::Yellow)),
-            Span::raw(" Next  "),
-            Span::styled("Backspace", Style::default().fg(Color::Yellow)),
-            Span::raw(" Back  "),
-            Span::styled("Ctrl+C", Style::default().fg(Color::Yellow)),
-            Span::raw(" Cancel"),
+            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(" Next  ", Style::default().fg(Color::Gray)),
+            Span::styled("Backspace", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" Back  ", Style::default().fg(Color::Gray)),
+            Span::styled("Ctrl+C", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(" Cancel", Style::default().fg(Color::Gray)),
         ]),
         Line::from(""),
-        Line::from("Type or paste the parameter value"),
+        Line::from(Span::styled("Type or paste the parameter value", Style::default().fg(Color::DarkGray))),
     ];
 
-    let help = Paragraph::new(help_text).block(Block::default().borders(Borders::ALL).title("Help"));
+    let help = Paragraph::new(help_text)
+        .block(dark_block("Help"))
+        .style(dark_bg());
     f.render_widget(help, chunks[3]);
 }
