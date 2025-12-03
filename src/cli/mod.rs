@@ -74,7 +74,9 @@ fn print_tabular_help() {
     add("--template-args <ARGS>...", "Arguments to pass to the template");
     add("--list-templates", "List available templates");
     add("--template-output <DIR>", "Directory to save template outputs");
-    add("--scripts [NAME]", "Manage and execute saved scripts (New, ALL, or script name)");
+    add("--scripts [NAME]", "Open script manager TUI to create, edit, and execute saved scripts");
+    add("--script-in <PATH>", "Run an external script file on selected pods (one-time execution)");
+    add("--script-outdir <DIR>", "Directory to save script outputs (overrides config)");
     add("--since <DURATION>", "Show logs since duration (e.g., 5s, 2m, 3h)");
     add("--threads <N>", "Threads for log filtering (default: 2x CPU cores)");
     add("--ui", "Enable interactive UI mode with dynamic filtering");
@@ -82,8 +84,6 @@ fn print_tabular_help() {
     add("--dev", "Enable development mode (internal logs)");
     add("--buffer-size <N>", "Number of log entries to keep in memory (default: 20000)");
     add("-v, --verbosity <LEVEL>", "Verbosity for internal debug output (default: 0)");
-    add("--script-in <PATH>", "Run a script file in each selected pod and collect output");
-    add("--script-outdir <DIR>", "Directory to save script outputs (overrides config)");
     add("--his [QUERY]", "Show command history or search saved commands using TF-IDF");
     add("--web", "Send filtered logs to web endpoint via HTTP (configure with 'wake setconfig web.*')");
     add("-h, --help", "Print this help");
@@ -91,57 +91,77 @@ fn print_tabular_help() {
 
     println!("{t}");
 
-    println!("\nExamples:");
+    println!("\n{}", "Examples:".bold());
     println!("  wake -n kube-system \"kube-proxy\"                # Tail logs for kube-proxy in kube-system namespace");
     println!("  wake -A -i \"error\"                              # Tail logs across all namespaces, including 'error'");
     println!("  wake --ui -o json                                # Use interactive UI mode with JSON output");
     println!("  wake --his \"config\"                             # Search command history for 'config'");
     println!("  wake \"my-app\" -i \"error\" --web                  # Send error logs to configured web endpoint");
 
-    println!("\n📜 Scripts Feature:");
-    println!("  wake --scripts                                   # Open script selector (New, ALL, saved scripts)");
-    println!("  wake --scripts New                               # Create a new script with TUI editor");
-    println!("  wake --scripts ALL                               # List all saved scripts, view/edit/execute");
-    println!("  wake --scripts my_script -n prod \"app-.*\"        # Execute 'my_script' on matching pods");
+    println!("\n{}", "═══════════════════════════════════════════════════════════════════════════════".cyan());
+    println!("{}", "📜 SCRIPTS FEATURE - Two Ways to Execute Scripts on Pods".cyan().bold());
+    println!("{}", "═══════════════════════════════════════════════════════════════════════════════".cyan());
+    
+    println!("\n{}", "┌─ Option 1: Quick Script Execution (--script-in) ─────────────────────────────┐".yellow());
+    println!("│ Run any external script file directly on pods. Best for one-time execution.  │");
+    println!("└───────────────────────────────────────────────────────────────────────────────┘");
     println!();
-    println!("  Script Editor Keys:");
-    println!("    F5  Save    F2  Rename    F3  Add Argument    Tab  Switch Panel    Esc  Exit");
-    println!("  Arguments Panel:");
-    println!("    a  Add    e/Enter  Edit    d  Delete    ↑/↓  Navigate");
+    println!("  # Run a health check script on a specific pod");
+    println!("  wake \"my-app\" --script-in ./scripts/check_health.sh --script-outdir /tmp/results");
+    println!();
+    println!("  # Run script on all pods matching pattern across namespaces");
+    println!("  wake -A \"worker-.*\" --script-in ./scripts/diagnostics.sh");
+    println!();
+    println!("  # Run script on sampled pods (useful for large clusters)");
+    println!("  wake -n production \"api-.*\" -s 5 --script-in ./check.sh");
 
-    println!("\nWeb Mode Examples:");
-    println!("  # First configure the web endpoint:");
-    println!("  wake setconfig web.endpoint \"https://logs.company.com/ingest\"");
-    println!("  wake setconfig web.batch_size 20");
-    println!("  wake setconfig web.timeout_seconds 60");
-    println!("  ");
-    println!("  Then run wake in web mode:");
-    println!("  wake --web");
-    println!("  Access OpenObserve UI at: http://localhost:5080");
+    println!("\n{}", "┌─ Option 2: Script Manager TUI (--scripts) ───────────────────────────────────┐".green());
+    println!("│ Create, save, edit, and reuse scripts stored inside Wake. Full TUI editor!   │");
+    println!("└───────────────────────────────────────────────────────────────────────────────┘");
+    println!();
+    println!("  wake --scripts                                   # Open script selector UI");
+    println!("  wake --scripts New                               # Create a new script with TUI editor");
+    println!("  wake --scripts ALL                               # List all saved scripts (view/edit/delete/execute)");
+    println!("  wake --scripts my_script                         # Execute saved script 'my_script'");
+    println!("  wake \"app-.*\" -n prod --scripts my_script        # Execute script on matching pods");
 
-    println!("\nWeb Mode Setup (OpenObserve):");
-    println!("  First, start OpenObserve with Docker:");
+    println!("\n{}", "  📝 Script Editor Features:".bold());
+    println!("     • Built-in TUI editor with syntax support");
+    println!("     • Define reusable arguments with defaults (e.g., ${{LOG_PATH}}, ${{TIMEOUT}})");
+    println!("     • Scripts stored in ~/.config/wake/scripts/");
+    println!("     • Export to TOML for version control");
+
+    println!("\n{}", "  ⌨️  Script Editor Keys:".bold());
+    println!("     F5  Save script       F2  Rename script     F3  Add argument");
+    println!("     Tab Switch panel      Esc Exit editor");
+    
+    println!("\n{}", "  📋 Arguments Panel Keys:".bold());
+    println!("     a   Add new argument  e/Enter  Edit         d   Delete");
+    println!("     ↑/↓ Navigate list");
+
+    println!("\n{}", "  🚀 Script Execution Flow:".bold());
+    println!("     1. Select script → 2. Enter argument values → 3. Execute on pods");
+    println!("     4. View live output → 5. Save results (merged or per-pod)");
+
+    println!("\n{}", "═══════════════════════════════════════════════════════════════════════════════".cyan());
+
+    println!("\n{}:", "Web Mode Setup (OpenObserve)".bold());
+    println!("  # Start OpenObserve:");
     println!("  docker run -d --name openobserve -v $PWD/data:/data -p 5080:5080 \\");
     println!("    -e ZO_ROOT_USER_EMAIL=\"root@example.com\" \\");
     println!("    -e ZO_ROOT_USER_PASSWORD=\"Complexpass#123\" \\");
     println!("    public.ecr.aws/zinclabs/openobserve:latest");
     println!();
-    println!("  Then run wake in web mode:");
+    println!("  # Then run wake in web mode:");
     println!("  wake --web");
     println!("  Access OpenObserve UI at: http://localhost:5080");
-    println!("  Stream name: logs_wake_YYYY_MM_DD (auto-generated daily)");
 
-    println!("\nConfiguration Commands:");
+    println!("\n{}:", "Configuration Commands".bold());
     println!("  wake setconfig                                   # Open interactive configuration UI");
-    println!("  wake getconfig [<key>]                           # Get the value of a configuration key or all keys");
-    println!("  wake setconfig                                   # Interactive UI to edit all settings");
-    println!("  wake getconfig                                   # Show all configuration");
-    println!("  wake getconfig autosave                          # Show only autosave configuration");
+    println!("  wake getconfig [<key>]                           # Get configuration value(s)");
 
-    println!("\nTF-IDF Search Details:");
-    println!("  • Use --his \"query\" to search command history intelligently.");
-    println!("  • Example: wake --his \"error logs\" to find commands related to error logging.");
-    println!("  • Supports contextual suggestions when no exact matches are found.");
+    println!("\n{}:", "TF-IDF Search".bold());
+    println!("  wake --his \"query\"                               # Search command history intelligently");
 }
 
 /// Run a script in all selected pods and collect outputs as a zip file

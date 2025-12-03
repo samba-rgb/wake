@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::process::Command as AsyncCommand;
+use futures::future::join_all;
 
 /// Execution result for a script on a single pod
 #[derive(Debug, Clone)]
@@ -29,7 +30,9 @@ pub struct ScriptExecutionResult {
 pub struct ScriptExecutor;
 
 impl ScriptExecutor {
-    /// Execute a script on all selected pods
+    /// Execute a script on all selected pods in parallel
+    /// All pods are executed concurrently - if one fails, others continue
+    /// Results are collected after all pods complete (success or failure)
     pub async fn execute_script(
         script: &SavedScript,
         arguments: HashMap<String, String>,
@@ -42,28 +45,43 @@ impl ScriptExecutor {
         // Prepare the script with argument substitution
         let resolved_script = Self::substitute_arguments(&script.script_content, &arguments)?;
 
-        let mut pod_results = Vec::new();
+        // Spawn parallel tasks for all pods
+        let tasks: Vec<_> = pods
+            .iter()
+            .map(|pod| {
+                let script_content = resolved_script.clone();
+                let pod_info = pod.clone();
+                
+                // Spawn each pod execution as a separate task
+                tokio::spawn(async move {
+                    Self::execute_on_single_pod_safe(&script_content, &pod_info).await
+                })
+            })
+            .collect();
 
-        // Execute script on all pods
-        for pod in pods {
-            let result = Self::execute_on_single_pod(&resolved_script, pod).await;
-            
-            match result {
-                Ok(pod_result) => {
-                    pod_results.push(pod_result);
-                }
-                Err(e) => {
-                    pod_results.push(PodScriptResult {
+        // Wait for ALL tasks to complete (join_all waits for everything)
+        let results = join_all(tasks).await;
+
+        // Collect results - handle both task errors and execution errors
+        let pod_results: Vec<PodScriptResult> = results
+            .into_iter()
+            .zip(pods.iter())
+            .map(|(task_result, pod)| {
+                match task_result {
+                    // Task completed successfully
+                    Ok(pod_result) => pod_result,
+                    // Task panicked or was cancelled
+                    Err(join_error) => PodScriptResult {
                         pod_name: pod.name.clone(),
                         pod_namespace: pod.namespace.clone(),
                         success: false,
                         stdout: String::new(),
-                        stderr: format!("Execution failed: {e}"),
+                        stderr: format!("Task failed: {}", join_error),
                         exit_code: -1,
-                    });
+                    },
                 }
-            }
-        }
+            })
+            .collect();
 
         Ok(ScriptExecutionResult {
             script_name: script.name.clone(),
@@ -71,6 +89,22 @@ impl ScriptExecutor {
             output_dir,
             merge_outputs: false,
         })
+    }
+
+    /// Execute script on a single pod - safe version that never panics
+    /// Returns PodScriptResult directly (success or failure captured in the result)
+    async fn execute_on_single_pod_safe(script_content: &str, pod: &PodInfo) -> PodScriptResult {
+        match Self::execute_on_single_pod(script_content, pod).await {
+            Ok(result) => result,
+            Err(e) => PodScriptResult {
+                pod_name: pod.name.clone(),
+                pod_namespace: pod.namespace.clone(),
+                success: false,
+                stdout: String::new(),
+                stderr: format!("Execution failed: {}", e),
+                exit_code: -1,
+            },
+        }
     }
 
     /// Execute script on a single pod

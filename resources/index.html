@@ -1531,62 +1531,201 @@ wake -A "worker" -s 5 --exec-template thread-dump --template-args 1234</code></p
             </div>
         </section>
 
-        <section id="scripts" class="card">
+                <section id="scripts" class="card">
             <div class="card-header">
-                <h2>Scripts</h2>
+                <h2>📜 Scripts - Execute & Manage Custom Scripts <span style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-left: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle;">Beta</span></h2>
             </div>
             <div class="card-body">
-                <p>Execute custom scripts inside your pods with flexible pod selection and multi-threaded parallel execution. Perfect for running diagnostics, health checks, or maintenance tasks across your cluster.</p>
+                <p>Wake provides two powerful ways to execute scripts on your Kubernetes pods: <strong>quick one-time execution</strong> with external script files, and a <strong>full-featured Script Manager TUI</strong> to create, save, edit, and reuse scripts stored inside Wake.</p>
 
-                <h3>Execution Modes</h3>
-                <p>Scripts support multiple execution strategies for different use cases:</p>
+                <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #22c55e; padding: 1.25rem; margin: 1.5rem 0; border-radius: 0.5rem;">
+                    <p style="margin: 0; font-size: 1rem; color: #166534;"><strong>🆕 New Feature:</strong> The <code>--scripts</code> flag opens an interactive TUI where you can create, save, and manage reusable scripts with parameterized arguments. Scripts are stored in <code>~/.config/wake/scripts/</code> and can be executed across multiple pods with live output streaming.</p>
+                </div>
 
-                <h4>Execute on Single Pod</h4>
+                <h3>Option 1: Quick Script Execution (<code>--script-in</code>)</h3>
+                <p>Run any external script file directly on pods. Best for one-time execution or scripts you don't need to save.</p>
+
+                <h4>Run Script on Specific Pod</h4>
                 <div class="code-block-wrapper">
                     <div class="code-block-header">
                         <span class="code-label">bash</span>
                         <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
                     </div>
-                    <pre><code># Run a script on a specific pod
+                    <pre><code># Run a health check script on a specific pod
 wake "my-app" --script-in ./scripts/check_health.sh --script-outdir /tmp/results</code></pre>
                 </div>
 
-                <h4>Execute on All Matching Pods (Multi-threaded)</h4>
+                <h4>Run Script on All Matching Pods</h4>
                 <div class="code-block-wrapper">
                     <div class="code-block-header">
                         <span class="code-label">bash</span>
                         <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
                     </div>
                     <pre><code># Run script on all pods matching a pattern across all namespaces
-wake -A "worker" --script-in ./scripts/check_disk.sh --script-outdir /tmp/disk_usage</code></pre>
+wake -A "worker-.*" --script-in ./scripts/diagnostics.sh --script-outdir /tmp/diag</code></pre>
                 </div>
 
-                <h4>Execute with Pod Selector (Regex)</h4>
+                <h3>Option 2: Script Manager TUI (<code>--scripts</code>)</h3>
+                <p>Create, save, edit, and reuse scripts stored inside Wake. Full TUI editor with argument support!</p>
+
+                <h4>Open Script Manager</h4>
                 <div class="code-block-wrapper">
                     <div class="code-block-header">
                         <span class="code-label">bash</span>
                         <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
                     </div>
-                    <pre><code># Run script on pods matching regex in specific namespace
-wake -n production "^cache-.*" --script-in ./scripts/cache_stats.sh --script-outdir /tmp/cache</code></pre>
+                    <pre><code># Open the interactive script selector
+wake --scripts
+
+# Create a new script directly
+wake --scripts New
+
+# List all saved scripts (view/edit/delete/execute)
+wake --scripts ALL
+
+# Execute a specific saved script
+wake --scripts my_health_check
+
+# Execute script on matching pods
+wake "app-.*" -n production --scripts my_health_check</code></pre>
                 </div>
 
-                <h4>Execute with Sampling (Random Subset)</h4>
-                <div class="code-block-wrapper">
-                    <div class="code-block-header">
-                        <span class="code-label">bash</span>
-                        <button class="copy-button" onclick="copyToClipboard(this)">📋 Copy</button>
+                <h3>Script Manager Features</h3>
+                <ul>
+                    <li><strong>📝 Built-in TUI Editor</strong> - Write and edit scripts with a full-featured terminal editor</li>
+                    <li><strong>🔧 Parameterized Arguments</strong> - Define reusable arguments with defaults (e.g., <code>\${LOG_PATH}</code>, <code>\${TIMEOUT}</code>)</li>
+                    <li><strong>💾 Persistent Storage</strong> - Scripts saved in <code>~/.config/wake/scripts/</code> as TOML files</li>
+                    <li><strong>🚀 Multi-Pod Execution</strong> - Execute on multiple pods with live progress tracking</li>
+                    <li><strong>📊 Output Management</strong> - Save results as merged file or per-pod files</li>
+                </ul>
+
+                <h3>Script Editor Keyboard Shortcuts</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><kbd>F5</kbd></td><td>Save script</td></tr>
+                        <tr><td><kbd>F2</kbd></td><td>Rename script</td></tr>
+                        <tr><td><kbd>F3</kbd></td><td>Add new argument</td></tr>
+                        <tr><td><kbd>Tab</kbd></td><td>Switch between editor and arguments panel</td></tr>
+                        <tr><td><kbd>Esc</kbd></td><td>Exit editor</td></tr>
+                    </tbody>
+                </table>
+
+                <h4>Arguments Panel Keys</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><kbd>a</kbd></td><td>Add new argument</td></tr>
+                        <tr><td><kbd>e</kbd> / <kbd>Enter</kbd></td><td>Edit selected argument</td></tr>
+                        <tr><td><kbd>d</kbd></td><td>Delete selected argument</td></tr>
+                        <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Navigate argument list</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>Script Execution Workflow</h3>
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1.5rem; margin: 1.5rem 0;">
+                    <ol style="margin: 0; padding-left: 1.5rem;">
+                        <li><strong>Select Script</strong> → Choose from saved scripts or create new</li>
+                        <li><strong>Enter Arguments</strong> → Fill in argument values (with defaults shown)</li>
+                        <li><strong>Execute on Pods</strong> → Script runs on all matching pods in parallel</li>
+                        <li><strong>View Live Output</strong> → Watch execution progress and output per pod</li>
+                        <li><strong>Save Results</strong> → Export as merged file or individual per-pod files</li>
+                    </ol>
+                </div>
+
+                <h3>Scripts Feature Gallery</h3>
+                <p>Browse through the complete scripts workflow with our interactive slideshow:</p>
+
+                <!-- Image Slideshow -->
+                <div class="script-slideshow" style="position: relative; margin: 1.5rem 0;">
+                    <div class="slideshow-container" style="position: relative; background: #1a202c; border-radius: 0.75rem; overflow: hidden; box-shadow: var(--shadow-lg);">
+                        <div class="slide active" data-index="0">
+                            <img src="script_feature/script_selector.png" alt="Script Selector" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>1. Script Selector</strong> - Choose to create a new script, view all scripts, or select an existing one
+                            </div>
+                        </div>
+                        <div class="slide" data-index="1" style="display: none;">
+                            <img src="script_feature/script_name_input.png" alt="Script Name Input" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>2. Script Name Input</strong> - Enter a name for your new script
+                            </div>
+                        </div>
+                        <div class="slide" data-index="2" style="display: none;">
+                            <img src="script_feature/editor_selection.png" alt="Editor Selection" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>3. Editor Selection</strong> - Choose between Wake's built-in TUI editor or your system editor
+                            </div>
+                        </div>
+                        <div class="slide" data-index="3" style="display: none;">
+                            <img src="script_feature/script_editor.png" alt="Script Editor" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>4. Script Editor</strong> - Write your script with the built-in TUI editor. Add arguments in the right panel.
+                            </div>
+                        </div>
+                        <div class="slide" data-index="4" style="display: none;">
+                            <img src="script_feature/script_list.png" alt="Script List" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>5. Script List</strong> - View all saved scripts. Edit, execute, or delete them.
+                            </div>
+                        </div>
+                        <div class="slide" data-index="5" style="display: none;">
+                            <img src="script_feature/script_selection.png" alt="Script Selection" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>6. Script Selection</strong> - Select a saved script to execute from the list
+                            </div>
+                        </div>
+                        <div class="slide" data-index="6" style="display: none;">
+                            <img src="script_feature/argument_input.png" alt="Argument Input" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>7. Argument Input</strong> - Enter values for script arguments before execution
+                            </div>
+                        </div>
+                        <div class="slide" data-index="7" style="display: none;">
+                            <img src="script_feature/execution_progress.png" alt="Execution Progress" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>8. Execution Progress</strong> - Watch live progress as scripts execute on each pod
+                            </div>
+                        </div>
+                        <div class="slide" data-index="8" style="display: none;">
+                            <img src="script_feature/execution_complete.png" alt="Execution Complete" style="width: 100%; display: block;">
+                            <div class="slide-caption" style="background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: white; padding: 1rem 1.5rem; position: absolute; bottom: 0; left: 0; right: 0;">
+                                <strong>9. Execution Complete</strong> - View final results with success/failure status for each pod
+                            </div>
+                        </div>
+                        
+                        <!-- Navigation Arrows -->
+                        <button class="slide-prev" onclick="changeSlide(-1)" style="position: absolute; top: 50%; left: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; padding: 1rem; cursor: pointer; border-radius: 50%; font-size: 1.2rem; transition: all 0.3s;">❮</button>
+                        <button class="slide-next" onclick="changeSlide(1)" style="position: absolute; top: 50%; right: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; padding: 1rem; cursor: pointer; border-radius: 50%; font-size: 1.2rem; transition: all 0.3s;">❯</button>
                     </div>
-                    <pre><code># Run script on a random sample of 10 pods (useful for large clusters)
-wake -A "service" -s 10 --script-in ./scripts/performance_check.sh --script-outdir /tmp/perf</code></pre>
-                </div>
-
-                <h3>Upcoming Features</h3>
-                <div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 1rem; margin-bottom: 1.5rem; border-radius: 6px;"></div>
-                    <p style="margin: 0; font-size: 1rem; color: #0c4a6e;"><strong>🚀 Coming Soon:</strong> We are actively developing an interactive UI for script execution and management, similar to the template interface. This will provide real-time progress tracking, live output streaming, and result visualization.</p>
+                    
+                    <!-- Slide Indicators -->
+                    <div class="slide-indicators" style="text-align: center; padding: 1rem 0;">
+                        <span class="indicator active" onclick="goToSlide(0)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: var(--accent-color); border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                        <span class="indicator" onclick="goToSlide(1)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: #cbd5e0; border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                        <span class="indicator" onclick="goToSlide(2)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: #cbd5e0; border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                        <span class="indicator" onclick="goToSlide(3)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: #cbd5e0; border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                        <span class="indicator" onclick="goToSlide(4)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: #cbd5e0; border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                        <span class="indicator" onclick="goToSlide(5)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: #cbd5e0; border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                        <span class="indicator" onclick="goToSlide(6)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: #cbd5e0; border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                        <span class="indicator" onclick="goToSlide(7)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: #cbd5e0; border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                        <span class="indicator" onclick="goToSlide(8)" style="display: inline-block; width: 12px; height: 12px; margin: 0 4px; background: #cbd5e0; border-radius: 50%; cursor: pointer; transition: all 0.3s;"></span>
+                    </div>
+                    <p style="text-align: center; color: #718096; font-size: 0.9rem; margin: 0;">Click arrows or indicators to navigate • <span id="slide-counter">1</span> of 9</p>
                 </div>
             </div>
         </section>
+
         <section id="monitoring" class="card">
             <div class="card-header">
                 <h2>Monitoring CPU & Memory</h2>
@@ -1904,6 +2043,42 @@ cargo build --release
                 });
             }
         });
+
+        // Slideshow functionality for Scripts section
+        let currentSlide = 0;
+        const totalSlides = 9;
+
+        function showSlide(index) {
+            const slides = document.querySelectorAll('.slide');
+            const indicators = document.querySelectorAll('.indicator');
+            const counter = document.getElementById('slide-counter');
+            
+            if (index >= totalSlides) currentSlide = 0;
+            if (index < 0) currentSlide = totalSlides - 1;
+            
+            slides.forEach((slide, i) => {
+                slide.style.display = i === currentSlide ? 'block' : 'none';
+            });
+            
+            indicators.forEach((indicator, i) => {
+                indicator.style.background = i === currentSlide ? 'var(--accent-color)' : '#cbd5e0';
+            });
+            
+            if (counter) counter.textContent = currentSlide + 1;
+        }
+
+        function changeSlide(direction) {
+            currentSlide += direction;
+            showSlide(currentSlide);
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            showSlide(currentSlide);
+        }
+
+        // Auto-advance slideshow every 5 seconds (optional - comment out if not wanted)
+        // setInterval(() => changeSlide(1), 5000);
     </script>
 </body>
 </html>

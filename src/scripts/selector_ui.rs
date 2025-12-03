@@ -20,6 +20,11 @@ use std::io;
 
 use super::manager::ScriptManager;
 
+/// Black background style
+fn black_bg() -> Style {
+    Style::default().bg(Color::Black)
+}
+
 /// Selection result from the selector UI
 #[derive(Debug, Clone)]
 pub enum ScriptSelection {
@@ -234,6 +239,10 @@ async fn run_selector_loop(
 }
 
 fn draw_selector(f: &mut Frame, state: &ScriptSelectorState) {
+    // Fill with black background
+    let area = f.size();
+    f.render_widget(Block::default().style(black_bg()), area);
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(2)
@@ -248,7 +257,7 @@ fn draw_selector(f: &mut Frame, state: &ScriptSelectorState) {
     // Title
     let title = Paragraph::new("📜 Wake Scripts")
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-        .block(Block::default().borders(Borders::ALL));
+        .block(Block::default().borders(Borders::ALL).style(black_bg()));
     f.render_widget(title, chunks[0]);
 
     // Input field with cursor
@@ -258,7 +267,8 @@ fn draw_selector(f: &mut Frame, state: &ScriptSelectorState) {
         .block(Block::default()
             .borders(Borders::ALL)
             .title("Type to filter scripts")
-            .border_style(Style::default().fg(Color::Yellow)));
+            .border_style(Style::default().fg(Color::Yellow))
+            .style(black_bg()));
     f.render_widget(input, chunks[1]);
 
     // Suggestions list
@@ -286,7 +296,8 @@ fn draw_selector(f: &mut Frame, state: &ScriptSelectorState) {
 
     let suggestions_block = Block::default()
         .borders(Borders::ALL)
-        .title(format!("Suggestions ({})", state.suggestions.len()));
+        .title(format!("Suggestions ({})", state.suggestions.len()))
+        .style(black_bg());
     
     let suggestions = List::new(items).block(suggestions_block);
     f.render_widget(suggestions, chunks[2]);
@@ -303,6 +314,6 @@ fn draw_selector(f: &mut Frame, state: &ScriptSelectorState) {
         Span::raw(" Cancel"),
     ];
     let help = Paragraph::new(Line::from(help_spans))
-        .block(Block::default().borders(Borders::ALL));
+        .block(Block::default().borders(Borders::ALL).style(black_bg()));
     f.render_widget(help, chunks[3]);
 }

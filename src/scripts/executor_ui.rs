@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self, Event, KeyCode, poll},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -18,17 +18,21 @@ use ratatui::{
 use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
+use std::process::Stdio;
 use tokio::process::Command;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use chrono::Local;
 
 use super::manager::{Script, ScriptArg};
 use crate::k8s::pod::PodInfo;
 
-/// Pod execution status
+/// Pod execution status with live output
 #[derive(Debug, Clone)]
 pub enum PodStatus {
     Pending,
-    Running,
+    Running { live_output: String },
     Completed { success: bool, output: String },
     Failed { error: String },
 }
@@ -52,6 +56,7 @@ pub struct ScriptExecutorState {
     pub output_dir: PathBuf,
     pub output_scroll: usize,
     pub current_executing: Option<usize>,
+    pub saved_message: Option<String>,
 }
 
 impl ScriptExecutorState {
@@ -77,6 +82,7 @@ impl ScriptExecutorState {
             output_dir,
             output_scroll: 0,
             current_executing: None,
+            saved_message: None,
         }
     }
 
@@ -160,6 +166,10 @@ pub async fn run_script_executor(script: Script, pods: Vec<PodInfo>) -> Result<(
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
 
+    if let Some(msg) = &state.saved_message {
+        println!("{}", msg);
+    }
+
     result
 }
 
@@ -181,9 +191,7 @@ async fn collect_arguments(args: &[ScriptArg]) -> Result<HashMap<String, String>
 
         if let Event::Key(key) = event::read()? {
             match key.code {
-                KeyCode::Enter => {
-                    state.submit_current();
-                }
+                KeyCode::Enter => state.submit_current(),
                 KeyCode::Char(c) => {
                     state.current_input.insert(state.cursor_pos, c);
                     state.cursor_pos += 1;
@@ -194,16 +202,8 @@ async fn collect_arguments(args: &[ScriptArg]) -> Result<HashMap<String, String>
                         state.current_input.remove(state.cursor_pos);
                     }
                 }
-                KeyCode::Left => {
-                    if state.cursor_pos > 0 {
-                        state.cursor_pos -= 1;
-                    }
-                }
-                KeyCode::Right => {
-                    if state.cursor_pos < state.current_input.len() {
-                        state.cursor_pos += 1;
-                    }
-                }
+                KeyCode::Left if state.cursor_pos > 0 => state.cursor_pos -= 1,
+                KeyCode::Right if state.cursor_pos < state.current_input.len() => state.cursor_pos += 1,
                 KeyCode::Esc => {
                     disable_raw_mode()?;
                     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
@@ -216,44 +216,34 @@ async fn collect_arguments(args: &[ScriptArg]) -> Result<HashMap<String, String>
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-
     Ok(state.values)
 }
 
 fn draw_arg_input(f: &mut Frame, state: &ArgInputState) {
-    // Beautiful gradient-like background
     let area = f.size();
-    
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(5),   // Header
-            Constraint::Length(8),   // Argument info card
-            Constraint::Length(5),   // Input field
-            Constraint::Length(3),   // Progress indicator
-            Constraint::Min(0),      // Spacer
+            Constraint::Length(5),
+            Constraint::Length(8),
+            Constraint::Length(5),
+            Constraint::Length(3),
+            Constraint::Min(0),
         ])
         .margin(2)
         .split(area);
 
-    // Header with script icon
     let header_text = vec![
-        Line::from(vec![
-            Span::styled("╔═══════════════════════════════════════╗", Style::default().fg(Color::Cyan)),
-        ]),
+        Line::from(Span::styled("╔═══════════════════════════════════════╗", Style::default().fg(Color::Cyan))),
         Line::from(vec![
             Span::styled("║  ", Style::default().fg(Color::Cyan)),
             Span::styled("📝 SCRIPT ARGUMENTS", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::styled("              ║", Style::default().fg(Color::Cyan)),
         ]),
-        Line::from(vec![
-            Span::styled("╚═══════════════════════════════════════╝", Style::default().fg(Color::Cyan)),
-        ]),
+        Line::from(Span::styled("╚═══════════════════════════════════════╝", Style::default().fg(Color::Cyan))),
     ];
-    let header = Paragraph::new(header_text).alignment(Alignment::Center);
-    f.render_widget(header, chunks[0]);
+    f.render_widget(Paragraph::new(header_text).alignment(Alignment::Center), chunks[0]);
 
-    // Current argument info card
     if let Some(arg) = state.current_arg() {
         let req_badge = if arg.required {
             Span::styled(" REQUIRED ", Style::default().bg(Color::Red).fg(Color::White).add_modifier(Modifier::BOLD))
@@ -292,37 +282,23 @@ fn draw_arg_input(f: &mut Frame, state: &ArgInputState) {
                 format!(" Argument {}/{} ", state.current_index + 1, state.args.len()),
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
             ));
-        
-        let info = Paragraph::new(info_lines).block(info_block);
-        f.render_widget(info, chunks[1]);
+        f.render_widget(Paragraph::new(info_lines).block(info_block), chunks[1]);
     }
 
-    // Input field with cursor
     let input_with_cursor = {
         let (before, after) = state.current_input.split_at(state.cursor_pos);
         format!("{}▌{}", before, after)
     };
-    
     let input_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Yellow))
         .title(Span::styled(" ✏️  Enter Value ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-    
-    let input = Paragraph::new(input_with_cursor)
-        .style(Style::default().fg(Color::White))
-        .block(input_block);
-    f.render_widget(input, chunks[2]);
+    f.render_widget(Paragraph::new(input_with_cursor).style(Style::default().fg(Color::White)).block(input_block), chunks[2]);
 
-    // Progress dots
     let progress_dots: String = (0..state.args.len())
-        .map(|i| {
-            if i < state.current_index { "●" }
-            else if i == state.current_index { "◉" }
-            else { "○" }
-        })
+        .map(|i| if i < state.current_index { "●" } else if i == state.current_index { "◉" } else { "○" })
         .collect::<Vec<_>>()
         .join(" ");
-    
     let progress = Paragraph::new(Line::from(vec![
         Span::styled("  ", Style::default()),
         Span::styled(progress_dots, Style::default().fg(Color::Cyan)),
@@ -341,29 +317,91 @@ async fn run_executor_loop(
 ) -> Result<()> {
     let script_content = substitute_args(&state.script.content, &state.arguments);
     
-    // Execute on each pod
-    for i in 0..state.pods.len() {
-        state.pods[i].status = PodStatus::Running;
-        state.current_executing = Some(i);
-        state.selected_pod_index = i;
+    // Create shared state for parallel execution with live output
+    let pod_statuses: Arc<RwLock<Vec<PodStatus>>> = Arc::new(RwLock::new(
+        vec![PodStatus::Running { live_output: String::new() }; state.pods.len()]
+    ));
+    
+    // Mark all pods as running
+    for pod_state in &mut state.pods {
+        pod_state.status = PodStatus::Running { live_output: String::new() };
+    }
+    
+    terminal.draw(|f| draw_executor(f, state))?;
+    
+    // Spawn parallel tasks for all pods with live streaming
+    let mut handles = Vec::new();
+    for (i, pod_state) in state.pods.iter().enumerate() {
+        let script = script_content.clone();
+        let pod = pod_state.pod.clone();
+        let statuses = Arc::clone(&pod_statuses);
+        
+        let handle = tokio::spawn(async move {
+            execute_script_on_pod_streaming(&script, &pod, statuses, i).await
+        });
+        handles.push(handle);
+    }
+    
+    // Poll for completion while updating UI AND handling keyboard input
+    loop {
+        // Update state from shared results
+        if let Ok(guard) = pod_statuses.read() {
+            for (i, status) in guard.iter().enumerate() {
+                state.pods[i].status = status.clone();
+            }
+        }
+        
+        let all_done = state.pods.iter().all(|p| {
+            matches!(p.status, PodStatus::Completed { .. } | PodStatus::Failed { .. })
+        });
+        
         terminal.draw(|f| draw_executor(f, state))?;
-
-        let pod = &state.pods[i].pod;
-        let result = execute_script_on_pod(&script_content, pod).await;
-
-        state.pods[i].status = match result {
-            Ok(output) => PodStatus::Completed { success: true, output },
-            Err(e) => PodStatus::Failed { error: e.to_string() },
-        };
-
-        terminal.draw(|f| draw_executor(f, state))?;
+        
+        if all_done {
+            break;
+        }
+        
+        // Non-blocking keyboard input - allows navigation during execution
+        if poll(Duration::from_millis(50))? {
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if state.selected_pod_index > 0 {
+                            state.selected_pod_index -= 1;
+                            state.output_scroll = 0;
+                        }
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        if state.selected_pod_index < state.pods.len().saturating_sub(1) {
+                            state.selected_pod_index += 1;
+                            state.output_scroll = 0;
+                        }
+                    }
+                    KeyCode::PageUp => state.output_scroll = state.output_scroll.saturating_sub(10),
+                    KeyCode::PageDown => state.output_scroll += 10,
+                    KeyCode::Char('q') | KeyCode::Esc => {
+                        for handle in &handles {
+                            handle.abort();
+                        }
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+            }
+        }
+        
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    
+    for handle in handles {
+        let _ = handle.await;
     }
 
     state.execution_complete = true;
     state.current_executing = None;
     state.show_merge_dialog = true;
 
-    // Wait for user interaction
+    // Post-execution interaction loop
     loop {
         terminal.draw(|f| draw_executor(f, state))?;
 
@@ -387,9 +425,7 @@ async fn run_executor_loop(
                         save_outputs(state).await?;
                         state.show_merge_dialog = false;
                     }
-                    KeyCode::Esc => {
-                        state.show_merge_dialog = false;
-                    }
+                    KeyCode::Esc => state.show_merge_dialog = false,
                     _ => {}
                 }
             } else {
@@ -406,15 +442,9 @@ async fn run_executor_loop(
                             state.output_scroll = 0;
                         }
                     }
-                    KeyCode::PageUp => {
-                        state.output_scroll = state.output_scroll.saturating_sub(10);
-                    }
-                    KeyCode::PageDown => {
-                        state.output_scroll += 10;
-                    }
-                    KeyCode::Char('q') | KeyCode::Esc => {
-                        return Ok(());
-                    }
+                    KeyCode::PageUp => state.output_scroll = state.output_scroll.saturating_sub(10),
+                    KeyCode::PageDown => state.output_scroll += 10,
+                    KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                     _ => {}
                 }
             }
@@ -431,12 +461,18 @@ fn substitute_args(script: &str, args: &HashMap<String, String>) -> String {
     result
 }
 
-async fn execute_script_on_pod(script: &str, pod: &PodInfo) -> Result<String> {
+/// Execute script on pod with live streaming output
+async fn execute_script_on_pod_streaming(
+    script: &str,
+    pod: &PodInfo,
+    statuses: Arc<RwLock<Vec<PodStatus>>>,
+    index: usize,
+) {
     let container = pod.containers.first().map(|c| c.as_str()).unwrap_or("default");
-    let escaped_script = script.replace("'", "'\\''");
+    let escaped_script = script.replace("'", "'\''");
     let exec_cmd = format!("echo '{}' | sh", escaped_script);
 
-    let output = Command::new("kubectl")
+    let result = Command::new("kubectl")
         .arg("exec")
         .arg("-n")
         .arg(&pod.namespace)
@@ -447,20 +483,58 @@ async fn execute_script_on_pod(script: &str, pod: &PodInfo) -> Result<String> {
         .arg("sh")
         .arg("-c")
         .arg(&exec_cmd)
-        .output()
-        .await?;
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let mut child = match result {
+        Ok(c) => c,
+        Err(e) => {
+            if let Ok(mut guard) = statuses.write() {
+                guard[index] = PodStatus::Failed { error: format!("Failed to spawn: {}", e) };
+            }
+            return;
+        }
+    };
 
-    if output.status.success() {
-        Ok(format!("{}{}", stdout, if stderr.is_empty() { String::new() } else { format!("\n{}", stderr) }))
-    } else {
-        Ok(format!("STDOUT:\n{}\n\nSTDERR:\n{}", stdout, stderr))
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    
+    let mut output = String::new();
+    
+    // Read stdout with live updates
+    if let Some(stdout) = stdout {
+        let mut reader = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            output.push_str(&line);
+            output.push('\n');
+            
+            // Update live output
+            if let Ok(mut guard) = statuses.write() {
+                guard[index] = PodStatus::Running { live_output: output.clone() };
+            }
+        }
+    }
+    
+    // Read any remaining stderr
+    if let Some(stderr) = stderr {
+        let mut reader = BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = reader.next_line().await {
+            output.push_str(&line);
+            output.push('\n');
+        }
+    }
+    
+    // Wait for process to complete
+    let status = child.wait().await;
+    let success = status.map(|s| s.success()).unwrap_or(false);
+    
+    if let Ok(mut guard) = statuses.write() {
+        guard[index] = PodStatus::Completed { success, output };
     }
 }
 
-async fn save_outputs(state: &ScriptExecutorState) -> Result<()> {
+async fn save_outputs(state: &mut ScriptExecutorState) -> Result<()> {
     std::fs::create_dir_all(&state.output_dir)?;
 
     if state.merge_choice {
@@ -498,7 +572,7 @@ async fn save_outputs(state: &ScriptExecutorState) -> Result<()> {
 
         let merged_path = state.output_dir.join("merged_output.txt");
         std::fs::write(&merged_path, merged)?;
-        println!("✅ Output saved to: {}", merged_path.display());
+        state.saved_message = Some(format!("✅ Output saved to: {}", merged_path.display()));
     } else {
         for pod_state in &state.pods {
             let filename = format!("{}_{}.txt", pod_state.pod.namespace, pod_state.pod.name);
@@ -512,7 +586,7 @@ async fn save_outputs(state: &ScriptExecutorState) -> Result<()> {
 
             std::fs::write(&filepath, content)?;
         }
-        println!("✅ Outputs saved to: {}/", state.output_dir.display());
+        state.saved_message = Some(format!("✅ Outputs saved to: {}/", state.output_dir.display()));
     }
 
     Ok(())
@@ -522,14 +596,13 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(5),   // Header
-            Constraint::Length(4),   // Progress bar
-            Constraint::Min(10),     // Main content
-            Constraint::Length(3),   // Help bar
+            Constraint::Length(5),
+            Constraint::Length(4),
+            Constraint::Min(10),
+            Constraint::Length(3),
         ])
         .split(f.size());
 
-    // Beautiful header
     let status_icon = if state.execution_complete {
         if state.failed_count() == 0 { "✅" } else { "⚠️" }
     } else {
@@ -537,23 +610,17 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
     };
     
     let header_lines = vec![
-        Line::from(vec![
-            Span::styled("╔══════════════════════════════════════════════════════════════╗", Style::default().fg(Color::Cyan)),
-        ]),
+        Line::from(Span::styled("╔══════════════════════════════════════════════════════════════╗", Style::default().fg(Color::Cyan))),
         Line::from(vec![
             Span::styled("║  ", Style::default().fg(Color::Cyan)),
             Span::styled(format!("{} EXECUTING: ", status_icon), Style::default().fg(Color::White)),
             Span::styled(&state.script.name, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:>width$}║", "", width = 45 - state.script.name.len()), Style::default().fg(Color::Cyan)),
+            Span::styled(format!("{:>width$}║", "", width = 45usize.saturating_sub(state.script.name.len())), Style::default().fg(Color::Cyan)),
         ]),
-        Line::from(vec![
-            Span::styled("╚══════════════════════════════════════════════════════════════╝", Style::default().fg(Color::Cyan)),
-        ]),
+        Line::from(Span::styled("╚══════════════════════════════════════════════════════════════╝", Style::default().fg(Color::Cyan))),
     ];
-    let header = Paragraph::new(header_lines).alignment(Alignment::Center);
-    f.render_widget(header, chunks[0]);
+    f.render_widget(Paragraph::new(header_lines).alignment(Alignment::Center), chunks[0]);
 
-    // Progress bar with stats
     let progress = state.completed_count() as f64 / state.pods.len().max(1) as f64;
     let progress_color = if state.execution_complete {
         if state.failed_count() == 0 { Color::Green } else { Color::Yellow }
@@ -563,10 +630,7 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
     
     let progress_label = format!(
         " {} / {} pods  │  ✅ {}  ❌ {} ",
-        state.completed_count(),
-        state.pods.len(),
-        state.success_count(),
-        state.failed_count()
+        state.completed_count(), state.pods.len(), state.success_count(), state.failed_count()
     );
     
     let gauge = Gauge::default()
@@ -579,28 +643,21 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
         .label(Span::styled(progress_label, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
     f.render_widget(gauge, chunks[1]);
 
-    // Main content - pods and output
     let content_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(35),
-            Constraint::Percentage(65),
-        ])
+        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
         .split(chunks[2]);
 
-    // Pod list with beautiful styling
     let pod_items: Vec<ListItem> = state.pods.iter().enumerate().map(|(i, pod_state)| {
         let (icon, status_color) = match &pod_state.status {
             PodStatus::Pending => ("⏳", Color::Gray),
-            PodStatus::Running => ("🔄", Color::Yellow),
+            PodStatus::Running { .. } => ("🔄", Color::Yellow),
             PodStatus::Completed { success: true, .. } => ("✅", Color::Green),
             PodStatus::Completed { success: false, .. } => ("⚠️", Color::Yellow),
             PodStatus::Failed { .. } => ("❌", Color::Red),
         };
 
         let is_selected = i == state.selected_pod_index;
-        let is_executing = state.current_executing == Some(i);
-        
         let line_style = if is_selected {
             Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
         } else {
@@ -613,46 +670,37 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
             pod_state.pod.name.clone()
         };
 
-        let line = Line::from(vec![
+        ListItem::new(Line::from(vec![
             Span::styled(if is_selected { "▶ " } else { "  " }, Style::default().fg(Color::Cyan)),
             Span::styled(format!("{} ", icon), Style::default().fg(status_color)),
-            Span::styled(pod_name, line_style.fg(if is_executing { Color::Yellow } else { Color::White })),
-        ]);
-
-        ListItem::new(line).style(line_style)
+            Span::styled(pod_name, line_style.fg(Color::White)),
+        ])).style(line_style)
     }).collect();
 
-    let pods_title = format!(" 📦 Pods ({}) ", state.pods.len());
     let pod_list = List::new(pod_items)
         .block(Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Blue))
-            .title(Span::styled(pods_title, Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))));
+            .title(Span::styled(format!(" 📦 Pods ({}) ", state.pods.len()), Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))));
     f.render_widget(pod_list, content_chunks[0]);
 
-    // Output panel with syntax highlighting feel
     let (output_title, output_content, output_color) = if let Some(pod_state) = state.pods.get(state.selected_pod_index) {
         match &pod_state.status {
-            PodStatus::Pending => (
-                " ⏳ Waiting... ".to_string(),
-                "Script execution pending...".to_string(),
-                Color::Gray
-            ),
-            PodStatus::Running => (
-                " 🔄 Executing... ".to_string(),
-                "Running script on pod...\n\n⏳ Please wait...".to_string(),
-                Color::Yellow
-            ),
+            PodStatus::Pending => (" ⏳ Waiting... ".to_string(), "Script execution pending...".to_string(), Color::Gray),
+            PodStatus::Running { live_output } => {
+                let display = if live_output.is_empty() {
+                    "Running script on pod...\n\n⏳ Please wait...".to_string()
+                } else {
+                    live_output.clone()
+                };
+                (" 🔄 Live Output... ".to_string(), display, Color::Yellow)
+            }
             PodStatus::Completed { success, output } => (
                 if *success { " ✅ Output ".to_string() } else { " ⚠️ Output (with errors) ".to_string() },
                 output.clone(),
                 if *success { Color::Green } else { Color::Yellow }
             ),
-            PodStatus::Failed { error } => (
-                " ❌ Error ".to_string(),
-                format!("Execution failed!\n\n{}", error),
-                Color::Red
-            ),
+            PodStatus::Failed { error } => (" ❌ Error ".to_string(), format!("Execution failed!\n\n{}", error), Color::Red),
         }
     } else {
         (" Output ".to_string(), "No pod selected".to_string(), Color::Gray)
@@ -663,13 +711,14 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
         .border_style(Style::default().fg(output_color))
         .title(Span::styled(output_title, Style::default().fg(output_color).add_modifier(Modifier::BOLD)));
     
-    let output = Paragraph::new(output_content)
-        .block(output_block)
-        .wrap(Wrap { trim: false })
-        .scroll((state.output_scroll as u16, 0));
-    f.render_widget(output, content_chunks[1]);
+    f.render_widget(
+        Paragraph::new(output_content)
+            .block(output_block)
+            .wrap(Wrap { trim: false })
+            .scroll((state.output_scroll as u16, 0)),
+        content_chunks[1]
+    );
 
-    // Help bar
     let help_text = if state.execution_complete && !state.show_merge_dialog {
         vec![
             Span::styled(" ↑↓ ", Style::default().fg(Color::Black).bg(Color::Cyan)),
@@ -681,16 +730,21 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
         ]
     } else {
         vec![
+            Span::styled(" ↑↓ ", Style::default().fg(Color::Black).bg(Color::Cyan)),
+            Span::styled(" Navigate ", Style::default().fg(Color::Gray)),
             Span::styled(" 🔄 ", Style::default().fg(Color::Yellow)),
-            Span::styled(" Executing scripts on pods... Please wait ", Style::default().fg(Color::Gray)),
+            Span::styled(" Executing... ", Style::default().fg(Color::Gray)),
+            Span::styled(" q ", Style::default().fg(Color::Black).bg(Color::Red)),
+            Span::styled(" Cancel ", Style::default().fg(Color::Gray)),
         ]
     };
     
-    let help = Paragraph::new(Line::from(help_text))
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)));
-    f.render_widget(help, chunks[3]);
+    f.render_widget(
+        Paragraph::new(Line::from(help_text))
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray))),
+        chunks[3]
+    );
 
-    // Merge dialog overlay
     if state.show_merge_dialog {
         draw_merge_dialog(f, state);
     }
@@ -711,15 +765,14 @@ fn draw_merge_dialog(f: &mut Frame, state: &ScriptExecutorState) {
         .direction(Direction::Vertical)
         .margin(2)
         .constraints([
-            Constraint::Length(3),  // Summary
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(4),  // Option 1
-            Constraint::Length(4),  // Option 2
-            Constraint::Length(2),  // Hint
+            Constraint::Length(3),
+            Constraint::Length(1),
+            Constraint::Length(4),
+            Constraint::Length(4),
+            Constraint::Length(2),
         ])
         .split(area);
 
-    // Summary
     let summary = Paragraph::new(vec![
         Line::from(vec![
             Span::styled("📊 Execution Complete: ", Style::default().fg(Color::White)),
@@ -732,56 +785,41 @@ fn draw_merge_dialog(f: &mut Frame, state: &ScriptExecutorState) {
     ]).alignment(Alignment::Center);
     f.render_widget(summary, inner[0]);
 
-    // Option 1 - Merge
-    let opt1_style = if state.merge_choice {
-        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(Color::Gray)
-    };
+    let opt1_style = if state.merge_choice { Style::default().fg(Color::Green).add_modifier(Modifier::BOLD) } else { Style::default().fg(Color::Gray) };
     let opt1_border = if state.merge_choice { Color::Green } else { Color::DarkGray };
     let opt1_icon = if state.merge_choice { "◉" } else { "○" };
     
-    let opt1 = Paragraph::new(vec![
-        Line::from(vec![
-            Span::styled(format!(" {} ", opt1_icon), opt1_style),
-            Span::styled("Merge into single file", opt1_style),
-        ]),
-        Line::from(vec![
-            Span::styled("   → merged_output.txt", Style::default().fg(Color::DarkGray)),
-        ]),
-    ]).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(opt1_border)));
-    f.render_widget(opt1, inner[2]);
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(vec![Span::styled(format!(" {} ", opt1_icon), opt1_style), Span::styled("Merge into single file", opt1_style)]),
+            Line::from(Span::styled("   → merged_output.txt", Style::default().fg(Color::DarkGray))),
+        ]).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(opt1_border))),
+        inner[2]
+    );
 
-    // Option 2 - Separate
-    let opt2_style = if !state.merge_choice {
-        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(Color::Gray)
-    };
+    let opt2_style = if !state.merge_choice { Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD) } else { Style::default().fg(Color::Gray) };
     let opt2_border = if !state.merge_choice { Color::Cyan } else { Color::DarkGray };
     let opt2_icon = if !state.merge_choice { "◉" } else { "○" };
     
-    let opt2 = Paragraph::new(vec![
-        Line::from(vec![
-            Span::styled(format!(" {} ", opt2_icon), opt2_style),
-            Span::styled("Save separate files", opt2_style),
-        ]),
-        Line::from(vec![
-            Span::styled(format!("   → {}/", state.output_dir.display()), Style::default().fg(Color::DarkGray)),
-        ]),
-    ]).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(opt2_border)));
-    f.render_widget(opt2, inner[3]);
+    f.render_widget(
+        Paragraph::new(vec![
+            Line::from(vec![Span::styled(format!(" {} ", opt2_icon), opt2_style), Span::styled("Save separate files", opt2_style)]),
+            Line::from(Span::styled(format!("   → {}/", state.output_dir.display()), Style::default().fg(Color::DarkGray))),
+        ]).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(opt2_border))),
+        inner[3]
+    );
 
-    // Hint
-    let hint = Paragraph::new(Line::from(vec![
-        Span::styled("↑↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Switch  ", Style::default().fg(Color::Gray)),
-        Span::styled("Enter/Y/N", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-        Span::styled(" Confirm  ", Style::default().fg(Color::Gray)),
-        Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-        Span::styled(" Skip", Style::default().fg(Color::Gray)),
-    ])).alignment(Alignment::Center);
-    f.render_widget(hint, inner[4]);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("↑↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(" Switch  ", Style::default().fg(Color::Gray)),
+            Span::styled("Enter/Y/N", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(" Confirm  ", Style::default().fg(Color::Gray)),
+            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(" Skip", Style::default().fg(Color::Gray)),
+        ])).alignment(Alignment::Center),
+        inner[4]
+    );
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

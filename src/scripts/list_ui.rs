@@ -18,6 +18,11 @@ use std::io;
 
 use super::manager::{Script, ScriptManager};
 
+/// Black background style
+fn black_bg() -> Style {
+    Style::default().bg(Color::Black)
+}
+
 /// Action to take after list UI
 #[derive(Debug, Clone)]
 pub enum ListAction {
@@ -201,6 +206,10 @@ async fn run_list_loop(
 }
 
 fn draw_list_ui(f: &mut Frame, state: &ListState) {
+    // Fill with black background
+    let area = f.size();
+    f.render_widget(Block::default().style(black_bg()), area);
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -209,12 +218,12 @@ fn draw_list_ui(f: &mut Frame, state: &ListState) {
             Constraint::Length(3),  // Help bar
             Constraint::Length(2),  // Message bar
         ])
-        .split(f.size());
+        .split(area);
 
     // Title
     let title = Paragraph::new(format!("📜 Saved Scripts ({} total)", state.scripts.len()))
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-        .block(Block::default().borders(Borders::ALL));
+        .block(Block::default().borders(Borders::ALL).style(black_bg()));
     f.render_widget(title, chunks[0]);
 
     // Main content - split into list and preview
@@ -260,7 +269,8 @@ fn draw_list_ui(f: &mut Frame, state: &ListState) {
     let list_block = Block::default()
         .borders(Borders::ALL)
         .title("Scripts")
-        .border_style(Style::default().fg(Color::Yellow));
+        .border_style(Style::default().fg(Color::Yellow))
+        .style(black_bg());
     
     let list = List::new(items).block(list_block);
     f.render_widget(list, content_chunks[0]);
@@ -325,7 +335,8 @@ fn draw_list_ui(f: &mut Frame, state: &ListState) {
             .block(Block::default()
                 .borders(Borders::ALL)
                 .title("Preview")
-                .border_style(Style::default().fg(Color::Cyan)))
+                .border_style(Style::default().fg(Color::Cyan))
+                .style(black_bg()))
             .wrap(Wrap { trim: false });
         f.render_widget(preview, content_chunks[1]);
     }
@@ -348,7 +359,7 @@ fn draw_list_ui(f: &mut Frame, state: &ListState) {
         Span::raw(" Quit"),
     ];
     let help = Paragraph::new(Line::from(help_spans))
-        .block(Block::default().borders(Borders::ALL));
+        .block(Block::default().borders(Borders::ALL).style(black_bg()));
     f.render_widget(help, chunks[2]);
 
     // Message bar
@@ -376,7 +387,7 @@ fn draw_delete_dialog(f: &mut Frame, state: &ListState) {
     let block = Block::default()
         .title("⚠️  Confirm Delete")
         .borders(Borders::ALL)
-        .style(Style::default().bg(Color::DarkGray));
+        .style(black_bg());
     f.render_widget(block, area);
 
     let inner = Layout::default()
