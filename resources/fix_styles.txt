@@ -1,0 +1,17 @@
+.hero-wake {
+    font-size: 6.5rem;
+    font-weight: 900;
+    letter-spacing: -3px;
+    color: transparent;
+    margin: 0;
+    line-height: 1;
+    -webkit-text-stroke: 3px #4299e1;
+    text-stroke: 3px #4299e1;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.hero-wake:hover {
+    -webkit-text-stroke: 3px #63b3ed;
+    text-stroke: 3px #63b3ed;
+}
