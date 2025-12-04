@@ -226,6 +226,11 @@ async fn collect_arguments(args: &[ScriptArg]) -> Result<HashMap<String, String>
 
 fn draw_arg_input(f: &mut Frame, state: &ArgInputState) {
     let area = f.size();
+    
+    // Force black background on entire screen
+    f.render_widget(Clear, area);
+    f.render_widget(Block::default().style(Style::default().bg(Color::Black)), area);
+    
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -242,12 +247,12 @@ fn draw_arg_input(f: &mut Frame, state: &ArgInputState) {
         Line::from(Span::styled("╔═══════════════════════════════════════╗", Style::default().fg(Color::Cyan))),
         Line::from(vec![
             Span::styled("║  ", Style::default().fg(Color::Cyan)),
-            Span::styled("📝 SCRIPT ARGUMENTS", Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled("📝 SCRIPT ARGUMENTS", Style::default().fg(Color::White).bg(Color::Black).add_modifier(Modifier::BOLD)),
             Span::styled("              ║", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(Span::styled("╚═══════════════════════════════════════╝", Style::default().fg(Color::Cyan))),
     ];
-    f.render_widget(Paragraph::new(header_text).alignment(Alignment::Center), chunks[0]);
+    f.render_widget(Paragraph::new(header_text).style(Style::default().bg(Color::Black)).alignment(Alignment::Center), chunks[0]);
 
     if let Some(arg) = state.current_arg() {
         let req_badge = if arg.required {
@@ -259,7 +264,7 @@ fn draw_arg_input(f: &mut Frame, state: &ArgInputState) {
         let mut info_lines = vec![
             Line::from(vec![
                 Span::styled("  📌 ", Style::default().fg(Color::Yellow)),
-                Span::styled(&arg.name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+                Span::styled(&arg.name, Style::default().fg(Color::White).bg(Color::Black).add_modifier(Modifier::BOLD)),
                 Span::raw("  "),
                 req_badge,
             ]),
@@ -269,25 +274,26 @@ fn draw_arg_input(f: &mut Frame, state: &ArgInputState) {
         if let Some(ref desc) = arg.description {
             info_lines.push(Line::from(vec![
                 Span::styled("  📋 ", Style::default().fg(Color::Gray)),
-                Span::styled(desc, Style::default().fg(Color::Gray)),
+                Span::styled(desc, Style::default().fg(Color::Gray).bg(Color::Black)),
             ]));
         }
 
         if let Some(ref default) = arg.default_value {
             info_lines.push(Line::from(vec![
                 Span::styled("  💡 Default: ", Style::default().fg(Color::DarkGray)),
-                Span::styled(format!("\"{}\"", default), Style::default().fg(Color::Green)),
+                Span::styled(format!("\"{}\"", default), Style::default().fg(Color::Green).bg(Color::Black)),
             ]));
         }
 
         let info_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Cyan))
+            .style(Style::default().bg(Color::Black))
             .title(Span::styled(
                 format!(" Argument {}/{} ", state.current_index + 1, state.args.len()),
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
             ));
-        f.render_widget(Paragraph::new(info_lines).block(info_block), chunks[1]);
+        f.render_widget(Paragraph::new(info_lines).block(info_block).style(Style::default().bg(Color::Black)), chunks[1]);
     }
 
     let input_with_cursor = {
@@ -297,8 +303,9 @@ fn draw_arg_input(f: &mut Frame, state: &ArgInputState) {
     let input_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Yellow))
+        .style(Style::default().bg(Color::Black))
         .title(Span::styled(" ✏️  Enter Value ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-    f.render_widget(Paragraph::new(input_with_cursor).style(Style::default().fg(Color::White)).block(input_block), chunks[2]);
+    f.render_widget(Paragraph::new(input_with_cursor).style(Style::default().fg(Color::White).bg(Color::Black)).block(input_block), chunks[2]);
 
     let progress_dots: String = (0..state.args.len())
         .map(|i| if i < state.current_index { "●" } else if i == state.current_index { "◉" } else { "○" })
@@ -312,7 +319,7 @@ fn draw_arg_input(f: &mut Frame, state: &ArgInputState) {
         Span::styled(" Submit  ", Style::default().fg(Color::Gray)),
         Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
         Span::styled(" Cancel", Style::default().fg(Color::Gray)),
-    ])).alignment(Alignment::Center);
+    ])).style(Style::default().bg(Color::Black)).alignment(Alignment::Center);
     f.render_widget(progress, chunks[3]);
 }
 
@@ -598,6 +605,12 @@ async fn save_outputs(state: &mut ScriptExecutorState) -> Result<()> {
 }
 
 fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
+    let area = f.size();
+    
+    // Force black background on entire screen
+    f.render_widget(Clear, area);
+    f.render_widget(Block::default().style(Style::default().bg(Color::Black)), area);
+    
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -606,7 +619,7 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
             Constraint::Min(10),
             Constraint::Length(3),
         ])
-        .split(f.size());
+        .split(area);
 
     let status_icon = if state.execution_complete {
         if state.failed_count() == 0 { "✅" } else { "⚠️" }
@@ -618,13 +631,13 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
         Line::from(Span::styled("╔══════════════════════════════════════════════════════════════╗", Style::default().fg(Color::Cyan))),
         Line::from(vec![
             Span::styled("║  ", Style::default().fg(Color::Cyan)),
-            Span::styled(format!("{} EXECUTING: ", status_icon), Style::default().fg(Color::White)),
-            Span::styled(&state.script.name, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{} EXECUTING: ", status_icon), Style::default().fg(Color::White).bg(Color::Black)),
+            Span::styled(&state.script.name, Style::default().fg(Color::Yellow).bg(Color::Black).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{:>width$}║", "", width = 45usize.saturating_sub(state.script.name.len())), Style::default().fg(Color::Cyan)),
         ]),
         Line::from(Span::styled("╚══════════════════════════════════════════════════════════════╝", Style::default().fg(Color::Cyan))),
     ];
-    f.render_widget(Paragraph::new(header_lines).alignment(Alignment::Center), chunks[0]);
+    f.render_widget(Paragraph::new(header_lines).style(Style::default().bg(Color::Black)).alignment(Alignment::Center), chunks[0]);
 
     let progress = state.completed_count() as f64 / state.pods.len().max(1) as f64;
     let progress_color = if state.execution_complete {
@@ -642,6 +655,7 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
         .block(Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(progress_color))
+            .style(Style::default().bg(Color::Black))
             .title(Span::styled(" Progress ", Style::default().fg(progress_color).add_modifier(Modifier::BOLD))))
         .gauge_style(Style::default().fg(progress_color).bg(Color::DarkGray))
         .ratio(progress)
@@ -664,9 +678,9 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
 
         let is_selected = i == state.selected_pod_index;
         let line_style = if is_selected {
-            Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+            Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
         } else {
-            Style::default()
+            Style::default().bg(Color::Black).fg(Color::White)
         };
 
         let pod_name = if pod_state.pod.name.len() > 25 {
@@ -676,9 +690,9 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
         };
 
         ListItem::new(Line::from(vec![
-            Span::styled(if is_selected { "▶ " } else { "  " }, Style::default().fg(Color::Cyan)),
-            Span::styled(format!("{} ", icon), Style::default().fg(status_color)),
-            Span::styled(pod_name, line_style.fg(Color::White)),
+            Span::styled(if is_selected { "▶ " } else { "  " }, Style::default().fg(Color::Cyan).bg(if is_selected { Color::DarkGray } else { Color::Black })),
+            Span::styled(format!("{} ", icon), Style::default().fg(status_color).bg(if is_selected { Color::DarkGray } else { Color::Black })),
+            Span::styled(pod_name, line_style),
         ])).style(line_style)
     }).collect();
 
@@ -686,6 +700,7 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
         .block(Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Blue))
+            .style(Style::default().bg(Color::Black))
             .title(Span::styled(format!(" 📦 Pods ({}) ", state.pods.len()), Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))));
     f.render_widget(pod_list, content_chunks[0]);
 
@@ -714,11 +729,13 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
     let output_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(output_color))
+        .style(Style::default().bg(Color::Black))
         .title(Span::styled(output_title, Style::default().fg(output_color).add_modifier(Modifier::BOLD)));
     
     f.render_widget(
         Paragraph::new(output_content)
             .block(output_block)
+            .style(Style::default().fg(Color::White).bg(Color::Black))
             .wrap(Wrap { trim: false })
             .scroll((state.output_scroll as u16, 0)),
         content_chunks[1]
@@ -727,26 +744,27 @@ fn draw_executor(f: &mut Frame, state: &ScriptExecutorState) {
     let help_text = if state.execution_complete && !state.show_merge_dialog {
         vec![
             Span::styled(" ↑↓ ", Style::default().fg(Color::Black).bg(Color::Cyan)),
-            Span::styled(" Select Pod ", Style::default().fg(Color::Gray)),
+            Span::styled(" Select Pod ", Style::default().fg(Color::Gray).bg(Color::Black)),
             Span::styled(" PgUp/PgDn ", Style::default().fg(Color::Black).bg(Color::Cyan)),
-            Span::styled(" Scroll ", Style::default().fg(Color::Gray)),
+            Span::styled(" Scroll ", Style::default().fg(Color::Gray).bg(Color::Black)),
             Span::styled(" q ", Style::default().fg(Color::Black).bg(Color::Red)),
-            Span::styled(" Quit ", Style::default().fg(Color::Gray)),
+            Span::styled(" Quit ", Style::default().fg(Color::Gray).bg(Color::Black)),
         ]
     } else {
         vec![
             Span::styled(" ↑↓ ", Style::default().fg(Color::Black).bg(Color::Cyan)),
-            Span::styled(" Navigate ", Style::default().fg(Color::Gray)),
-            Span::styled(" 🔄 ", Style::default().fg(Color::Yellow)),
-            Span::styled(" Executing... ", Style::default().fg(Color::Gray)),
+            Span::styled(" Navigate ", Style::default().fg(Color::Gray).bg(Color::Black)),
+            Span::styled(" 🔄 ", Style::default().fg(Color::Yellow).bg(Color::Black)),
+            Span::styled(" Executing... ", Style::default().fg(Color::Gray).bg(Color::Black)),
             Span::styled(" q ", Style::default().fg(Color::Black).bg(Color::Red)),
-            Span::styled(" Cancel ", Style::default().fg(Color::Gray)),
+            Span::styled(" Cancel ", Style::default().fg(Color::Gray).bg(Color::Black)),
         ]
     };
     
     f.render_widget(
         Paragraph::new(Line::from(help_text))
-            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray))),
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)).style(Style::default().bg(Color::Black)))
+            .style(Style::default().bg(Color::Black)),
         chunks[3]
     );
 
@@ -780,49 +798,49 @@ fn draw_merge_dialog(f: &mut Frame, state: &ScriptExecutorState) {
 
     let summary = Paragraph::new(vec![
         Line::from(vec![
-            Span::styled("📊 Execution Complete: ", Style::default().fg(Color::White)),
-            Span::styled(format!("{} pods", state.pods.len()), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::styled(" │ ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("✅ {}", state.success_count()), Style::default().fg(Color::Green)),
-            Span::styled(" │ ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("❌ {}", state.failed_count()), Style::default().fg(Color::Red)),
+            Span::styled("📊 Execution Complete: ", Style::default().fg(Color::White).bg(Color::Black)),
+            Span::styled(format!("{} pods", state.pods.len()), Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::styled(" │ ", Style::default().fg(Color::DarkGray).bg(Color::Black)),
+            Span::styled(format!("✅ {}", state.success_count()), Style::default().fg(Color::Green).bg(Color::Black)),
+            Span::styled(" │ ", Style::default().fg(Color::DarkGray).bg(Color::Black)),
+            Span::styled(format!("❌ {}", state.failed_count()), Style::default().fg(Color::Red).bg(Color::Black)),
         ]),
-    ]).alignment(Alignment::Center);
+    ]).style(Style::default().bg(Color::Black)).alignment(Alignment::Center);
     f.render_widget(summary, inner[0]);
 
-    let opt1_style = if state.merge_choice { Style::default().fg(Color::Green).add_modifier(Modifier::BOLD) } else { Style::default().fg(Color::Gray) };
+    let opt1_style = if state.merge_choice { Style::default().fg(Color::Green).bg(Color::Black).add_modifier(Modifier::BOLD) } else { Style::default().fg(Color::Gray).bg(Color::Black) };
     let opt1_border = if state.merge_choice { Color::Green } else { Color::DarkGray };
     let opt1_icon = if state.merge_choice { "◉" } else { "○" };
     
     f.render_widget(
         Paragraph::new(vec![
             Line::from(vec![Span::styled(format!(" {} ", opt1_icon), opt1_style), Span::styled("Merge into single file", opt1_style)]),
-            Line::from(Span::styled("   → merged_output.txt", Style::default().fg(Color::DarkGray))),
-        ]).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(opt1_border))),
+            Line::from(Span::styled("   → merged_output.txt", Style::default().fg(Color::DarkGray).bg(Color::Black))),
+        ]).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(opt1_border)).style(Style::default().bg(Color::Black))).style(Style::default().bg(Color::Black)),
         inner[2]
     );
 
-    let opt2_style = if !state.merge_choice { Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD) } else { Style::default().fg(Color::Gray) };
+    let opt2_style = if !state.merge_choice { Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD) } else { Style::default().fg(Color::Gray).bg(Color::Black) };
     let opt2_border = if !state.merge_choice { Color::Cyan } else { Color::DarkGray };
     let opt2_icon = if !state.merge_choice { "◉" } else { "○" };
     
     f.render_widget(
         Paragraph::new(vec![
             Line::from(vec![Span::styled(format!(" {} ", opt2_icon), opt2_style), Span::styled("Save separate files", opt2_style)]),
-            Line::from(Span::styled(format!("   → {}/", state.output_dir.display()), Style::default().fg(Color::DarkGray))),
-        ]).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(opt2_border))),
+            Line::from(Span::styled(format!("   → {}/", state.output_dir.display()), Style::default().fg(Color::DarkGray).bg(Color::Black))),
+        ]).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(opt2_border)).style(Style::default().bg(Color::Black))).style(Style::default().bg(Color::Black)),
         inner[3]
     );
 
     f.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("↑↓", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::styled(" Switch  ", Style::default().fg(Color::Gray)),
-            Span::styled("Enter/Y/N", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-            Span::styled(" Confirm  ", Style::default().fg(Color::Gray)),
-            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-            Span::styled(" Skip", Style::default().fg(Color::Gray)),
-        ])).alignment(Alignment::Center),
+            Span::styled("↑↓", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::styled(" Switch  ", Style::default().fg(Color::Gray).bg(Color::Black)),
+            Span::styled("Enter/Y/N", Style::default().fg(Color::Green).bg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::styled(" Confirm  ", Style::default().fg(Color::Gray).bg(Color::Black)),
+            Span::styled("Esc", Style::default().fg(Color::Red).bg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::styled(" Skip", Style::default().fg(Color::Gray).bg(Color::Black)),
+        ])).style(Style::default().bg(Color::Black)).alignment(Alignment::Center),
         inner[4]
     );
 }
