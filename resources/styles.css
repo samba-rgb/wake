@@ -858,14 +858,14 @@ details > img {
     margin: 0;
     line-height: 1;
     -webkit-text-stroke: 3px #4299e1;
-    text-stroke: 3px #4299e1;
+    -webkit-text-stroke: 3px #4299e1;
     display: inline-block;
     transition: all 0.3s ease;
 }
 
 .hero-wake:hover {
     -webkit-text-stroke: 3px #63b3ed;
-    text-stroke: 3px #63b3ed;
+    -webkit-text-stroke: 3px #63b3ed;
 }
 .hero-wake::before {
     display: none;
@@ -1095,4 +1095,373 @@ details > img {
 /* Tip box styling - direct child of main-content */
 .main-content > div:first-child {
     margin: 0 2rem 2rem 2rem !important;
+}
+
+/* Dark Mode Variables */
+[data-theme="dark"] {
+    --sidebar-bg: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+    --main-bg: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+    --text-color: #e2e8f0;
+    --header-color: #f7fafc;
+    --accent-color: #63b3ed;
+    --accent-light: #90cdf4;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --card-bg: rgba(26, 32, 44, 0.6);
+    --code-bg: rgba(15, 23, 42, 0.8);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* Glassmorphism for Dark Mode Cards */
+[data-theme="dark"] .card {
+    background: rgba(30, 41, 59, 0.5);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.125);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+[data-theme="dark"] .card:hover {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(99, 179, 237, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 179, 237, 0.3);
+}
+
+[data-theme="dark"] .card-header {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .installation-method,
+[data-theme="dark"] .quick-example-card {
+    background: rgba(30, 41, 59, 0.5);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .code-block-wrapper {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .code-block-header {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] pre {
+    background: rgba(15, 23, 42, 0.9);
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] pre code {
+    color: #cbd5e0;
+}
+
+[data-theme="dark"] .info-box {
+    background: rgba(30, 58, 138, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-left: 4px solid #60a5fa;
+}
+
+[data-theme="dark"] .info-box p {
+    color: #93c5fd;
+}
+
+[data-theme="dark"] .warning-box {
+    background: rgba(120, 53, 15, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-left: 5px solid #fbbf24;
+}
+
+[data-theme="dark"] .warning-box strong {
+    color: #fcd34d;
+}
+
+[data-theme="dark"] .warning-box code {
+    background: rgba(0, 0, 0, 0.3);
+    color: #fde68a;
+}
+
+[data-theme="dark"] table {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] th {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(37, 99, 235, 0.6));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] tr:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+[data-theme="dark"] summary {
+    background: rgba(30, 41, 59, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] summary:hover {
+    background: rgba(30, 41, 59, 0.7);
+}
+
+[data-theme="dark"] details[open] summary {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(37, 99, 235, 0.6));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] kbd {
+    background: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .sidebar {
+    background: linear-gradient(135deg, rgba(10, 14, 39, 0.95) 0%, rgba(26, 31, 58, 0.95) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .nav-item a:hover {
+    background: rgba(99, 179, 237, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .nav-item a.active {
+    background: rgba(99, 179, 237, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #4299e1 0%, #2563eb 100%);
+    border: 2px solid rgba(15, 23, 42, 0.5);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #63b3ed 0%, #4299e1 100%);
+    box-shadow: 0 0 10px rgba(99, 179, 237, 0.5);
+}
+
+[data-theme="dark"] .hero-icon-text-container {
+    border-color: #63b3ed;
+    box-shadow: 0 0 30px rgba(99, 179, 237, 0.3);
+}
+
+[data-theme="dark"] .hero-wake {
+    -webkit-text-stroke: 3px #63b3ed;
+    -webkit-text-stroke: 3px #63b3ed;
+    filter: drop-shadow(0 0 10px rgba(99, 179, 237, 0.5));
+}
+
+[data-theme="dark"] .cta-button.primary {
+    box-shadow: 0 4px 12px rgba(99, 179, 237, 0.4);
+}
+
+[data-theme="dark"] .cta-button.primary:hover {
+    box-shadow: 0 6px 20px rgba(99, 179, 237, 0.6);
+}
+
+[data-theme="dark"] .main-content > div:first-child {
+    background: rgba(30, 58, 138, 0.2) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-left: 5px solid #60a5fa !important;
+    color: #93c5fd !important;
+}
+
+[data-theme="dark"] .main-content > div:first-child a {
+    color: #60a5fa !important;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: rgba(66, 153, 225, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(66, 153, 225, 0.3);
+    color: var(--accent-color);
+    font-size: 1.5rem;
+    padding: 0.75rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.2);
+    width: 48px;
+    height: 48px;
+}
+
+.theme-toggle:hover {
+    background: rgba(66, 153, 225, 0.3);
+    border-color: rgba(66, 153, 225, 0.5);
+    transform: scale(1.1) rotate(15deg);
+    box-shadow: 0 6px 16px rgba(66, 153, 225, 0.4);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95);
+}
+
+.theme-toggle span {
+    transition: transform 0.3s ease;
+}
+
+[data-theme="dark"] .theme-toggle {
+    background: rgba(99, 179, 237, 0.2);
+    border-color: rgba(99, 179, 237, 0.3);
+    color: #90cdf4;
+}
+
+[data-theme="dark"] .theme-toggle:hover {
+    background: rgba(99, 179, 237, 0.3);
+    border-color: rgba(99, 179, 237, 0.5);
+    box-shadow: 0 0 20px rgba(99, 179, 237, 0.4);
+}
+
+@media (max-width: 768px) {
+    .theme-toggle {
+        top: 1rem;
+        right: 1rem;
+        width: 44px;
+        height: 44px;
+        font-size: 1.3rem;
+    }
+}
+
+/* Additional Dark Mode Fixes for Text Contrast */
+[data-theme="dark"] h3 {
+    color: var(--header-color);
+}
+
+[data-theme="dark"] h4 {
+    color: var(--accent-color);
+}
+
+[data-theme="dark"] code {
+    background: rgba(15, 23, 42, 0.8);
+    color: #90cdf4;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .card-body h3 code {
+    background: rgba(99, 179, 237, 0.2);
+    color: #90cdf4;
+    border: 1px solid rgba(99, 179, 237, 0.3);
+}
+
+[data-theme="dark"] .card-body div[style*="background: #f6f8fa"] {
+    background: rgba(30, 41, 59, 0.5) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-left: 4px solid #60a5fa !important;
+}
+
+[data-theme="dark"] .card-body div[style*="background: #f6f8fa"] strong {
+    color: #90cdf4;
+}
+
+[data-theme="dark"] .card-body div[style*="background: #f6f8fa"] code {
+    background: rgba(15, 23, 42, 0.8);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+[data-theme="dark"] span[style*="font-size: 1.1em"] {
+    color: #90cdf4 !important;
+}
+
+[data-theme="dark"] .card-body div[style*="background: #f8fafc"] {
+    background: rgba(30, 41, 59, 0.5) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .card-body div[style*="background: linear-gradient(135deg, #f0fdf4"] {
+    background: linear-gradient(135deg, rgba(22, 101, 52, 0.3) 0%, rgba(21, 128, 61, 0.3) 100%) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] .card-body div[style*="color: #166534"] strong,
+[data-theme="dark"] .card-body div[style*="color: #166534"] {
+    color: #86efac !important;
+}
+
+[data-theme="dark"] .card-body div[style*="color: #166534"] code {
+    background: rgba(0, 0, 0, 0.3);
+    color: #a7f3d0;
+}
+
+/* Fix for slideshow captions in dark mode */
+[data-theme="dark"] .slide-caption,
+[data-theme="dark"] .template-slide .slide-caption {
+    color: white !important;
+}
+
+[data-theme="dark"] .slide-caption strong,
+[data-theme="dark"] .template-slide .slide-caption strong {
+    color: #90cdf4 !important;
+}
+
+/* Ensure good contrast for all text in dark mode */
+[data-theme="dark"] p {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] strong {
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] li {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] li strong {
+    color: #90cdf4;
+}
+
+/* Fix ordered list styling in dark mode */
+[data-theme="dark"] ol {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] ol li strong {
+    color: #90cdf4;
 }
