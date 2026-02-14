@@ -6,34 +6,46 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #000000;
-  --ifm-color-primary-dark: #000000;
-  --ifm-color-primary-darker: #000000;
-  --ifm-color-primary-darkest: #000000;
-  --ifm-color-primary-light: #2a2a2a;
-  --ifm-color-primary-lighter: #3a3a3a;
-  --ifm-color-primary-lightest: #4a4a4a;
+  --ifm-color-primary: #3498db;
+  --ifm-color-primary-dark: #2980b9;
+  --ifm-color-primary-darker: #2471a3;
+  --ifm-color-primary-darkest: #1f618d;
+  --ifm-color-primary-light: #5dade2;
+  --ifm-color-primary-lighter: #7fb3d3;
+  --ifm-color-primary-lightest: #aed6f1;
   --ifm-background-color: #ffffff;
   --ifm-hero-background-color: #ffffff;
-  --ifm-hero-text-color: #000000;
+  --ifm-hero-text-color: #2c3e50;
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --docusaurus-highlighted-code-line-bg: rgba(52, 152, 219, 0.1);
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
-  --ifm-color-primary: #ffffff;
-  --ifm-color-primary-dark: #f5f5f5;
-  --ifm-color-primary-darker: #e5e5e5;
-  --ifm-color-primary-darkest: #d5d5d5;
-  --ifm-color-primary-light: #ffffff;
-  --ifm-color-primary-lighter: #ffffff;
-  --ifm-color-primary-lightest: #ffffff;
-  --ifm-background-color: #121212;
-  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.3);
+/* Force light mode styles - remove all dark mode CSS */
+html[data-theme='dark'] {
+  --ifm-color-primary: #3498db !important;
+  --ifm-color-primary-dark: #2980b9 !important;
+  --ifm-color-primary-darker: #2471a3 !important;
+  --ifm-color-primary-darkest: #1f618d !important;
+  --ifm-color-primary-light: #5dade2 !important;
+  --ifm-color-primary-lighter: #7fb3d3 !important;
+  --ifm-color-primary-lightest: #aed6f1 !important;
+  --ifm-background-color: #ffffff !important;
+  --ifm-navbar-background-color: #ffffff !important;
+  --ifm-footer-background-color: #f8f9fa !important;
+  --ifm-hero-background-color: #ffffff !important;
+  --ifm-hero-text-color: #2c3e50 !important;
+  --ifm-font-color-base: #2c3e50 !important;
+  --docusaurus-highlighted-code-line-bg: rgba(52, 152, 219, 0.1) !important;
+}
+
+/* Ensure all elements use light mode colors */
+body,
+html {
+  background-color: #ffffff !important;
+  color: #2c3e50 !important;
 }
 
 .hero {
-  background-color: var(--ifm-hero-background-color);
-  color: var(--ifm-hero-text-color);
+  background-color: var(--ifm-hero-background-color) !important;
+  color: var(--ifm-hero-text-color) !important;
 }

@@ -40,6 +40,12 @@
   color: #2c3e50;
 }
 
+/* Wake name in blue */
+.wakeName {
+  color: #3498db !important;
+  text-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
+}
+
 .heroSubtitle {
   font-size: 1.4rem;
   margin-bottom: 1.5rem;
@@ -92,11 +98,12 @@
   transform: translateY(-1px);
 }
 
-/* Simple Terminal Demo */
+/* Tiltable Terminal Demo */
 .heroDemo {
   display: flex;
   justify-content: center;
   align-items: center;
+  perspective: 1000px;
 }
 
 .terminalWindow {
@@ -107,6 +114,12 @@
   width: 100%;
   max-width: 500px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  transform: rotateY(2deg) rotateX(-1deg);
+  transition: transform 0.3s ease;
+}
+
+.terminalWindow:hover {
+  transform: rotateY(0deg) rotateX(0deg) scale(1.02);
 }
 
 .terminalHeader {
