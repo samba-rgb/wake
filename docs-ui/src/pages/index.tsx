@@ -18,7 +18,7 @@ function HomepageHero() {
           <div className={styles.heroText}>
             <img src={useBaseUrl('/img/logo.png')} alt="Wake Logo" className={styles.heroLogo} />
             <Heading as="h1" className={styles.heroTitle}>
-              {siteConfig.title}
+              <span className={styles.wakeName}>Wake</span>
             </Heading>
             <p className={styles.heroSubtitle}>
               Advanced Kubernetes Log Analysis Platform
