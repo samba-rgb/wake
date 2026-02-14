@@ -4,6 +4,7 @@ Welcome to Wake - Advanced Kubernetes Log Analysis & Diagnostics.
 
 <!-- Test deployment trigger -->
 <!-- Dummy change to test workflow - February 2026 -->
+<!-- Testing GitHub Pages configuration fix -->
 
 ## Quick Links
 
