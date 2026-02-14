@@ -1,3 +1,11 @@
+# Wake Documentation
+
+Welcome to Wake - Advanced Kubernetes Log Analysis & Diagnostics.
+
+<!-- Test deployment trigger -->
+
+## Quick Links
+
 # Website
 
 This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
