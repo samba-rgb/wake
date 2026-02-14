@@ -1,0 +1,402 @@
+/**
+ * CSS files with the .module.css suffix will be treated as CSS modules
+ * and scoped locally.
+ */
+
+/* Simple Hero Section */
+.heroBanner {
+  padding: 4rem 0;
+  text-align: left;
+  position: relative;
+  background: #ffffff;
+  color: #2c3e50;
+}
+
+.heroContent {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.heroText {
+  z-index: 1;
+}
+
+.heroLogo {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.heroTitle {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.heroSubtitle {
+  font-size: 1.4rem;
+  margin-bottom: 1.5rem;
+  color: #34495e;
+  font-weight: 400;
+}
+
+.heroDescription {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  color: #5d6d7e;
+}
+
+.heroButtons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.heroButtons .button {
+  padding: 0.875rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.heroButtons .button--primary {
+  background: #3498db;
+  border: none;
+  color: white;
+}
+
+.heroButtons .button--primary:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+}
+
+.heroButtons .button--secondary {
+  background: transparent;
+  border: 2px solid #3498db;
+  color: #3498db;
+}
+
+.heroButtons .button--secondary:hover {
+  background: #3498db;
+  color: white;
+  transform: translateY(-1px);
+}
+
+/* Simple Terminal Demo */
+.heroDemo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.terminalWindow {
+  background: #2c3e50;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  width: 100%;
+  max-width: 500px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.terminalHeader {
+  background: #34495e;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.terminalButtons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.terminalButton {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e74c3c;
+}
+
+.terminalButton:nth-child(2) {
+  background: #f39c12;
+}
+
+.terminalButton:nth-child(3) {
+  background: #27ae60;
+}
+
+.terminalTitle {
+  color: #ecf0f1;
+  font-size: 0.875rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.terminalBody {
+  padding: 1.5rem;
+  background: #2c3e50;
+  color: #ecf0f1;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.terminalLine {
+  margin-bottom: 0.5rem;
+}
+
+.prompt {
+  color: #27ae60;
+  margin-right: 0.5rem;
+  font-weight: bold;
+}
+
+.command {
+  color: #ecf0f1;
+}
+
+.output {
+  color: #3498db;
+  margin-left: 1rem;
+}
+
+/* Clean Quick Start Section */
+.quickStart {
+  padding: 4rem 0;
+  background: #f8f9fa;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.sectionSubtitle {
+  font-size: 1.2rem;
+  color: #5d6d7e;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.quickStartGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 3rem;
+  margin-bottom: 4rem;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 2.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+}
+
+.step:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.stepNumber {
+  background: #3498db;
+  color: white;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.stepContent {
+  flex: 1;
+}
+
+.stepContent h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.4rem;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.codeWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.codeWrapper code {
+  background: #f8f9fa;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #2c3e50;
+  border: 2px solid #e9ecef;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  display: block;
+}
+
+.orText {
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0.25rem 0;
+}
+
+.stepNote {
+  color: #6c757d;
+  font-size: 0.95rem;
+  margin: 0.5rem 0 0 0;
+  line-height: 1.4;
+}
+
+/* Next Steps Section */
+.nextSteps {
+  background: white;
+  border-radius: 12px;
+  padding: 2.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+.nextSteps h3 {
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin-bottom: 2rem;
+  font-weight: 600;
+}
+
+.nextStepsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.nextStep {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.nextStep:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.nextStepIcon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.nextStep span {
+  font-size: 0.95rem;
+  color: #2c3e50;
+}
+
+.nextStep kbd {
+  background: #2c3e50;
+  color: white;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+.nextStep code {
+  background: #2c3e50;
+  color: white;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 996px) {
+  .heroContent {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    text-align: center;
+  }
+  
+  .heroTitle {
+    font-size: 2.5rem;
+  }
+  
+  .heroSubtitle {
+    font-size: 1.25rem;
+  }
+  
+  .quickStartGrid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .nextStepsList {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .heroBanner {
+    padding: 2rem 0;
+  }
+  
+  .heroTitle {
+    font-size: 2rem;
+  }
+  
+  .heroButtons {
+    justify-content: center;
+  }
+  
+  .quickStartGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .step {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .codeWrapper {
+    align-items: center;
+  }
+  
+  .nextStep {
+    justify-content: center;
+  }
+}

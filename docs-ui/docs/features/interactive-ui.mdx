@@ -1,0 +1,96 @@
+---
+sidebar_position: 1
+---
+import { InteractiveUITut } from '@site/src/components/InteractiveUITut';
+
+# Interactive UI Mode
+
+Wake features a powerful interactive terminal UI (TUI) that allows dynamic filtering and real-time log viewing across multiple Kubernetes pods. The TUI provides an immersive experience for debugging and monitoring applications in real-time.
+
+<InteractiveUITut />
+
+## Getting Started
+
+To use the interactive UI, add the `--ui` flag to any Wake command:
+
+```bash
+# Basic interactive mode
+wake --ui
+
+# Interactive mode with namespace selection
+wake -n kube-system --ui
+
+# Interactive mode with pod selector
+wake -n apps log-generator --ui
+
+# Interactive mode with initial filters
+wake -n apps log-generator --ui -i "ERROR|WARN" -E "debug"
+```
+
+## Key Features
+
+- **Real-time Log Streaming**: Watch logs as they happen across multiple pods
+- **Dynamic Filtering**: Apply include/exclude patterns without restarting
+- **Pattern History**: Navigate through previously used filter patterns with arrow keys
+- **Visual Feedback**: Clear indication of filter changes and their effects
+- **Smart Scrolling**: Auto-scroll to bottom with manual scroll support
+- **Multi-pod Support**: View logs from multiple pods simultaneously
+- **Resource Monitoring**: Built-in CPU and memory monitoring (when available)
+- **Help System**: Built-in help accessible with the `h` key
+
+## Navigation Controls
+
+### Filter Management
+- **`i`**: Edit include pattern (show only logs matching this pattern)
+- **`e`**: Edit exclude pattern (hide logs matching this pattern)
+- **`↑/↓`**: Navigate through pattern history
+
+### Display Controls
+- **`h`**: Toggle help screen
+- **`r`**: Refresh display
+- **`q` / `Esc`**: Quit application
+
+### Scrolling
+- **`↑/↓` or `k/j`**: Scroll through logs line by line
+- **`Home/Ctrl+g`**: Go to top of logs
+- **`End/G`**: Go to bottom of logs
+- **`Page Up/Down`**: Scroll by page
+
+## Advanced Usage
+
+### Combined with File Output
+```bash
+# Save logs to file while using interactive UI
+wake -n apps log-generator --ui -w logs.txt
+```
+
+### With Resource Monitoring
+```bash
+# Enable interactive UI with monitoring
+wake -n production api-* --ui --monitor
+```
+
+### Development Mode
+```bash
+# Show internal Wake logs alongside application logs
+wake -n apps log-generator --ui --dev
+```
+
+## Smart Filter Management
+
+Wake intelligently handles filter changes in the TUI:
+
+- **Preserved History**: Changing filters doesn't remove previously displayed logs
+- **Visual Boundaries**: Clear markers show when filters were applied
+- **Incremental Filtering**: New filters only affect incoming logs
+- **Pattern Memory**: Previously used patterns are saved and accessible
+
+## Tips and Best Practices
+
+1. **Start Broad**: Begin with minimal filters and narrow down as needed
+2. **Use Pattern History**: Press `↑/↓` in filter mode to reuse previous patterns
+3. **Combine with Sampling**: Use `--sample N` to limit the number of pods for better performance
+4. **Save Important Logs**: Use `-w filename.txt` to save filtered logs to a file
+5. **Monitor Resources**: Keep an eye on CPU/memory usage to identify performance issues
+
+The interactive UI is particularly powerful when debugging complex issues across multiple microservices or when you need to correlate log patterns with resource usage.
