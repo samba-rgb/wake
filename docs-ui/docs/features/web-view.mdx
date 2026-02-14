@@ -1,0 +1,111 @@
+---
+sidebar_position: 7
+---
+import { WebViewTut } from '@site/src/components/WebViewTut';
+
+# Web View
+
+Wake provides a powerful web-based interface for viewing and analyzing logs through integration with OpenObserve. This feature allows you to access logs through a modern web UI while leveraging all of Wake's filtering and monitoring capabilities.
+
+<WebViewTut />
+
+## Getting Started
+
+To use the web view feature, Wake integrates with OpenObserve to provide a browser-based log viewing experience:
+
+```bash
+# Start Wake with web output to OpenObserve
+wake -n apps log-generator --web
+
+# Combine web view with local UI
+wake -n apps log-generator --ui --web
+
+# Web view with advanced filtering
+wake -n production api-* --web -i "ERROR|WARN"
+```
+
+## Key Features
+
+### Web-Based Access
+- **Browser Interface**: Access logs through any modern web browser
+- **Real-time Updates**: Live log streaming in the web interface
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **Shareable URLs**: Share specific log views with team members
+
+### Integration Benefits
+- **OpenObserve Integration**: Seamless connection with OpenObserve infrastructure
+- **Persistent Storage**: Logs stored for historical analysis
+- **Advanced Querying**: Use OpenObserve's powerful query capabilities
+- **Dashboards**: Create custom dashboards for monitoring
+
+### Multi-Format Support
+- **JSON Logs**: Native support for structured JSON log formats
+- **Plain Text**: Traditional text-based logs
+- **Kubernetes Metadata**: Automatic pod, namespace, and container labeling
+- **Timestamps**: Precise timing information for all log entries
+
+## Use Cases
+
+### Team Collaboration
+```bash
+# Share real-time logs with development team
+wake -n staging api-* --web -i "deployment"
+
+# Collaborative debugging sessions
+wake -n production --web --sample 5
+```
+
+### Historical Analysis
+- **Log Retention**: Keep logs for extended periods
+- **Trend Analysis**: Identify patterns over time
+- **Incident Investigation**: Review logs from past incidents
+- **Performance Monitoring**: Track application behavior over time
+
+### Remote Access
+- **Remote Teams**: Access logs from anywhere with internet connection
+- **On-Call Support**: Quick access to production logs during incidents
+- **Mobile Access**: Check logs from mobile devices
+- **Cross-Platform**: Works on any operating system with a browser
+
+## Configuration
+
+### OpenObserve Setup
+Wake integrates with OpenObserve for web-based log viewing. The integration handles:
+- **Automatic Index Creation**: Creates appropriate indexes for your logs
+- **Schema Management**: Handles log structure and field mapping
+- **Authentication**: Secure access to your log data
+- **Data Retention**: Configurable retention policies
+
+### Network Configuration
+```bash
+# Configure OpenObserve endpoint
+wake setconfig openobserve_endpoint "http://localhost:5080"
+
+# Set authentication credentials
+wake setconfig openobserve_org "your-org"
+wake setconfig openobserve_stream "wake-logs"
+```
+
+## Advanced Features
+
+### Real-time Filtering
+- **Live Queries**: Apply filters in real-time through the web interface
+- **Pattern Matching**: Use Wake's advanced pattern syntax in web queries
+- **Multi-pod Aggregation**: View logs from multiple pods in unified timeline
+- **Resource Correlation**: Correlate logs with CPU/memory metrics
+
+### Export and Sharing
+- **Export Options**: Download filtered logs in various formats
+- **Permalink Generation**: Create permanent links to specific log views
+- **Dashboard Integration**: Embed log views in monitoring dashboards
+- **API Access**: Programmatic access to stored log data
+
+## Best Practices
+
+1. **Index Strategy**: Use appropriate indexing for frequently queried fields
+2. **Retention Management**: Set appropriate retention periods for different log types
+3. **Query Optimization**: Use efficient filters to reduce query overhead
+4. **Access Control**: Implement proper authentication and authorization
+5. **Resource Monitoring**: Monitor OpenObserve resource usage
+
+The web view feature makes Wake's powerful log analysis capabilities accessible to broader teams while maintaining the performance and filtering capabilities that make Wake unique.

@@ -1,0 +1,36 @@
+---
+sidebar_position: 4
+---
+
+# Script Execution
+
+Wake can run scripts in Kubernetes pods and collect the output. This feature is useful for debugging, maintenance, or any task that requires executing commands in the pod's environment.
+
+![Script Execution UI](/img/script_feature/script_list.png)
+
+## Syntax
+
+```bash
+wake --script-in <path-to-script.sh> [--namespace <ns>] [--pod-selector <regex>] [--script-outdir <dir>]
+```
+
+- `--script-in <path-to-script.sh>`: Path to the script file to be executed in the pods.
+- `--namespace <ns>`: (Optional) Kubernetes namespace. Default is `default`.
+- `--pod-selector <regex>`: (Optional) Regex to select pods. Default is all pods.
+- `--script-outdir <dir>`: (Optional) Directory to save script output.
+
+## Output Files
+
+For each pod, the output will be saved as:
+- `<namespace>_<pod>.stdout.txt`: Standard output of the script.
+- `<namespace>_<pod>.stderr.txt`: Standard error of the script.
+
+These files are saved in a directory named like `wake_output_YYYYMMDD_HHMMSS/` by default.
+
+## Example
+
+```bash
+wake --script-in ./dummy_script.sh --namespace apps --pod-selector 'nginx.*' --script-outdir ./results
+```
+
+This command runs `dummy_script.sh` in all pods in the `apps` namespace that match the `nginx.*` regex, and saves the output in the `./results` directory.
