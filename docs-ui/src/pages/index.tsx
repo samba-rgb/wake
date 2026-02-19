@@ -129,6 +129,24 @@ function QuickStart() {
               <span>Monitor resources with built-in metrics</span>
             </div>
           </div>
+
+          {/* Star on GitHub Section */}
+          <div className={styles.starSection}>
+            <div className={styles.starContent}>
+              <span className={styles.starIcon}>⭐</span>
+              <div>
+                <h4>Like Wake?</h4>
+                <p>If you find Wake useful, please consider giving it a star on GitHub — it really helps the project!</p>
+              </div>
+              <Link
+                className="button button--primary"
+                href="https://github.com/samba-rgb/wake"
+                target="_blank"
+                rel="noopener noreferrer">
+                ⭐ Star on GitHub
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </section>

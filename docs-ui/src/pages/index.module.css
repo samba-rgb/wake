@@ -311,49 +311,57 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
-.nextStep {
+/* Star on GitHub Section */
+.starSection {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 2px solid rgba(52, 152, 219, 0.1);
+}
+
+.starContent {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  gap: 1.5rem;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
-.nextStep:hover {
-  background: #e9ecef;
-  transform: translateY(-1px);
+.starIcon {
+  font-size: 2.5rem;
+  animation: starPulse 2s ease-in-out infinite;
 }
 
-.nextStepIcon {
+@keyframes starPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.starContent h4 {
+  margin: 0 0 0.5rem 0;
   font-size: 1.2rem;
-  flex-shrink: 0;
-}
-
-.nextStep span {
-  font-size: 0.95rem;
   color: #2c3e50;
+  font-weight: 600;
 }
 
-.nextStep kbd {
-  background: #2c3e50;
-  color: white;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-family: monospace;
+.starContent p {
+  margin: 0;
+  color: #5d6d7e;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
-.nextStep code {
-  background: #2c3e50;
-  color: white;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-family: monospace;
+.starContent .button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* Responsive Design */

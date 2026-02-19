@@ -3,102 +3,229 @@ sidebar_position: 7
 ---
 import { WebViewTut } from '@site/src/components/WebViewTut';
 
-# Web View
+# Web View (with OpenObserve)
 
-Wake provides a powerful web-based interface for viewing and analyzing logs through integration with OpenObserve. This feature allows you to access logs through a modern web UI while leveraging all of Wake's filtering and monitoring capabilities.
+Wake's web view feature transforms your Kubernetes log analysis from a terminal-only experience into a powerful, shareable web-based interface. By integrating with OpenObserve, Wake enables teams to collaborate on log analysis, share findings, and maintain historical log data for comprehensive troubleshooting.
 
 <WebViewTut />
 
-## Getting Started
+## What is Web View?
 
-To use the web view feature, Wake integrates with OpenObserve to provide a browser-based log viewing experience:
+The web view feature allows Wake to send filtered logs to a web-based observability platform (OpenObserve), where they can be viewed, searched, and analyzed through a modern browser interface. This bridges the gap between Wake's powerful command-line filtering capabilities and the need for team collaboration and data persistence.
 
-```bash
-# Start Wake with web output to OpenObserve
-wake -n apps log-generator --web
+## Key Features & Benefits
 
-# Combine web view with local UI
-wake -n apps log-generator --ui --web
+### 🌐 Browser-Based Access
+- **Modern Web Interface**: Access logs through any modern web browser with a clean, intuitive UI
+- **Real-time Streaming**: Live log updates appear instantly in the web interface
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
+- **Cross-Platform**: Access from any operating system without installing Wake
 
-# Web view with advanced filtering
-wake -n production api-* --web -i "ERROR|WARN"
-```
+### 👥 Team Collaboration
+- **Shareable URLs**: Generate permanent links to specific log views and share with team members
+- **Multi-User Access**: Multiple team members can view the same logs simultaneously
+- **Role-Based Access**: Configure different access levels for different team members
+- **Remote Debugging**: Support remote team members and on-call engineers
 
-## Key Features
+### 📊 Data Persistence & Analysis
+- **Historical Storage**: Logs are stored for extended periods (configurable retention)
+- **Advanced Querying**: Use OpenObserve's powerful search and filtering capabilities
+- **Custom Dashboards**: Create monitoring dashboards with log metrics and visualizations
+- **Trend Analysis**: Identify patterns and trends over time periods
 
-### Web-Based Access
-- **Browser Interface**: Access logs through any modern web browser
-- **Real-time Updates**: Live log streaming in the web interface
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
-- **Shareable URLs**: Share specific log views with team members
-
-### Integration Benefits
-- **OpenObserve Integration**: Seamless connection with OpenObserve infrastructure
-- **Persistent Storage**: Logs stored for historical analysis
-- **Advanced Querying**: Use OpenObserve's powerful query capabilities
-- **Dashboards**: Create custom dashboards for monitoring
-
-### Multi-Format Support
-- **JSON Logs**: Native support for structured JSON log formats
-- **Plain Text**: Traditional text-based logs
+### 🔄 Seamless Integration
+- **Wake Compatibility**: All Wake filtering patterns work in the web interface
 - **Kubernetes Metadata**: Automatic pod, namespace, and container labeling
-- **Timestamps**: Precise timing information for all log entries
+- **Multi-Format Support**: JSON logs, plain text, and structured data
+- **Export Options**: Download filtered logs in various formats
+
+### 📱 Enhanced Accessibility
+- **Mobile-Friendly**: Check logs from mobile devices during incidents
+- **Offline Capability**: View previously loaded logs even when disconnected
+- **Search History**: Keep track of frequently used queries and filters
+- **Bookmark Support**: Save important log views for quick access
 
 ## Use Cases
 
-### Team Collaboration
+### 🚨 Incident Response
 ```bash
-# Share real-time logs with development team
-wake -n staging api-* --web -i "deployment"
-
-# Collaborative debugging sessions
-wake -n production --web --sample 5
+# Quickly share critical errors with the team
+wake -n production api-* --web -i "FATAL|ERROR" 
+# Team can immediately access the same filtered view via web URL
 ```
 
-### Historical Analysis
-- **Log Retention**: Keep logs for extended periods
-- **Trend Analysis**: Identify patterns over time
-- **Incident Investigation**: Review logs from past incidents
-- **Performance Monitoring**: Track application behavior over time
-
-### Remote Access
-- **Remote Teams**: Access logs from anywhere with internet connection
-- **On-Call Support**: Quick access to production logs during incidents
-- **Mobile Access**: Check logs from mobile devices
-- **Cross-Platform**: Works on any operating system with a browser
-
-## Configuration
-
-### OpenObserve Setup
-Wake integrates with OpenObserve for web-based log viewing. The integration handles:
-- **Automatic Index Creation**: Creates appropriate indexes for your logs
-- **Schema Management**: Handles log structure and field mapping
-- **Authentication**: Secure access to your log data
-- **Data Retention**: Configurable retention policies
-
-### Network Configuration
+### 🔍 Collaborative Debugging
 ```bash
-# Configure OpenObserve endpoint
-wake setconfig openobserve_endpoint "http://localhost:5080"
-
-# Set authentication credentials
-wake setconfig openobserve_org "your-org"
-wake setconfig openobserve_stream "wake-logs"
+# Multiple developers investigating the same issue
+wake -n staging payment-service --web -i "transaction.*failed"
+# Everyone sees the same real-time log stream in their browsers
 ```
 
-## Advanced Features
+### 📈 Performance Monitoring
+```bash
+# Long-term performance analysis
+wake -n production --web -i "response_time|latency"
+# Data persisted for historical trend analysis
+```
 
-### Real-time Filtering
-- **Live Queries**: Apply filters in real-time through the web interface
-- **Pattern Matching**: Use Wake's advanced pattern syntax in web queries
-- **Multi-pod Aggregation**: View logs from multiple pods in unified timeline
-- **Resource Correlation**: Correlate logs with CPU/memory metrics
+### 📋 Documentation & Reporting
+- **Evidence Collection**: Capture logs for bug reports and post-mortems
+- **Performance Reports**: Generate reports with log data and metrics
+- **Compliance**: Maintain audit trails with timestamped log data
 
-### Export and Sharing
-- **Export Options**: Download filtered logs in various formats
-- **Permalink Generation**: Create permanent links to specific log views
-- **Dashboard Integration**: Embed log views in monitoring dashboards
-- **API Access**: Programmatic access to stored log data
+## How It Works
+
+1. **Wake captures logs** from your Kubernetes pods with all its powerful filtering
+2. **Logs are sent to OpenObserve** via HTTP API in real-time
+3. **OpenObserve stores and indexes** the logs for fast searching
+4. **Web interface provides** rich visualization and collaboration features
+5. **Team members access** via shared URLs with real-time updates
+
+---
+
+## Installation & Setup
+
+Now let's get the web view feature up and running:
+
+### Installing Docker
+
+To use OpenObserve with Wake's web view feature, you'll need Docker installed. Choose one of these options based on your platform:
+
+#### For Mac Users
+
+**Option 1: Docker Desktop (Recommended)**
+- **Download**: [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
+- **Features**: GUI interface, automatic updates, integrated Kubernetes
+- **Requirements**: macOS 10.15 or later
+
+```bash
+# Install via Homebrew (recommended)
+brew install --cask docker
+```
+
+**Option 2: Rancher Desktop (Open Source)**
+- **Download**: [Rancher Desktop](https://rancherdesktop.io/)
+- **Features**: Open source, built-in Kubernetes, choice of container runtime
+
+```bash
+# Install via Homebrew
+brew install --cask rancher
+```
+
+**Option 3: OrbStack (Lightweight)**
+- **Download**: [OrbStack](https://orbstack.dev/)
+- **Features**: Faster performance, lower resource usage
+
+```bash
+# Install via Homebrew
+brew install --cask orbstack
+```
+
+#### For Linux Users
+
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install docker.io
+
+# CentOS/RHEL/Fedora
+sudo dnf install docker
+
+# Arch Linux
+sudo pacman -S docker
+
+# Start Docker service
+sudo systemctl start docker
+sudo systemctl enable docker
+```
+
+#### Verify Installation
+```bash
+# Check Docker version
+docker --version
+
+# Test Docker functionality
+docker run hello-world
+```
+
+### Setup Steps
+
+#### Step 1: Prepare Data Directory
+
+```bash
+mkdir -p data
+chmod +x data
+```
+
+#### Step 2: Start OpenObserve with Docker
+
+```bash
+docker run -d \
+  --name openobserve \
+  -v $PWD/data:/data \
+  -p 5080:5080 \
+  -e ZO_ROOT_USER_EMAIL="root@example.com" \
+  -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
+  -e ZO_COMPACT_DATA_RETENTION_DAYS=3 \
+  -e ZO_ORG_DATA_QUOTA=10737418240 \
+  -e ZO_STREAM_DATA_QUOTA=2147483648 \
+  public.ecr.aws/zinclabs/openobserve:latest
+```
+
+**What this does:**
+- `-d` – Run in background
+- `--name openobserve` – Container name for easy management
+- `-v $PWD/data:/data` – Mount local data directory for persistence
+- `-p 5080:5080` – Expose port 5080 for web UI
+- `-e ZO_ROOT_USER_EMAIL` – Set login email
+- `-e ZO_ROOT_USER_PASSWORD` – Set login password
+- `-e ZO_COMPACT_DATA_RETENTION_DAYS=3` – Keep data for 3 days
+- `-e ZO_ORG_DATA_QUOTA=10737418240` – 10GB organization quota
+- `-e ZO_STREAM_DATA_QUOTA=2147483648` – 2GB per stream quota
+
+#### Step 3: Verify OpenObserve is Running
+
+```bash
+# Check container status
+docker ps | grep openobserve
+
+# View logs
+docker logs -f openobserve
+```
+
+Once running, access OpenObserve at: [http://localhost:5080/](http://localhost:5080/)
+
+#### Step 4: Configure Wake to use OpenObserve
+
+:::info Note
+These are the default configuration values. You **only need to run these commands if you want to change them**. If you're using the default OpenObserve setup, you can skip this step.
+:::
+
+```bash
+wake setconfig web.endpoint "http://localhost:5080"
+wake setconfig web.user "root@example.com"
+wake setconfig web.password "Complexpass#123"
+```
+
+---
+
+## Getting Started with Web View
+
+Once OpenObserve is running, you can start sending logs to the web interface:
+
+```bash
+# Basic web output
+wake -n apps log-generator --web
+
+# Combine with local UI for dual output
+wake -n apps log-generator --ui --web
+
+# Advanced filtering with web output
+wake -n production api-* --web -i "ERROR|WARN"
+
+# Save to file and web simultaneously
+wake "my-app" --web -w /tmp/logs.txt
+```
 
 ## Best Practices
 

@@ -12,6 +12,54 @@ Wake automatically detects and works with your current Kubernetes configuration,
 
 ## Basic Context Usage
 
+### Recommended: Using kubectx for Easy Context Switching
+
+For easier Kubernetes context management, we highly recommend using **kubectx** - a tool that simplifies switching between contexts:
+
+**Install kubectx:**
+```bash
+# macOS with Homebrew
+brew install kubectx
+
+# Linux
+curl -Lo kubectx https://github.com/ahmetb/kubectx/releases/latest/download/kubectx
+chmod +x kubectx
+sudo mv kubectx /usr/local/bin/
+
+# Or using package managers
+# Ubuntu/Debian: sudo apt install kubectx
+# Arch Linux: pacman -S kubectx
+```
+
+**Usage with Wake:**
+```bash
+# List all contexts (much cleaner than kubectl)
+kubectx
+
+# Switch to a context quickly
+kubectx staging-cluster
+
+# Now use Wake with the selected context
+wake --ui
+
+# Switch and monitor in one workflow
+kubectx production && wake --namespace apps --ui
+```
+
+**kubectx with kubens (namespace switching):**
+```bash
+# Install kubens along with kubectx
+brew install kubectx  # includes both tools
+
+# Switch context and namespace quickly
+kubectx staging-cluster
+kubens apps
+wake --ui
+
+# Or combine in commands
+kubectx prod && kubens production && wake --ui
+```
+
 ### Using Current Context
 ```bash
 # Wake uses your current kubectl context by default
@@ -19,6 +67,8 @@ wake --ui
 
 # Check which context Wake is using
 kubectl config current-context
+# or with kubectx
+kubectx -c
 ```
 
 ### Specifying a Different Context
@@ -28,6 +78,10 @@ wake --context staging-cluster --ui
 
 # Combine with namespace selection
 wake --context production --namespace apps --ui
+
+# With kubectx workflow (recommended)
+kubectx staging-cluster
+wake --namespace apps --ui
 ```
 
 ## Context Configuration
