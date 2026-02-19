@@ -236,3 +236,157 @@ wake "my-app" --web -w /tmp/logs.txt
 5. **Resource Monitoring**: Monitor OpenObserve resource usage
 
 The web view feature makes Wake's powerful log analysis capabilities accessible to broader teams while maintaining the performance and filtering capabilities that make Wake unique.
+
+---
+
+## 🕐 Timeline View with --since (Web-Only Advantage)
+
+One of the most powerful features of Wake's web view is how the `--since` flag creates a **visual timeline interface** that's impossible to achieve with regular terminal output. This transforms historical log analysis from a linear text stream into an interactive, time-based visualization.
+
+### Why --since is Special in Web View
+
+In terminal mode, `--since` just shows older logs as text. In **web view**, it creates a rich timeline experience:
+
+```bash
+# Terminal: Just shows last 2 hours as scrolling text
+wake "api-server" --since 2h
+
+# Web View: Creates interactive timeline with visual time navigation  
+wake "api-server" --since 2h --web
+```
+
+### Timeline Features You Can't Get Elsewhere
+
+#### 📊 **Visual Time Navigation**
+- **Timeline scrubber**: Drag to jump to any point in the time range
+- **Zoom controls**: Focus on specific time periods with precision
+- **Time markers**: Clear visual indicators for different time periods
+- **Event density**: See when log activity was highest
+
+#### 📈 **Historical Pattern Analysis** 
+```bash
+# Analyze error patterns over the last 24 hours
+wake -n production "payment-service" --since 24h --web -i "error|exception"
+
+# View deployment timeline over the last 6 hours  
+wake "api-.*" --since 6h --web -i "deployment|restart|ready"
+
+# Monitor performance trends over the past week
+wake "database" --since 7d --web -i "slow_query|timeout|connection"
+```
+
+#### 🎯 **Incident Investigation Timeline**
+```bash
+# Recreate the full timeline of yesterday's incident
+wake -n production --since 1d --web -i "error|warn|fatal"
+
+# Share timeline view with team - they see the SAME visual timeline
+# Perfect for post-mortems and root cause analysis
+```
+
+### Unique Timeline Capabilities
+
+#### **Time-Range Filtering in UI**
+Once logs are in OpenObserve with `--since`, you can:
+- **Narrow time windows** without re-running Wake
+- **Compare different time periods** side by side  
+- **Bookmark specific moments** in the timeline
+- **Export timeline segments** for reports
+
+#### **Cross-Pod Timeline Correlation**
+```bash
+# See how errors propagated across services over time
+wake -A "api|database|cache" --since 4h --web -i "error"
+```
+In the web view, you get:
+- **Unified timeline** showing all pods
+- **Visual correlation** of when errors started in each service
+- **Interactive filtering** to isolate specific timeframes
+- **Pattern recognition** across the entire system
+
+#### **Long-Term Historical Analysis**
+```bash
+# Analyze patterns over extended periods
+wake "worker-.*" --since 30d --web -i "failed|retry|timeout"
+
+# Compare performance between different weeks
+wake "api-server" --since 14d --web -i "response_time"
+```
+
+### Real-World Timeline Scenarios
+
+#### **🚨 Incident Response**
+```bash
+# During an incident - create shared timeline for the team
+wake -n production --since 2h --web -i "error|fatal"
+```
+**Web Timeline Shows:**
+- When the incident started (visual spike in errors)
+- Which services were affected first
+- How the issue propagated over time
+- Team can all see the same timeline view live
+
+#### **🔍 Post-Incident Analysis** 
+```bash
+# Recreate the full incident timeline for analysis
+wake -n production --since 8h --web
+```
+**Timeline Benefits:**
+- **Visual reconstruction** of events leading to incident
+- **Export timeline** for incident reports  
+- **Share exact timeline view** with stakeholders
+- **Compare with previous incidents** using saved timeline bookmarks
+
+#### **📊 Performance Trend Analysis**
+```bash
+# Weekly performance patterns
+wake "api-.*" --since 7d --web -i "latency|response_time"
+```
+**Timeline Reveals:**
+- Daily traffic patterns
+- Weekly performance cycles  
+- Gradual performance degradation over time
+- Peak usage periods and their impact
+
+### Timeline vs. Regular --since
+
+| Feature | Terminal `--since` | Web Timeline `--since` |
+|---------|-------------------|----------------------|
+| **View Type** | Linear text scroll | Interactive visual timeline |
+| **Time Navigation** | Scroll through text | Click/drag to any time point |
+| **Pattern Recognition** | Manual text analysis | Visual spikes and trends |
+| **Sharing** | Copy/paste text | Share live timeline URL |
+| **Multi-Pod Correlation** | Mixed text output | Unified visual timeline |
+| **Time Range Adjustment** | Re-run command | Adjust in UI instantly |
+| **Export** | Text file only | Timeline segments + visualizations |
+| **Team Collaboration** | Send log files | Shared live timeline view |
+
+### Advanced Timeline Commands
+
+```bash
+# Extended historical analysis with web timeline
+wake "critical-service" --since 30d --web -i "error" 
+# Creates 30-day timeline - impossible to analyze effectively in terminal
+
+# Multi-namespace incident timeline  
+wake -A --since 6h --web -i "error|warn|fatal"
+# Unified timeline across all namespaces
+
+# Performance baseline establishment
+wake "api-.*" --since 7d --web -i "latency|cpu|memory"
+# Week-long performance timeline for baseline analysis
+
+# Deployment impact timeline
+wake "app" --since 24h --web -i "deploy|restart|ready|error"
+# Full deployment lifecycle in visual timeline
+```
+
+### Pro Tips for Timeline Analysis
+
+1. **Start Broad, Then Narrow**: Use `--since 24h` to see the big picture, then narrow time windows in the UI
+2. **Combine with Filtering**: Use `-i` patterns to focus timeline on specific events
+3. **Save Timeline Bookmarks**: Bookmark important incidents for future reference
+4. **Export Timeline Data**: Use OpenObserve's export for reports and documentation
+5. **Team Sharing**: Share timeline URLs instead of log files for better collaboration
+
+The timeline view created by `--since` in web mode transforms Wake from a log viewer into a **time-travel debugging tool** that lets you visually navigate through your application's history. This is simply impossible to achieve with terminal-based log viewing!

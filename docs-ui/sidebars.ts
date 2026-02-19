@@ -30,6 +30,7 @@ const sidebars: SidebarsConfig = {
       label: 'Features',
       collapsed: false,
       items: [
+        'features/basic-features',
         'features/interactive-ui',
         'features/advanced-patterns',
         'features/web-view',
@@ -38,6 +39,7 @@ const sidebars: SidebarsConfig = {
         'features/command-history',
         'features/monitor',
         'features/kubernetes-context',
+        'features/update-manager',
       ],
     },
     {
