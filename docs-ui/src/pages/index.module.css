@@ -46,6 +46,17 @@
   text-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
 }
 
+.heroTagline {
+  font-size: 1.1rem;
+  color: #3498db;
+  margin: 0.5rem 0 1.5rem 0;
+  font-weight: 500;
+}
+
+.heroTagline em {
+  font-style: italic;
+}
+
 .heroSubtitle {
   font-size: 1.4rem;
   margin-bottom: 1.5rem;
@@ -58,6 +69,15 @@
   line-height: 1.6;
   margin-bottom: 2rem;
   color: #5d6d7e;
+}
+
+.heroDescription em {
+  color: #3498db;
+  font-style: italic;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 0.75rem;
+  font-size: 1.05rem;
 }
 
 .heroButtons {

@@ -20,6 +20,9 @@ function HomepageHero() {
             <Heading as="h1" className={styles.heroTitle}>
               <span className={styles.wakeName}>Wake</span>
             </Heading>
+            <p className={styles.heroTagline}>
+              <em>Wake: Because your logs should work for you, not against you.</em>
+            </p>
             <p className={styles.heroSubtitle}>
               Advanced Kubernetes Log Analysis Platform
             </p>

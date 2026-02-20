@@ -678,6 +678,17 @@
             100% { transform: translateX(100%); }
         }
 
+        @keyframes pulse-glow {
+            0%, 100% { 
+                box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.1);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4), 0 0 20px rgba(59, 130, 246, 0.2);
+                transform: scale(1.02);
+            }
+        }
+
         /* Hero Section Styles */
         .hero-section {
             animation: fadeInUp 0.8s ease-out;
@@ -1032,6 +1043,32 @@
                     </div>
 
                     <p class="hero-subtitle">Advanced Kubernetes Log Analysis & Diagnostics</p>
+                    
+                    <div class="hero-tagline" style="
+                        font-size: 1.6rem; 
+                        color: #1e40af; 
+                        margin: 2rem auto; 
+                        font-weight: 800; 
+                        text-align: center; 
+                        font-style: italic;
+                        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%);
+                        padding: 1.5rem 2.5rem;
+                        border-radius: 1.2rem;
+                        border: 3px solid #3b82f6;
+                        max-width: 800px;
+                        box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.1);
+                        animation: fadeInUp 0.8s ease-out 0.4s backwards, pulse-glow 3s ease-in-out infinite;
+                        position: relative;
+                        z-index: 5;
+                        transform: scale(1);
+                        transition: all 0.3s ease;
+                        display: block !important;
+                        visibility: visible !important;
+                    ">
+                        <span style="font-size: 1.2em;">✨</span> 
+                        <strong style="text-shadow: 1px 1px 2px rgba(0,0,0,0.1);">Wake: Because your logs should work for you, not against you.</strong> 
+                        <span style="font-size: 1.2em;">🚀</span>
+                    </div>
 
                     <div class="hero-detailed-description">
                         <strong>Wake</strong> is a powerful, multi-pod Kubernetes log analysis and diagnostics platform. Beyond traditional log tailing and grepping, Wake enables <strong>real-time log filtering</strong> with advanced pattern matching, <strong>interactive terminal UI (TUI)</strong>, <strong>web-based viewing</strong> with OpenObserve integration, <strong>template-based diagnostics</strong> (JFR, heap dumps, thread dumps), <strong>custom script execution</strong> across pods, and <strong>intelligent command history</strong> powered by TF-IDF search. All with seamless multi-pod support, intelligent sampling, and multi-threaded processing for massive clusters.
