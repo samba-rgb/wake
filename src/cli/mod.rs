@@ -33,12 +33,27 @@ fn print_wake_big_text() {
 
 /// Checks if wake is being run with default options
 fn is_default_run(args: &Args) -> bool {
-    // Check if using all default options (effectively no filtering)
+    // Check if using all default log-stream options (effectively no target,
+    // filter, format, or collection option was provided).
     args.pod_selector == ".*" &&
     args.container == ".*" &&
+    args.sample.is_none() &&
     args.namespace == "default" &&
     !args.all_namespaces &&
+    args.kubeconfig.is_none() &&
+    args.context.is_none() &&
+    args.tail == 10 &&
+    args.follow &&
+    args.include.is_none() &&
+    args.exclude.is_none() &&
+    !args.timestamps &&
+    args.output == "text" &&
     args.resource.is_none() &&
+    args.template.is_none() &&
+    args.since.is_none() &&
+    args.threads.is_none() &&
+    !args.web &&
+    !args.all_containers &&
     !args.list_containers
 }
 
@@ -1012,5 +1027,46 @@ fn format_time_ago(timestamp: &chrono::DateTime<chrono::Utc>) -> String {
         format!("{} minutes ago", duration.num_minutes())
     } else {
         "just now".to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_args() -> Args {
+        Args {
+            namespace: "default".to_string(),
+            ..Args::default()
+        }
+    }
+
+    #[test]
+    fn default_run_has_no_user_log_options() {
+        assert!(is_default_run(&default_args()));
+    }
+
+    #[test]
+    fn include_filter_is_not_default_run() {
+        let mut args = default_args();
+        args.include = Some("HI".to_string());
+
+        assert!(!is_default_run(&args));
+    }
+
+    #[test]
+    fn exclude_filter_is_not_default_run() {
+        let mut args = default_args();
+        args.exclude = Some("debug".to_string());
+
+        assert!(!is_default_run(&args));
+    }
+
+    #[test]
+    fn since_window_is_not_default_run() {
+        let mut args = default_args();
+        args.since = Some("2h".to_string());
+
+        assert!(!is_default_run(&args));
     }
 }
