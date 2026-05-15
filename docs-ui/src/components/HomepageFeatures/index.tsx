@@ -6,7 +6,6 @@ import Link from '@docusaurus/Link';
 
 type FeatureItem = {
   title: string;
-  icon: string;
   description: ReactNode;
   link: string;
 };
@@ -14,7 +13,6 @@ type FeatureItem = {
 const FeatureList: FeatureItem[] = [
   {
     title: 'Interactive TUI',
-    icon: '🖥️',
     description: (
       <>
         Real-time terminal interface with dynamic filtering and pattern history for efficient log analysis.
@@ -24,7 +22,6 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Advanced Patterns',
-    icon: '🔍',
     description: (
       <>
         Powerful filtering with logical operators (AND, OR, NOT) and regex support for precise log matching.
@@ -34,17 +31,15 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Web View',
-    icon: '🌐',
     description: (
       <>
-        Browser-based log viewing with OpenObserve integration for team collaboration and dashboards.
+        Browser-based log viewing with OpenObserve for querying complete incident windows.
       </>
     ),
     link: '/docs/features/web-view',
   },
   {
     title: 'Template System',
-    icon: '🔧',
     description: (
       <>
         Run JFR recordings, heap dumps, and thread dumps across multiple pods with organized output.
@@ -54,7 +49,6 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Script Execution',
-    icon: '📜',
     description: (
       <>
         Execute custom scripts across multiple pods and collect organized output for debugging tasks.
@@ -64,7 +58,6 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Resource Monitor',
-    icon: '📊',
     description: (
       <>
         Real-time CPU and memory monitoring integrated with log streams for performance insights.
@@ -74,12 +67,11 @@ const FeatureList: FeatureItem[] = [
   },
 ];
 
-function Feature({title, icon, description, link}: FeatureItem) {
+function Feature({title, description, link}: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
       <Link to={link} className={styles.featureLink}>
         <div className={styles.featureCard}>
-          <div className={styles.featureIcon}>{icon}</div>
           <div className={styles.featureContent}>
             <Heading as="h3" className={styles.featureTitle}>{title}</Heading>
             <p className={styles.featureDescription}>{description}</p>
@@ -120,14 +112,12 @@ export default function HomepageFeatures(): ReactNode {
               rel="noopener noreferrer"
               className={styles.contactLink}
             >
-              <span className={styles.contactIcon}>💼</span>
               LinkedIn
             </a>
             <a 
               href="mailto:samba24052001@gmail.com" 
               className={styles.contactLink}
             >
-              <span className={styles.contactIcon}>📧</span>
               Gmail
             </a>
           </div>

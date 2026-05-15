@@ -1,443 +1,464 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
- */
-
-/* Simple Hero Section */
-.heroBanner {
-  padding: 4rem 0;
-  text-align: left;
+.hero {
   position: relative;
-  background: #ffffff;
-  color: #2c3e50;
+  overflow: hidden;
+  padding: 5rem 0 4rem;
+  background:
+    linear-gradient(90deg, #ffffff 0%, rgba(255, 255, 255, 0.94) 50%, rgba(255, 255, 255, 0.86) 100%),
+    #ffffff;
+  color: #111518;
 }
 
-.heroContent {
+.backgroundLogs {
+  position: absolute;
+  inset: -3rem -12rem auto -6rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
+  gap: 0.55rem;
+  min-height: 760px;
+  opacity: 0.16;
+  transform: rotate(-6deg);
+  pointer-events: none;
 }
 
-.heroText {
+.backgroundLogs span {
+  width: max-content;
+  min-width: 980px;
+  padding: 0.35rem 0.7rem;
+  border-top: 1px solid rgba(22, 114, 83, 0.12);
+  border-bottom: 1px solid rgba(22, 114, 83, 0.08);
+  color: rgba(28, 74, 61, 0.72);
+  font-family: Monaco, Menlo, 'Ubuntu Mono', monospace;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  animation: softLogStream 24s linear infinite;
+}
+
+.backgroundLogs span:nth-child(2n) {
+  color: rgba(111, 86, 33, 0.58);
+  animation-duration: 30s;
+}
+
+.backgroundLogs span:nth-child(3n) {
+  color: rgba(122, 52, 48, 0.48);
+  animation-duration: 36s;
+}
+
+@keyframes softLogStream {
+  from {
+    transform: translateX(-3rem);
+  }
+  to {
+    transform: translateX(10rem);
+  }
+}
+
+.heroGrid {
+  position: relative;
   z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+  gap: 3rem;
+  align-items: center;
 }
 
-.heroLogo {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.heroCopy {
+  max-width: 650px;
+}
+
+.heroIcon {
+  display: block;
+  width: 92px;
+  height: 92px;
+  margin-bottom: 1.2rem;
+  border-radius: 22px;
+  box-shadow: 0 12px 32px rgba(17, 21, 24, 0.12);
 }
 
 .heroTitle {
-  font-size: 3rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: #2c3e50;
+  margin: 0;
+  color: #111518;
+  font-size: clamp(4.5rem, 12vw, 8.5rem);
+  font-weight: 900;
+  line-height: 0.85;
+  letter-spacing: 0;
 }
 
-/* Wake name in blue */
-.wakeName {
-  color: #3498db !important;
-  text-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
+.heroLead {
+  max-width: 760px;
+  margin: 1.25rem 0 0;
+  color: #172127;
+  font-size: clamp(1.65rem, 3.3vw, 3rem);
+  font-weight: 820;
+  line-height: 1.06;
 }
 
-.heroTagline {
-  font-size: 1.1rem;
-  color: #3498db;
-  margin: 0.5rem 0 1.5rem 0;
-  font-weight: 500;
+.heroText {
+  margin: 1.3rem 0 1.6rem;
+  color: #536269;
+  font-size: 1.12rem;
+  line-height: 1.65;
 }
 
-.heroTagline em {
-  font-style: italic;
-}
-
-.heroSubtitle {
-  font-size: 1.4rem;
-  margin-bottom: 1.5rem;
-  color: #34495e;
-  font-weight: 400;
-}
-
-.heroDescription {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  margin-bottom: 2rem;
-  color: #5d6d7e;
-}
-
-.heroDescription em {
-  color: #3498db;
-  font-style: italic;
-  font-weight: 500;
-  display: block;
-  margin-bottom: 0.75rem;
-  font-size: 1.05rem;
-}
-
-.heroButtons {
+.heroActions {
   display: flex;
-  gap: 1rem;
   flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
-.heroButtons .button {
-  padding: 0.875rem 2rem;
-  font-size: 1.1rem;
-  font-weight: 600;
+.heroActions :global(.button) {
   border-radius: 8px;
-  transition: all 0.2s ease;
-  text-decoration: none;
+  font-weight: 800;
 }
 
-.heroButtons .button--primary {
-  background: #3498db;
-  border: none;
-  color: white;
+.heroActions :global(.button--primary) {
+  background: #167253;
+  border-color: #167253;
+  color: #ffffff;
 }
 
-.heroButtons .button--primary:hover {
-  background: #2980b9;
-  transform: translateY(-1px);
+.heroActions :global(.button--secondary) {
+  background: #ffffff;
+  border-color: #cfd9dd;
+  color: #172127;
 }
 
-.heroButtons .button--secondary {
+.commandGroup {
+  display: grid;
+  gap: 0.65rem;
+  width: min(100%, 660px);
+}
+
+.commandBox,
+.commandBoxSecondary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 54px;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid #d6e0e3;
+  border-radius: 8px;
+  background: #fbfcfc;
+  color: #15191d;
+  font-family: Monaco, Menlo, 'Ubuntu Mono', monospace;
+  box-shadow: 0 12px 34px rgba(18, 32, 40, 0.06);
+}
+
+.commandBox {
+  border-color: rgba(22, 114, 83, 0.28);
+  background: #f1faf6;
+}
+
+.commandBoxSecondary {
+  min-height: 46px;
+  background: rgba(251, 252, 252, 0.82);
+  box-shadow: none;
+}
+
+.commandBox span,
+.commandBoxSecondary span {
+  color: #167253;
+  font-weight: 900;
+}
+
+.commandBox code,
+.commandBoxSecondary code {
+  overflow-wrap: anywhere;
   background: transparent;
-  border: 2px solid #3498db;
-  color: #3498db;
+  border: 0;
+  color: #15191d;
+  font-size: 0.92rem;
 }
 
-.heroButtons .button--secondary:hover {
-  background: #3498db;
-  color: white;
-  transform: translateY(-1px);
+.commandBoxSecondary code {
+  color: #536269;
+  font-size: 0.86rem;
 }
 
-/* Tiltable Terminal Demo */
-.heroDemo {
+.platformPills {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  perspective: 1000px;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
 }
 
-.terminalWindow {
-  background: #2c3e50;
+.platformPills span {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 0.32rem 0.7rem;
+  border: 1px solid #d6e0e3;
+  border-radius: 999px;
+  background: #f6f8f9;
+  color: #536269;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.heroPanel {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem;
+  border: 1px solid #d6e0e3;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-  width: 100%;
-  max-width: 500px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  transform: rotateY(2deg) rotateX(-1deg);
-  transition: transform 0.3s ease;
+  background: #fbfcfc;
+  box-shadow: 0 18px 48px rgba(18, 32, 40, 0.08);
 }
 
-.terminalWindow:hover {
-  transform: rotateY(0deg) rotateX(0deg) scale(1.02);
-}
-
-.terminalHeader {
-  background: #34495e;
-  padding: 0.75rem 1rem;
+.panelHeader {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.4rem;
+  color: #536269;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
-.terminalButtons {
-  display: flex;
-  gap: 0.4rem;
+.panelHeader strong {
+  color: #167253;
 }
 
-.terminalButton {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #e74c3c;
+.panelLine {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  min-height: 48px;
+  padding: 0.65rem;
+  border: 1px solid #e3ebee;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
-.terminalButton:nth-child(2) {
-  background: #f39c12;
+.panelLine span {
+  padding: 0.18rem 0.4rem;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 900;
 }
 
-.terminalButton:nth-child(3) {
-  background: #27ae60;
+.panelLine code,
+.queryHint code {
+  overflow-wrap: anywhere;
+  background: transparent;
+  border: 0;
+  color: #172127;
+  font-size: 0.86rem;
 }
 
-.terminalTitle {
-  color: #ecf0f1;
-  font-size: 0.875rem;
-  margin-left: auto;
-  margin-right: auto;
+.info {
+  background: #e5f5ee;
+  color: #167253;
 }
 
-.terminalBody {
-  padding: 1.5rem;
-  background: #2c3e50;
-  color: #ecf0f1;
-  font-size: 0.875rem;
-  line-height: 1.6;
+.warn {
+  background: #fff3de;
+  color: #9a610d;
 }
 
-.terminalLine {
-  margin-bottom: 0.5rem;
+.error {
+  background: #ffe9e7;
+  color: #b2352b;
 }
 
-.prompt {
-  color: #27ae60;
-  margin-right: 0.5rem;
-  font-weight: bold;
+.queryHint {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+  padding: 0.85rem;
+  border-radius: 8px;
+  background: #111518;
+  color: #dce8e2;
 }
 
-.command {
-  color: #ecf0f1;
+.queryHint span {
+  color: #8fcdae;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
-.output {
-  color: #3498db;
-  margin-left: 1rem;
+.queryHint code {
+  color: #ffffff;
 }
 
-/* Clean Quick Start Section */
+.workflowSection,
+.noticeSection,
 .quickStart {
-  padding: 4rem 0;
-  background: #f8f9fa;
+  padding: 3.5rem 0;
+}
+
+.workflowSection {
+  background: #f6f8f9;
+}
+
+.noticeSection,
+.quickStart {
+  background: #ffffff;
 }
 
 .sectionHeader {
-  text-align: center;
-  margin-bottom: 3rem;
+  max-width: 760px;
+  margin-bottom: 2rem;
 }
 
 .sectionTitle {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: #2c3e50;
+  margin: 0 0 0.75rem;
+  color: #111518;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 880;
+  line-height: 1.06;
+  letter-spacing: 0;
 }
 
-.sectionSubtitle {
-  font-size: 1.2rem;
-  color: #5d6d7e;
-  max-width: 600px;
-  margin: 0 auto;
-  line-height: 1.6;
+.sectionText {
+  margin: 0;
+  color: #536269;
+  font-size: 1.08rem;
+  line-height: 1.62;
+}
+
+.workflowGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.workflowCard {
+  min-height: 260px;
+  padding: 1.2rem;
+  border: 1px solid #d6e0e3;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(18, 32, 40, 0.05);
+}
+
+.stepNumber {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: #e5f5ee;
+  color: #167253;
+  font-weight: 900;
+}
+
+.workflowCard h3 {
+  margin: 0 0 0.65rem;
+  color: #111518;
+  font-size: 1.22rem;
+  font-weight: 850;
+}
+
+.workflowCard p {
+  margin: 0 0 1rem;
+  color: #536269;
+  line-height: 1.56;
+}
+
+.workflowCard code,
+.installPanel code {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 0.78rem 0.85rem;
+  border: 1px solid #d6e0e3;
+  border-radius: 8px;
+  background: #f6f8f9;
+  color: #15191d;
+  font-size: 0.9rem;
+}
+
+.notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2rem;
+  align-items: center;
+  padding: 1.5rem;
+  border: 1px solid #d6e0e3;
+  border-left: 5px solid #167253;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.noticeTitle {
+  margin: 0 0 0.45rem;
+  color: #111518;
+  font-size: 1.4rem;
+  font-weight: 850;
+}
+
+.notice p {
+  margin: 0;
+  color: #536269;
+  line-height: 1.55;
+}
+
+.textLink {
+  color: #167253;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.textLink:hover {
+  color: #0f5f44;
+  text-decoration: underline;
 }
 
 .quickStartGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 3rem;
-  margin-bottom: 4rem;
-}
-
-.step {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.5rem;
-  padding: 2.5rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
-}
-
-.step:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-}
-
-.stepNumber {
-  background: #3498db;
-  color: white;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  display: flex;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 2rem;
   align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 1.4rem;
-  flex-shrink: 0;
 }
 
-.stepContent {
-  flex: 1;
-}
-
-.stepContent h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.4rem;
-  color: #2c3e50;
-  font-weight: 600;
-}
-
-.codeWrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 1rem 0;
-}
-
-.codeWrapper code {
-  background: #f8f9fa;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  color: #2c3e50;
-  border: 2px solid #e9ecef;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  display: block;
-}
-
-.orText {
-  text-align: center;
-  color: #6c757d;
-  font-size: 0.9rem;
-  font-weight: 500;
-  margin: 0.25rem 0;
-}
-
-.stepNote {
-  color: #6c757d;
-  font-size: 0.95rem;
-  margin: 0.5rem 0 0 0;
-  line-height: 1.4;
-}
-
-/* Next Steps Section */
-.nextSteps {
-  background: white;
-  border-radius: 12px;
-  padding: 2.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  text-align: center;
-}
-
-.nextSteps h3 {
-  font-size: 1.5rem;
-  color: #2c3e50;
-  margin-bottom: 2rem;
-  font-weight: 600;
-}
-
-.nextStepsList {
+.installPanel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #d6e0e3;
+  border-radius: 8px;
+  background: #fbfcfc;
 }
 
-/* Star on GitHub Section */
-.starSection {
-  margin-top: 2rem;
-  padding: 2rem;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-radius: 12px;
-  border: 2px solid rgba(52, 152, 219, 0.1);
-}
-
-.starContent {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.starIcon {
-  font-size: 2.5rem;
-  animation: starPulse 2s ease-in-out infinite;
-}
-
-@keyframes starPulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-}
-
-.starContent h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.2rem;
-  color: #2c3e50;
-  font-weight: 600;
-}
-
-.starContent p {
-  margin: 0;
-  color: #5d6d7e;
-  font-size: 0.95rem;
-  line-height: 1.4;
-}
-
-.starContent .button {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-/* Responsive Design */
 @media screen and (max-width: 996px) {
-  .heroContent {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-    text-align: center;
+  .hero {
+    min-height: auto;
   }
-  
-  .heroTitle {
-    font-size: 2.5rem;
-  }
-  
-  .heroSubtitle {
-    font-size: 1.25rem;
-  }
-  
+
+  .heroGrid,
   .quickStartGrid {
     grid-template-columns: 1fr;
-    gap: 2rem;
   }
-  
-  .nextStepsList {
+
+  .workflowGrid {
     grid-template-columns: 1fr;
   }
 }
 
 @media screen and (max-width: 768px) {
-  .heroBanner {
-    padding: 2rem 0;
+  .hero {
+    padding: 3.25rem 0 2.5rem;
   }
-  
-  .heroTitle {
-    font-size: 2rem;
+
+  .heroLead {
+    font-size: 1.7rem;
   }
-  
-  .heroButtons {
-    justify-content: center;
+
+  .heroActions :global(.button) {
+    width: 100%;
   }
-  
-  .quickStartGrid {
+
+  .notice {
     grid-template-columns: 1fr;
   }
-  
-  .step {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  .codeWrapper {
-    align-items: center;
-  }
-  
-  .nextStep {
-    justify-content: center;
+
+  .textLink {
+    white-space: normal;
   }
 }

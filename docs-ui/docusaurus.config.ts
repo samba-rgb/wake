@@ -4,6 +4,10 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
+const gtagTrackingID =
+  process.env.DOCUSAURUS_GTAG_ID ??
+  (process.env.CI === 'true' ? 'G-WB8J1C6X72' : undefined);
+
 const config: Config = {
   title: 'Wake',
   tagline: 'A powerful, multi-pod Kubernetes log analysis and diagnostics platform.',
@@ -49,11 +53,14 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
-        // Add Google Analytics tracking
-        gtag: {
-          trackingID: 'G-WB8J1C6X72', // Your actual GA4 tracking ID
-          anonymizeIP: true,
-        },
+        ...(gtagTrackingID
+          ? {
+              gtag: {
+                trackingID: gtagTrackingID,
+                anonymizeIP: true,
+              },
+            }
+          : {}),
       } satisfies Preset.Options,
     ],
   ],

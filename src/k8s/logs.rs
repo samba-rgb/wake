@@ -469,6 +469,8 @@ impl LogWatcher {
         
         let mut retry_count = 0;
         let mut retry_delay = INITIAL_RETRY_DELAY;
+        let mut retry_since = since.clone();
+        let mut retry_tail_lines = tail_lines;
         
         loop {
             let result = Self::stream_container_logs_once(
@@ -478,9 +480,10 @@ impl LogWatcher {
                 container_name,
                 follow,
                 tail_lines,
+                retry_tail_lines,
                 timestamps,
                 tx.clone(),
-                since.clone(),
+                retry_since.clone(),
             ).await;
             
             match result {
@@ -519,6 +522,11 @@ impl LogWatcher {
                         let jitter = fastrand::u64(0..retry_delay / 4); // Up to 25% jitter
                         tokio::time::sleep(std::time::Duration::from_millis(retry_delay + jitter)).await;
                         
+                        if since.is_some() {
+                            retry_since = None;
+                            retry_tail_lines = 0;
+                        }
+
                         // Increase delay for next retry, cap at max
                         retry_delay = std::cmp::min(retry_delay * 2, MAX_RETRY_DELAY);
                     } else {
@@ -567,6 +575,7 @@ impl LogWatcher {
         container_name: &str,
         follow: bool,
         tail_lines: i64,
+        retry_tail_lines: i64,
         timestamps: bool,
         tx: mpsc::Sender<LogEntry>,
         since: Option<String>,
@@ -586,7 +595,7 @@ impl LogWatcher {
 
         // if since is not load tail line
         if since.is_none() {
-            log_params.tail_lines = Some(tail_lines); // Set to 0 to load all logs if no since parameter
+            log_params.tail_lines = Some(retry_tail_lines);
         }
         
         // Add since parameter if provided

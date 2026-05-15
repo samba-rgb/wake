@@ -381,7 +381,10 @@ pub async fn run(mut args: Args) -> Result<()> {
     
     info!("CLI: Final namespace resolved: {}", args.namespace);
     
-    // Determine UI behavior - CLI is now the default, UI only when explicitly requested
+    let invoked_without_args = std::env::args_os().len() == 1;
+
+    // Determine UI behavior. A bare `wake` should be useful, so it opens the
+    // interactive UI with the default selector instead of exiting with examples.
     let should_use_ui = if args.no_ui {
         // If --no-ui is explicitly specified, force CLI mode
         info!("CLI: Using CLI mode (--no-ui specified)");
@@ -389,6 +392,9 @@ pub async fn run(mut args: Args) -> Result<()> {
     } else if args.ui {
         // If --ui is explicitly specified, use UI mode
         info!("CLI: Using UI mode (--ui specified)");
+        true
+    } else if invoked_without_args {
+        info!("CLI: Using UI mode (bare wake invocation)");
         true
     } else {
         // Default behavior: use CLI mode
@@ -403,7 +409,7 @@ pub async fn run(mut args: Args) -> Result<()> {
     
     info!("CLI: Final decision - should_use_ui: {}", should_use_ui);
     
-    // If running with default options and no output file, show help message and exit
+    // If running with default options in forced CLI mode, show help message and exit
     if is_default_run(&args) && args.output_file.is_none() && !args.ui && !should_use_ui {
         info!("CLI: Showing help message and exiting (default run)");
         println!("No filters specified. Use arguments to begin watching pods.");

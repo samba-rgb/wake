@@ -39,8 +39,10 @@ impl OutputFactory {
                 base_url
             };
             
-            // Create dynamic stream name with today's date
-            let today = chrono::Local::now().format("%Y_%m_%d").to_string();
+            // Create a unique stream for every wake --web run. This prevents
+            // --since backfills from separate runs being shown as duplicates
+            // in the same date-based OpenObserve stream.
+            let run_timestamp = chrono::Local::now().format("%Y_%m_%d_%H_%M_%S_%f").to_string();
             // Determine namespace from CLI args (use 'all' when --all-namespaces), fallback to args.namespace
             let namespace = if args.all_namespaces {
                 "all".to_string()
@@ -51,7 +53,7 @@ impl OutputFactory {
             let ns = namespace.chars()
                 .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
                 .collect::<String>();
-            let stream_name = format!("logs_wake_{}_{today}", ns);
+            let stream_name = format!("logs_wake_{ns}_{run_timestamp}");
             let full_endpoint = format!("{clean_base_url}/api/default/{stream_name}/_json");
             
             let batch_size = config.get_value("web.batch_size")
