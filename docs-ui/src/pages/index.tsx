@@ -1,75 +1,101 @@
 import type {ReactNode} from 'react';
-import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
-import useBaseUrl from '@docusaurus/useBaseUrl';
 
 import styles from './index.module.css';
 
+const backgroundLogs = [
+  '00:43:58.917 INFO  api-gateway       request completed latency=42ms',
+  '00:43:58.411 WARN  payment-service   retrying provider call',
+  '00:43:57.909 ERROR inventory-worker  database connection failed',
+  '00:43:57.403 INFO  auth-service      token verified pod=auth-service-7c9d5f',
+  '00:43:56.900 INFO  log-collector     streaming 18 pods from production',
+  '00:43:56.394 WARN  profile-api       slow query detected duration=811ms',
+];
+
+const workflow = [
+  {
+    title: 'Collect the window',
+    text: 'Pull enough logs to preserve the incident timeline instead of chasing isolated lines.',
+    code: 'wake -n production api-* --since 2h --web',
+  },
+  {
+    title: 'Query the signal',
+    text: 'Use OpenObserve fields like level, message, pod_name, namespace, and time.',
+    code: "WHERE level = 'error'",
+  },
+  {
+    title: 'Keep data clean',
+    text: 'Reconnects avoid replaying the same since window, so new rows stay new.',
+    code: 'fresh logs only after reconnect',
+  },
+];
+
 function HomepageHero() {
-  const {siteConfig} = useDocusaurusContext();
   return (
-    <header className={clsx('hero', styles.heroBanner)}>
+    <header className={styles.hero}>
+      <div className={styles.backgroundLogs} aria-hidden="true">
+        {[...backgroundLogs, ...backgroundLogs, ...backgroundLogs].map((line, index) => (
+          <span key={`${line}-${index}`}>{line}</span>
+        ))}
+      </div>
       <div className="container">
-        <div className={styles.heroContent}>
-          <div className={styles.heroText}>
-            <img src={useBaseUrl('/img/logo.png')} alt="Wake Logo" className={styles.heroLogo} />
+        <div className={styles.heroGrid}>
+          <div className={styles.heroCopy}>
+            <img className={styles.heroIcon} src="/img/logo.png" alt="Wake icon" />
             <Heading as="h1" className={styles.heroTitle}>
-              <span className={styles.wakeName}>Wake</span>
+              Wake
             </Heading>
-            <p className={styles.heroTagline}>
-              <em>Wake: Because your logs should work for you, not against you.</em>
+            <p className={styles.heroLead}>One command center for Kubernetes logs and runtime debugging.</p>
+            <p className={styles.heroText}>
+              Wake follows logs across pods, keeps the surrounding context, filters noisy streams, remembers useful commands, and helps run diagnostics like scripts, templates, dumps, and resource checks from one focused CLI.
             </p>
-            <p className={styles.heroSubtitle}>
-              Advanced Kubernetes Log Analysis Platform
-            </p>
-            <div className={styles.heroDescription}>
-              <p>
-                Multi-pod log analysis with <strong>real-time filtering</strong>, <strong>interactive TUI</strong>, 
-                <strong> web dashboards</strong>, and <strong>automated diagnostics</strong>. Features advanced 
-                pattern matching, template-based operations (JFR, heap dumps), script execution, and intelligent 
-                search across massive Kubernetes clusters.
-              </p>
+            <div className={styles.heroActions}>
+              <Link className="button button--primary button--lg" to="/docs/guides/installation">
+                Install Wake
+              </Link>
+              <Link className="button button--secondary button--lg" to="/docs/intro">
+                Read Docs
+              </Link>
             </div>
-            <div className={styles.heroButtons}>
-              <Link
-                className="button button--primary button--lg"
-                to="/docs/intro">
-                Get Started
-              </Link>
-              <Link
-                className="button button--secondary button--lg"
-                to="/docs/guides/installation">
-                Install
-              </Link>
+            <div className={styles.commandGroup} aria-label="Wake quick start commands">
+              <div className={styles.commandBox}>
+                <span>$</span>
+                <code>brew install samba-rgb/wake/wake</code>
+              </div>
+              <div className={styles.commandBoxSecondary}>
+                <span>$</span>
+                <code>wake -n production api-* --since 2h --ui</code>
+              </div>
+            </div>
+            <div className={styles.platformPills}>
+              <span>Apple Silicon ready</span>
+              <span>Intel Mac not ready yet</span>
             </div>
           </div>
-          <div className={styles.heroDemo}>
-            <div className={styles.terminalWindow}>
-              <div className={styles.terminalHeader}>
-                <div className={styles.terminalButtons}>
-                  <span className={styles.terminalButton}></span>
-                  <span className={styles.terminalButton}></span>
-                  <span className={styles.terminalButton}></span>
-                </div>
-                <span className={styles.terminalTitle}>Terminal</span>
-              </div>
-              <div className={styles.terminalBody}>
-                <div className={styles.terminalLine}>
-                  <span className={styles.prompt}>$</span>
-                  <span className={styles.command}>brew install samba-rgb/wake/wake</span>
-                </div>
-                <div className={styles.terminalLine}>
-                  <span className={styles.prompt}>$</span>
-                  <span className={styles.command}>wake -n production --ui</span>
-                </div>
-                <div className={styles.terminalLine}>
-                  <span className={styles.output}>✓ Monitoring logs from 5 pods...</span>
-                </div>
-              </div>
+          <div className={styles.heroPanel} aria-label="Wake log preview">
+            <div className={styles.panelHeader}>
+              <span>logs stream</span>
+              <strong>production</strong>
+            </div>
+            <div className={styles.panelLine}>
+              <span className={styles.info}>INFO</span>
+              <code>api-gateway request completed latency=42ms</code>
+            </div>
+            <div className={styles.panelLine}>
+              <span className={styles.warn}>WARN</span>
+              <code>payment-service retrying provider call</code>
+            </div>
+            <div className={styles.panelLine}>
+              <span className={styles.error}>ERROR</span>
+              <code>inventory-worker database connection failed</code>
+            </div>
+            <div className={styles.queryHint}>
+              <span>query later</span>
+              <code>WHERE level = 'error'</code>
             </div>
           </div>
         </div>
@@ -78,77 +104,71 @@ function HomepageHero() {
   );
 }
 
+function Workflow() {
+  return (
+    <section className={styles.workflowSection}>
+      <div className="container">
+        <div className={styles.sectionHeader}>
+          <Heading as="h2" className={styles.sectionTitle}>
+            Pull once. Query with context.
+          </Heading>
+          <p className={styles.sectionText}>
+            Capture the full log window first, then narrow the investigation without losing the events around it.
+          </p>
+        </div>
+        <div className={styles.workflowGrid}>
+          {workflow.map((item, index) => (
+            <article className={styles.workflowCard} key={item.title}>
+              <span className={styles.stepNumber}>{index + 1}</span>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+              <code>{item.code}</code>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PlatformNotice() {
+  return (
+    <section className={styles.noticeSection}>
+      <div className="container">
+        <div className={styles.notice}>
+          <div>
+            <Heading as="h2" className={styles.noticeTitle}>
+              Platform Status
+            </Heading>
+            <p>
+              Wake currently supports Apple Silicon Macs. Intel Mac support is still in progress and should not be treated as usable yet.
+            </p>
+          </div>
+          <Link className={styles.textLink} to="/docs/guides/installation">
+            Installation guide
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function QuickStart() {
   return (
     <section className={styles.quickStart}>
       <div className="container">
-        <div className={styles.sectionHeader}>
-          <Heading as="h2" className={styles.sectionTitle}>
-            Get Started in 2 Steps
-          </Heading>
-          <p className={styles.sectionSubtitle}>
-            Start monitoring your Kubernetes logs in under a minute
-          </p>
-        </div>
         <div className={styles.quickStartGrid}>
-          <div className={styles.step}>
-            <div className={styles.stepNumber}>1</div>
-            <div className={styles.stepContent}>
-              <h3>Install Wake</h3>
-              <div className={styles.codeWrapper}>
-                <code>brew install samba-rgb/wake/wake</code>
-                <span className={styles.orText}>or</span>
-                <code>cargo install --git https://github.com/samba-rgb/wake</code>
-              </div>
-              <p className={styles.stepNote}>Available via Homebrew or build from source</p>
-            </div>
+          <div>
+            <Heading as="h2" className={styles.sectionTitle}>
+              Start with two commands.
+            </Heading>
+            <p className={styles.sectionText}>
+              Install Wake on Apple Silicon, then point it at the namespace you care about.
+            </p>
           </div>
-          <div className={styles.step}>
-            <div className={styles.stepNumber}>2</div>
-            <div className={styles.stepContent}>
-              <h3>Start Monitoring</h3>
-              <div className={styles.codeWrapper}>
-                <code>wake --ui</code>
-                <span className={styles.orText}>or</span>
-                <code>wake -n your-namespace --ui</code>
-              </div>
-              <p className={styles.stepNote}>Launch interactive mode to view logs in real-time</p>
-            </div>
-          </div>
-        </div>
-        <div className={styles.nextSteps}>
-          <h3>What's Next?</h3>
-          <div className={styles.nextStepsList}>
-            <div className={styles.nextStep}>
-              <span className={styles.nextStepIcon}>🔍</span>
-              <span>Press <kbd>i</kbd> in UI mode to filter logs</span>
-            </div>
-            <div className={styles.nextStep}>
-              <span className={styles.nextStepIcon}>🌐</span>
-              <span>Try web view with <code>--web</code> flag</span>
-            </div>
-            <div className={styles.nextStep}>
-              <span className={styles.nextStepIcon}>📊</span>
-              <span>Monitor resources with built-in metrics</span>
-            </div>
-          </div>
-
-          {/* Star on GitHub Section */}
-          <div className={styles.starSection}>
-            <div className={styles.starContent}>
-              <span className={styles.starIcon}>⭐</span>
-              <div>
-                <h4>Like Wake?</h4>
-                <p>If you find Wake useful, please consider giving it a star on GitHub — it really helps the project!</p>
-              </div>
-              <Link
-                className="button button--primary"
-                href="https://github.com/samba-rgb/wake"
-                target="_blank"
-                rel="noopener noreferrer">
-                ⭐ Star on GitHub
-              </Link>
-            </div>
+          <div className={styles.installPanel}>
+            <code>brew install samba-rgb/wake/wake</code>
+            <code>wake -n your-namespace --ui</code>
           </div>
         </div>
       </div>
@@ -158,12 +178,15 @@ function QuickStart() {
 
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
+
   return (
     <Layout
       title={`${siteConfig.title} - Kubernetes Log Analysis`}
-      description="Simple, powerful Kubernetes log analysis with real-time filtering, interactive UI, and web viewing.">
+      description="Wake keeps Kubernetes log context intact with terminal filtering, interactive UI, and OpenObserve web viewing.">
       <HomepageHero />
       <main>
+        <Workflow />
+        <PlatformNotice />
         <QuickStart />
         <HomepageFeatures />
       </main>

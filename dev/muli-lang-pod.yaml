@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: single-container-lingual-logs
+  labels:
+    app: multi-lingual-tester
+spec:
+  containers:
+  - name: unified-logger
+    image: alpine:latest
+    command: ["/bin/sh", "-c"]
+    args:
+      - |
+        counter=1
+        while true; do
+          ts=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          
+          # Rotate through human languages line by line
+          case $((counter % 4)) in
+            0)
+              echo "$ts [INFO] [EN] System health-check passed safely. Heartbeat sequence: $counter"
+              ;;
+            1)
+              echo "$ts [सूचना] [HI] अनुरोध सफलतापूर्वक संसाधित किया गया। आईडी: req_$counter"
+              ;;
+            2)
+              echo "$ts [完了] [JA] ユーザー_$counter の認証に成功しました。"
+              ;;
+            3)
+              echo "$ts [ÉXITO] [ES] Sincronización de datos completada para el lote_$counter"
+              ;;
+          esac
+          
+          # Inject occasional errors across languages to test filtering
+          if [ $((counter % 7)) -eq 0 ]; then
+            echo "$ts [त्रुटि] [HI] डेटाबेस कनेक्शन विफल हो गया। कतार में प्रतीक्षा कर रहा है।"
+          fi
+          if [ $((counter % 9)) -eq 0 ]; then
+            echo "$ts [警告] [JA] サーバーの応答時間が長くなっています。"
+          fi
+
+          counter=$((counter + 1))
+          sleep 0.5
+        done

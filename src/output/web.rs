@@ -345,7 +345,9 @@ impl WebOutput {
             stream_name: stream_name.clone(),
             batch_size,
             timeout_duration: Duration::from_secs(timeout_seconds),
-            retry_attempts: 3,
+            // OpenObserve ingestion is not idempotent. Retrying the same payload after
+            // a timeout can create duplicate rows if the first request was accepted.
+            retry_attempts: 1,
             retry_delay: Duration::from_millis(1000),
             current_batch: Vec::new(),
             receiver,

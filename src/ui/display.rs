@@ -1,5 +1,5 @@
 use crate::k8s::logs::LogEntry;
-use crate::ui::input::{InputMode, InputHandler};
+use crate::ui::input::{InputHandler, InputMode};
 use regex::Regex;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -14,6 +14,7 @@ use std::io;
 use std::sync::OnceLock;
 use tokio::sync::mpsc;
 use tokio::task;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 /// Global regex instance for ANSI stripping - compiled once
 static ANSI_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -274,13 +275,14 @@ impl HashLineCache {
         let clean_pod_name = Self::strip_ansi_codes(&entry.pod_name);
         let clean_container_name = Self::strip_ansi_codes(&entry.container_name);
 
-        format!("{time_part}{clean_pod_name}/{clean_container_name} {clean_message}"
-        )
+        format!("{time_part}{clean_pod_name}/{clean_container_name} {clean_message}")
     }
 
     /// Wrap a line with perfect hash tracking
     fn wrap_line_with_hash(line: &str, max_width: usize) -> Vec<String> {
-        if line.len() <= max_width {
+        let max_width = max_width.max(1);
+
+        if UnicodeWidthStr::width(line) <= max_width {
             return vec![line.to_string()];
         }
 
@@ -288,24 +290,53 @@ impl HashLineCache {
         let mut remaining = line;
 
         while !remaining.is_empty() {
-            if remaining.len() <= max_width {
+            if UnicodeWidthStr::width(remaining) <= max_width {
                 wrapped_lines.push(remaining.to_string());
                 break;
             }
 
             // Find the best break point
-            let mut break_point = max_width;
+            let mut break_point = remaining.len();
+            let mut last_valid_break = 0;
+            let mut last_space_break = None;
+            let mut current_width = 0;
 
             // Try to break at a space for better readability
-            if let Some(space_pos) = remaining[..max_width].rfind(' ') {
-                if space_pos > max_width / 2 { // Don't break too early
-                    break_point = space_pos;
+            for (idx, ch) in remaining.char_indices() {
+                let char_width = UnicodeWidthChar::width(ch).unwrap_or(0);
+
+                if current_width + char_width > max_width {
+                    break_point = if last_valid_break > 0 {
+                        last_valid_break
+                    } else {
+                        idx + ch.len_utf8()
+                    };
+                    break;
+                }
+
+                if ch == ' ' && current_width > max_width / 2 {
+                    last_space_break = Some(idx + ch.len_utf8());
+                }
+
+                current_width += char_width;
+                last_valid_break = idx + ch.len_utf8();
+            }
+
+            if let Some(space_pos) = last_space_break {
+                break_point = space_pos;
+            }
+
+            if break_point == 0 {
+                if let Some((idx, ch)) = remaining.char_indices().next() {
+                    break_point = idx + ch.len_utf8();
+                } else {
+                    break;
                 }
             }
 
             let (current_chunk, rest) = remaining.split_at(break_point);
             wrapped_lines.push(current_chunk.to_string());
-            remaining = rest.trim_start(); // Remove leading whitespace from continuation
+            remaining = rest;
         }
 
         wrapped_lines
@@ -315,6 +346,55 @@ impl HashLineCache {
     fn strip_ansi_codes(text: &str) -> String {
         let ansi_regex = ANSI_REGEX.get_or_init(|| Regex::new(r"(\x1b\[[0-9;]*[a-zA-Z]|\x1b\[[0-9;]*m|\[[0-9;]*m)").unwrap());
         ansi_regex.replace_all(text, "").to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrap_line_with_hash_handles_multibyte_char_boundaries() {
+        let line = "single-container-lingual-logs/unified-logger 2026-05-15T17:22:59Z [त्रुटि] [HI] डेटाबेस कनेक्शन विफल हो गया। कतार में प्रतीक्षा कर रहा है।";
+
+        let wrapped = HashLineCache::wrap_line_with_hash(line, 184);
+
+        assert_eq!(wrapped, vec![line.to_string()]);
+    }
+
+    #[test]
+    fn wrap_line_with_hash_wraps_unicode_by_display_width() {
+        let line = "pod/container 🚀🚀🚀🚀 database connection recovered";
+        let wrapped = HashLineCache::wrap_line_with_hash(line, 16);
+
+        assert!(wrapped.len() > 1);
+        assert_eq!(wrapped.concat(), line);
+        assert!(wrapped
+            .iter()
+            .all(|chunk| UnicodeWidthStr::width(chunk.as_str()) <= 16));
+    }
+
+    #[test]
+    fn wrap_line_with_hash_prefers_readable_space_breaks_without_dropping_content() {
+        let wrapped = HashLineCache::wrap_line_with_hash("alpha beta gamma delta", 12);
+
+        assert_eq!(
+            wrapped,
+            vec!["alpha beta ".to_string(), "gamma delta".to_string()]
+        );
+        assert_eq!(wrapped.concat(), "alpha beta gamma delta");
+    }
+
+    #[test]
+    fn wrap_line_with_hash_preserves_spaces_in_multilingual_logs() {
+        let line = "alpha  beta त्रुटि  gamma delta";
+        let wrapped = HashLineCache::wrap_line_with_hash(line, 12);
+
+        assert!(wrapped.len() > 1);
+        assert_eq!(wrapped.concat(), line);
+        assert!(wrapped
+            .iter()
+            .all(|chunk| UnicodeWidthStr::width(chunk.as_str()) <= 12));
     }
 }
 

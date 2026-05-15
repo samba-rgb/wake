@@ -1,165 +1,21 @@
 ---
 sidebar_position: 7
 ---
+
 import { WebViewTut } from '@site/src/components/WebViewTut';
 
 # Web View (with OpenObserve)
 
-Wake's web view feature transforms your Kubernetes log analysis from a terminal-only experience into a powerful, shareable web-based interface. By integrating with OpenObserve, Wake enables teams to collaborate on log analysis, share findings, and maintain historical log data for comprehensive troubleshooting.
+Send Wake logs to OpenObserve and inspect them in a browser. This is useful when you want a shareable view during debugging, incident response, or longer `--since` investigations.
 
-<WebViewTut />
+## Quick Setup
 
-## What is Web View?
-
-The web view feature allows Wake to send filtered logs to a web-based observability platform (OpenObserve), where they can be viewed, searched, and analyzed through a modern browser interface. This bridges the gap between Wake's powerful command-line filtering capabilities and the need for team collaboration and data persistence.
-
-## Key Features & Benefits
-
-### 🌐 Browser-Based Access
-- **Modern Web Interface**: Access logs through any modern web browser with a clean, intuitive UI
-- **Real-time Streaming**: Live log updates appear instantly in the web interface
-- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
-- **Cross-Platform**: Access from any operating system without installing Wake
-
-### 👥 Team Collaboration
-- **Shareable URLs**: Generate permanent links to specific log views and share with team members
-- **Multi-User Access**: Multiple team members can view the same logs simultaneously
-- **Role-Based Access**: Configure different access levels for different team members
-- **Remote Debugging**: Support remote team members and on-call engineers
-
-### 📊 Data Persistence & Analysis
-- **Historical Storage**: Logs are stored for extended periods (configurable retention)
-- **Advanced Querying**: Use OpenObserve's powerful search and filtering capabilities
-- **Custom Dashboards**: Create monitoring dashboards with log metrics and visualizations
-- **Trend Analysis**: Identify patterns and trends over time periods
-
-### 🔄 Seamless Integration
-- **Wake Compatibility**: All Wake filtering patterns work in the web interface
-- **Kubernetes Metadata**: Automatic pod, namespace, and container labeling
-- **Multi-Format Support**: JSON logs, plain text, and structured data
-- **Export Options**: Download filtered logs in various formats
-
-### 📱 Enhanced Accessibility
-- **Mobile-Friendly**: Check logs from mobile devices during incidents
-- **Offline Capability**: View previously loaded logs even when disconnected
-- **Search History**: Keep track of frequently used queries and filters
-- **Bookmark Support**: Save important log views for quick access
-
-## Use Cases
-
-### 🚨 Incident Response
-```bash
-# Quickly share critical errors with the team
-wake -n production api-* --web -i "FATAL|ERROR" 
-# Team can immediately access the same filtered view via web URL
-```
-
-### 🔍 Collaborative Debugging
-```bash
-# Multiple developers investigating the same issue
-wake -n staging payment-service --web -i "transaction.*failed"
-# Everyone sees the same real-time log stream in their browsers
-```
-
-### 📈 Performance Monitoring
-```bash
-# Long-term performance analysis
-wake -n production --web -i "response_time|latency"
-# Data persisted for historical trend analysis
-```
-
-### 📋 Documentation & Reporting
-- **Evidence Collection**: Capture logs for bug reports and post-mortems
-- **Performance Reports**: Generate reports with log data and metrics
-- **Compliance**: Maintain audit trails with timestamped log data
-
-## How It Works
-
-1. **Wake captures logs** from your Kubernetes pods with all its powerful filtering
-2. **Logs are sent to OpenObserve** via HTTP API in real-time
-3. **OpenObserve stores and indexes** the logs for fast searching
-4. **Web interface provides** rich visualization and collaboration features
-5. **Team members access** via shared URLs with real-time updates
-
----
-
-## Installation & Setup
-
-Now let's get the web view feature up and running:
-
-### Installing Docker
-
-To use OpenObserve with Wake's web view feature, you'll need Docker installed. Choose one of these options based on your platform:
-
-#### For Mac Users
-
-**Option 1: Docker Desktop (Recommended)**
-- **Download**: [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-- **Features**: GUI interface, automatic updates, integrated Kubernetes
-- **Requirements**: macOS 10.15 or later
-
-```bash
-# Install via Homebrew (recommended)
-brew install --cask docker
-```
-
-**Option 2: Rancher Desktop (Open Source)**
-- **Download**: [Rancher Desktop](https://rancherdesktop.io/)
-- **Features**: Open source, built-in Kubernetes, choice of container runtime
-
-```bash
-# Install via Homebrew
-brew install --cask rancher
-```
-
-**Option 3: OrbStack (Lightweight)**
-- **Download**: [OrbStack](https://orbstack.dev/)
-- **Features**: Faster performance, lower resource usage
-
-```bash
-# Install via Homebrew
-brew install --cask orbstack
-```
-
-#### For Linux Users
-
-```bash
-# Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install docker.io
-
-# CentOS/RHEL/Fedora
-sudo dnf install docker
-
-# Arch Linux
-sudo pacman -S docker
-
-# Start Docker service
-sudo systemctl start docker
-sudo systemctl enable docker
-```
-
-#### Verify Installation
-```bash
-# Check Docker version
-docker --version
-
-# Test Docker functionality
-docker run hello-world
-```
-
-### Setup Steps
-
-#### Step 1: Prepare Data Directory
+### 1. Start OpenObserve
 
 ```bash
 mkdir -p data
 chmod +x data
-```
 
-#### Step 2: Start OpenObserve with Docker
-
-```bash
 docker run -d \
   --name openobserve \
   -v $PWD/data:/data \
@@ -172,34 +28,20 @@ docker run -d \
   public.ecr.aws/zinclabs/openobserve:latest
 ```
 
-**What this does:**
-- `-d` – Run in background
-- `--name openobserve` – Container name for easy management
-- `-v $PWD/data:/data` – Mount local data directory for persistence
-- `-p 5080:5080` – Expose port 5080 for web UI
-- `-e ZO_ROOT_USER_EMAIL` – Set login email
-- `-e ZO_ROOT_USER_PASSWORD` – Set login password
-- `-e ZO_COMPACT_DATA_RETENTION_DAYS=3` – Keep data for 3 days
-- `-e ZO_ORG_DATA_QUOTA=10737418240` – 10GB organization quota
-- `-e ZO_STREAM_DATA_QUOTA=2147483648` – 2GB per stream quota
+Open the UI:
 
-#### Step 3: Verify OpenObserve is Running
+[http://localhost:5080](http://localhost:5080)
 
-```bash
-# Check container status
-docker ps | grep openobserve
+Default login:
 
-# View logs
-docker logs -f openobserve
+```text
+root@example.com
+Complexpass#123
 ```
 
-Once running, access OpenObserve at: [http://localhost:5080/](http://localhost:5080/)
+### 2. Configure Wake (only if needed)
 
-#### Step 4: Configure Wake to use OpenObserve
-
-:::info Note
-These are the default configuration values. You **only need to run these commands if you want to change them**. If you're using the default OpenObserve setup, you can skip this step.
-:::
+These are Wake's default web settings. Run them only if you changed the OpenObserve endpoint or credentials.
 
 ```bash
 wake setconfig web.endpoint "http://localhost:5080"
@@ -207,186 +49,146 @@ wake setconfig web.user "root@example.com"
 wake setconfig web.password "Complexpass#123"
 ```
 
----
-
-## Getting Started with Web View
-
-Once OpenObserve is running, you can start sending logs to the web interface:
+### 3. Send Logs To Web View
 
 ```bash
-# Basic web output
+# Pull a useful incident window first
+wake -n production api-* --since 2h --web
+
+# Live stream new logs
 wake -n apps log-generator --web
 
-# Combine with local UI for dual output
-wake -n apps log-generator --ui --web
-
-# Advanced filtering with web output
-wake -n production api-* --web -i "ERROR|WARN"
-
-# Save to file and web simultaneously
-wake "my-app" --web -w /tmp/logs.txt
+# All namespaces
+wake -A "api|worker" --since 1h --web
 ```
 
-## Best Practices
+Wake prints the OpenObserve stream name and dashboard link after web mode starts. Prefer sending a useful log window first, then query inside OpenObserve so you keep the surrounding context.
 
-1. **Index Strategy**: Use appropriate indexing for frequently queried fields
-2. **Retention Management**: Set appropriate retention periods for different log types
-3. **Query Optimization**: Use efficient filters to reduce query overhead
-4. **Access Control**: Implement proper authentication and authorization
-5. **Resource Monitoring**: Monitor OpenObserve resource usage
+<WebViewTut />
 
-The web view feature makes Wake's powerful log analysis capabilities accessible to broader teams while maintaining the performance and filtering capabilities that make Wake unique.
+## Query The Logs
 
----
+OpenObserve is most useful when Wake sends enough context in one run. Instead of repeatedly running narrow filters, pull the logs once with `--since`, then query the stream in the browser.
 
-## 🕐 Timeline View with --since (Web-Only Advantage)
-
-One of the most powerful features of Wake's web view is how the `--since` flag creates a **visual timeline interface** that's impossible to achieve with regular terminal output. This transforms historical log analysis from a linear text stream into an interactive, time-based visualization.
-
-### Why --since is Special in Web View
-
-In terminal mode, `--since` just shows older logs as text. In **web view**, it creates a rich timeline experience:
+Start broad:
 
 ```bash
-# Terminal: Just shows last 2 hours as scrolling text
-wake "api-server" --since 2h
-
-# Web View: Creates interactive timeline with visual time navigation  
-wake "api-server" --since 2h --web
+wake -n production api-* --since 2h --web
 ```
 
-### Timeline Features You Can't Get Elsewhere
+Then query in OpenObserve:
 
-#### 📊 **Visual Time Navigation**
-- **Timeline scrubber**: Drag to jump to any point in the time range
-- **Zoom controls**: Focus on specific time periods with precision
-- **Time markers**: Clear visual indicators for different time periods
-- **Event density**: See when log activity was highest
-
-#### 📈 **Historical Pattern Analysis** 
-```bash
-# Analyze error patterns over the last 24 hours
-wake -n production "payment-service" --since 24h --web -i "error|exception"
-
-# View deployment timeline over the last 6 hours  
-wake "api-.*" --since 6h --web -i "deployment|restart|ready"
-
-# Monitor performance trends over the past week
-wake "database" --since 7d --web -i "slow_query|timeout|connection"
+```sql
+SELECT * FROM "logs_wake_<namespace>_<runtime_timestamp>"
+WHERE level = 'error'
+ORDER BY _timestamp DESC
 ```
 
-#### 🎯 **Incident Investigation Timeline**
-```bash
-# Recreate the full timeline of yesterday's incident
-wake -n production --since 1d --web -i "error|warn|fatal"
+Search message text:
 
-# Share timeline view with team - they see the SAME visual timeline
-# Perfect for post-mortems and root cause analysis
+```sql
+SELECT * FROM "logs_wake_<namespace>_<runtime_timestamp>"
+WHERE message LIKE '%timeout%'
+ORDER BY _timestamp DESC
 ```
 
-### Unique Timeline Capabilities
+Narrow to one pod:
 
-#### **Time-Range Filtering in UI**
-Once logs are in OpenObserve with `--since`, you can:
-- **Narrow time windows** without re-running Wake
-- **Compare different time periods** side by side  
-- **Bookmark specific moments** in the timeline
-- **Export timeline segments** for reports
-
-#### **Cross-Pod Timeline Correlation**
-```bash
-# See how errors propagated across services over time
-wake -A "api|database|cache" --since 4h --web -i "error"
-```
-In the web view, you get:
-- **Unified timeline** showing all pods
-- **Visual correlation** of when errors started in each service
-- **Interactive filtering** to isolate specific timeframes
-- **Pattern recognition** across the entire system
-
-#### **Long-Term Historical Analysis**
-```bash
-# Analyze patterns over extended periods
-wake "worker-.*" --since 30d --web -i "failed|retry|timeout"
-
-# Compare performance between different weeks
-wake "api-server" --since 14d --web -i "response_time"
+```sql
+SELECT * FROM "logs_wake_<namespace>_<runtime_timestamp>"
+WHERE pod_name = 'payment-service-7c9d5f'
+ORDER BY _timestamp DESC
 ```
 
-### Real-World Timeline Scenarios
+Use the exact stream name Wake prints when web mode starts. This gives you better debugging context: you can inspect errors, warnings, neighboring log lines, pods, containers, and timestamps without pulling the same Kubernetes logs again.
 
-#### **🚨 Incident Response**
-```bash
-# During an incident - create shared timeline for the team
-wake -n production --since 2h --web -i "error|fatal"
+## How Streams Work
+
+Each `wake --web` run writes to a new OpenObserve stream named like:
+
+```text
+logs_wake_<namespace>_<runtime_timestamp>
 ```
-**Web Timeline Shows:**
-- When the incident started (visual spike in errors)
-- Which services were affected first
-- How the issue propagated over time
-- Team can all see the same timeline view live
 
-#### **🔍 Post-Incident Analysis** 
-```bash
-# Recreate the full incident timeline for analysis
-wake -n production --since 8h --web
-```
-**Timeline Benefits:**
-- **Visual reconstruction** of events leading to incident
-- **Export timeline** for incident reports  
-- **Share exact timeline view** with stakeholders
-- **Compare with previous incidents** using saved timeline bookmarks
+This keeps separate runs clean. For example, running `wake --web --since 2h` multiple times will create separate streams instead of mixing repeated historical backfills into one daily stream.
 
-#### **📊 Performance Trend Analysis**
-```bash
-# Weekly performance patterns
-wake "api-.*" --since 7d --web -i "latency|response_time"
-```
-**Timeline Reveals:**
-- Daily traffic patterns
-- Weekly performance cycles  
-- Gradual performance degradation over time
-- Peak usage periods and their impact
+## Using `--since`
 
-### Timeline vs. Regular --since
-
-| Feature | Terminal `--since` | Web Timeline `--since` |
-|---------|-------------------|----------------------|
-| **View Type** | Linear text scroll | Interactive visual timeline |
-| **Time Navigation** | Scroll through text | Click/drag to any time point |
-| **Pattern Recognition** | Manual text analysis | Visual spikes and trends |
-| **Sharing** | Copy/paste text | Share live timeline URL |
-| **Multi-Pod Correlation** | Mixed text output | Unified visual timeline |
-| **Time Range Adjustment** | Re-run command | Adjust in UI instantly |
-| **Export** | Text file only | Timeline segments + visualizations |
-| **Team Collaboration** | Send log files | Shared live timeline view |
-
-### Advanced Timeline Commands
+`--since` is useful for loading a recent incident window into OpenObserve:
 
 ```bash
-# Extended historical analysis with web timeline
-wake "critical-service" --since 30d --web -i "error" 
-# Creates 30-day timeline - impossible to analyze effectively in terminal
-
-# Multi-namespace incident timeline  
-wake -A --since 6h --web -i "error|warn|fatal"
-# Unified timeline across all namespaces
-
-# Performance baseline establishment
-wake "api-.*" --since 7d --web -i "latency|cpu|memory"
-# Week-long performance timeline for baseline analysis
-
-# Deployment impact timeline
-wake "app" --since 24h --web -i "deploy|restart|ready|error"
-# Full deployment lifecycle in visual timeline
+wake -n production payment-service --since 4h --web
 ```
 
-### Pro Tips for Timeline Analysis
+Behavior to know:
 
-1. **Start Broad, Then Narrow**: Use `--since 24h` to see the big picture, then narrow time windows in the UI
-2. **Combine with Filtering**: Use `-i` patterns to focus timeline on specific events
-3. **Save Timeline Bookmarks**: Bookmark important incidents for future reference
-4. **Export Timeline Data**: Use OpenObserve's export for reports and documentation
-5. **Team Sharing**: Share timeline URLs instead of log files for better collaboration
+- The initial connection uses the `--since` window.
+- If the pod log connection drops and Wake reconnects, Wake does not replay the same `--since` window again.
+- Reconnects continue with fresh logs to avoid duplicate OpenObserve data.
 
-The timeline view created by `--since` in web mode transforms Wake from a log viewer into a **time-travel debugging tool** that lets you visually navigate through your application's history. This is simply impossible to achieve with terminal-based log viewing!
+## Common Workflows
+
+### Incident Response
+
+```bash
+wake -n production --since 2h --web
+```
+
+Use this when you need a shared browser view for an incident timeline. Query `level`, `message`, `pod_name`, and time range in OpenObserve after the data lands.
+
+### Service Debugging
+
+```bash
+wake -n staging payment-service --since 1h --web
+```
+
+Use this when multiple people need to inspect the same service context.
+
+### Performance Investigation
+
+```bash
+wake -n production "api-.*" --since 24h --web
+```
+
+Use OpenObserve's time range controls to narrow down spikes after the logs are loaded.
+
+## Troubleshooting
+
+### OpenObserve Is Not Reachable
+
+```bash
+docker ps | grep openobserve
+docker logs -f openobserve
+```
+
+If the container is not running:
+
+```bash
+docker start openobserve
+```
+
+### Port 5080 Is Already In Use
+
+Run OpenObserve on another host port:
+
+```bash
+docker run -d \
+  --name openobserve \
+  -v $PWD/data:/data \
+  -p 5081:5080 \
+  -e ZO_ROOT_USER_EMAIL="root@example.com" \
+  -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
+  public.ecr.aws/zinclabs/openobserve:latest
+
+wake setconfig web.endpoint "http://localhost:5081"
+```
+
+### Reset Local OpenObserve Data
+
+```bash
+docker stop openobserve
+docker rm openobserve
+rm -rf data
+```
+
+Then run the setup command again.

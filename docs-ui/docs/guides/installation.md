@@ -4,15 +4,16 @@ sidebar_position: 1
 
 # Installation
 
-Wake is currently built and tested for **macOS**, with **Linux support actively in development**. Choose the installation method that works best for your platform.
+Wake currently supports **Apple Silicon Macs**. Intel Mac support is still in progress and should not be treated as usable yet.
 
 ## Platform Support Status
 
-- **✅ macOS**: Fully supported and tested
-- **🚧 Linux**: Currently in development 
-- **📋 Windows**: Planned for future releases
+- **Apple Silicon Mac**: Fully functional and recommended
+- **Intel Mac**: Work in progress, not ready for use yet
+- **Linux**: Currently in development
+- **Windows**: Planned for future releases
 
-## macOS Installation (Recommended)
+## Apple Silicon macOS Installation (Recommended)
 
 ### Option 1: Homebrew (Easiest)
 
