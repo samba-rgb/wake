@@ -19,6 +19,59 @@ This directory contains performance testing tools and configurations for benchma
    python3 visualize_performance.py ./benchmark_results/benchmark_TIMESTAMP.csv
    ```
 
+## Tool-Backed Scenario Analysis
+
+For CPU and wall-clock analysis of the four command modes, use the dedicated
+runner:
+
+```bash
+WAKE_ARGS='-n apps "nginx"' \
+WALLCLOCK_WAKE_ARGS='-n apps "nginx" --follow false --tail 1000' \
+WAKE_FILTER_PATTERN='"System health-check"' \
+./perf-analysis.sh all
+```
+
+It covers:
+
+- `wake`
+- `wake --ui`
+- `wake -i '"System health-check"'`
+- `wake --web`
+
+The runner uses:
+
+- `samply` for CPU sampling profiles and flame/timeline analysis
+- `hyperfine` for wall-clock benchmark runs
+- `heaptrack` or `xcrun xctrace` for allocation profiling when available
+- `timebox.py` to terminate long-running streaming commands after a fixed duration
+
+Install the tools if needed:
+
+```bash
+cargo install samply
+brew install hyperfine
+# Allocation profiling:
+#   Linux: install heaptrack
+#   macOS: install Xcode Instruments for xcrun xctrace
+```
+
+`wake` normally follows logs forever, so keep `WAKE_ARGS` for sustained profiling
+and set `WALLCLOCK_WAKE_ARGS` to a finite workload such as `--follow false --tail
+1000`. Results are written under `dev/perf/perf_analysis_results/<timestamp>/`.
+
+The default include filter, `"System health-check"`, comes from the English log
+line emitted by `dev/muli-lang-pod.yaml`. Override it with
+`WAKE_FILTER_PATTERN` to test another emitted token.
+
+Run modes:
+
+```bash
+./perf-analysis.sh profile    # samply CPU profiles
+./perf-analysis.sh wallclock  # hyperfine wall-clock timings
+./perf-analysis.sh alloc      # heaptrack/xctrace allocation profiles
+./perf-analysis.sh all        # run everything available
+```
+
 ## Performance Test Environment
 
 The performance test environment generates **~14,000 logs per second** across multiple scenarios:

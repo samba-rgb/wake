@@ -230,6 +230,8 @@ pub async fn run_app(
     // Main application loop
     let mut last_render = std::time::Instant::now();
     let render_interval = Duration::from_millis(16); // ~60 FPS max
+    let idle_render_interval = Duration::from_millis(500);
+    let mut needs_render = true;
     let mut pending_logs = Vec::new(); // Buffer for batching log entries
     
     loop {
@@ -509,6 +511,7 @@ pub async fn run_app(
                         }
                         
                         // Schedule render for next frame instead of immediate render
+                        needs_render = true;
                         last_render = std::time::Instant::now().checked_sub(render_interval).unwrap_or_else(std::time::Instant::now);
                     }
                 },
@@ -565,6 +568,7 @@ pub async fn run_app(
                         },
                         _ => {}  // Ignore all other mouse events
                     }
+                    needs_render = true;
                 },
                 _ => {}  // Ignore other event types
             }
@@ -686,14 +690,19 @@ pub async fn run_app(
                 let viewport_height = terminal.size()?.height.saturating_sub(4) as usize;
                 display_manager.scroll_to_bottom(viewport_height);
             }
+
+            needs_render = true;
         }
 
-        // Render UI at controlled intervals
-        if last_render.elapsed() >= render_interval {
+        // Render when state changed, plus a slow heartbeat to keep terminal state fresh.
+        if needs_render && last_render.elapsed() >= render_interval
+            || last_render.elapsed() >= idle_render_interval
+        {
             terminal.draw(|f| {
                 display_manager.render(f, &input_handler);
             })?;
             last_render = std::time::Instant::now();
+            needs_render = false;
         }
 
         // Reduced sleep time for better responsiveness

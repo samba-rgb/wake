@@ -18,6 +18,11 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 /// Global regex instance for ANSI stripping - compiled once
 static ANSI_REGEX: OnceLock<Regex> = OnceLock::new();
+static ERROR_LEVEL_REGEX: OnceLock<Regex> = OnceLock::new();
+static WARNING_LEVEL_REGEX: OnceLock<Regex> = OnceLock::new();
+static INFO_LEVEL_REGEX: OnceLock<Regex> = OnceLock::new();
+static DEBUG_LEVEL_REGEX: OnceLock<Regex> = OnceLock::new();
+static SUCCESS_LEVEL_REGEX: OnceLock<Regex> = OnceLock::new();
 
 /// Hash-based line mapping for perfect selection accuracy
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1777,12 +1782,16 @@ impl DisplayManager {
     fn detect_log_level_color(&self, message: &str) -> Color {
         let message_lower = message.to_lowercase();
 
-        // Match whole words using regex to avoid substring issues
-        let error_regex = Regex::new(r"\b(error|err|fatal|panic)\b").unwrap();
-        let warning_regex = Regex::new(r"\b(warn|warning)\b").unwrap();
-        let info_regex = Regex::new(r"\b(info|information)\b").unwrap();
-        let debug_regex = Regex::new(r"\b(debug|trace)\b").unwrap();
-        let success_regex = Regex::new(r"\b(success|ok|complete)\b").unwrap();
+        let error_regex = ERROR_LEVEL_REGEX
+            .get_or_init(|| Regex::new(r"\b(error|err|fatal|panic)\b").unwrap());
+        let warning_regex = WARNING_LEVEL_REGEX
+            .get_or_init(|| Regex::new(r"\b(warn|warning)\b").unwrap());
+        let info_regex = INFO_LEVEL_REGEX
+            .get_or_init(|| Regex::new(r"\b(info|information)\b").unwrap());
+        let debug_regex = DEBUG_LEVEL_REGEX
+            .get_or_init(|| Regex::new(r"\b(debug|trace)\b").unwrap());
+        let success_regex = SUCCESS_LEVEL_REGEX
+            .get_or_init(|| Regex::new(r"\b(success|ok|complete)\b").unwrap());
 
         if error_regex.is_match(&message_lower) {
             self.color_scheme.error_color()
